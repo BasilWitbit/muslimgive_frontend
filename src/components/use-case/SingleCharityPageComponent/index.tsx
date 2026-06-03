@@ -24,7 +24,7 @@ import { capitalizeWords, kebabToTitle } from '@/lib/helpers'
 import { getCurrencySymbol } from '@/lib/utils'
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
-import { addCharityCommentAction, assignRolesToCharityAction, deleteCharityAction, listCharityCommentsAction, reassignRoleToCharityAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
+import { addCharityCommentAction, assignRolesToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
 import { Trash2 } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
@@ -289,7 +289,8 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 ? 'Fail'
                 : 'Pending'
     const isPassFailDone = passFailValue !== 'Pending'
-    const projectManagerName = members.find(m => m.role === 'project-manager')?.name || 'Unassigned'
+    const projectManagerNames = getMemberNamesByRole('project-manager')
+    const projectManagerName = projectManagerNames.length ? projectManagerNames.join(', ') : 'Unassigned'
 
     const formatStableDate = (value?: string | null) => {
         if (!value) return '-'
@@ -434,44 +435,9 @@ const SingleCharityPageComponent: FC<IProps> = ({
         }
     }
 
-    const reassignSingleRole = async (userId: string, roleSlug: 'project-manager' | 'finance-assessor' | 'zakat-assessor') => {
-        try {
-            const existingRoleMembers = members.filter(member => member.role === roleSlug)
-            const removeUserIds = existingRoleMembers
-                .map(member => member.id)
-                .filter(existingId => existingId !== userId)
-
-            const res = await reassignRoleToCharityAction(charityId, {
-                userId,
-                role: roleSlug,
-                removeUserIds,
-            })
-
-            if (res.ok) {
-                const labels = {
-                    'project-manager': 'Project manager',
-                    'finance-assessor': 'Financial assessor',
-                    'zakat-assessor': 'Zakat assessor',
-                } as const
-                toast.success(`${labels[roleSlug]} reassigned successfully`)
-                handleCloseModel()
-                router.refresh()
-            } else {
-                toast.error(res.message || `Failed to reassign ${roleSlug}`)
-            }
-        } catch (error) {
-            console.error(error)
-            toast.error("An unexpected error occurred")
-        }
-    }
-
     const handleRoleSelection = async (userId: string, roleSlug: 'project-manager' | 'finance-assessor' | 'zakat-assessor') => {
         setIsAssigningRole(true)
         try {
-            if (assignmentMode === 'reassign') {
-                await reassignSingleRole(userId, roleSlug)
-                return
-            }
             await assignSingleRole(userId, roleSlug)
         } finally {
             setIsAssigningRole(false)
@@ -902,8 +868,8 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                             variant="ghost"
                                                                             size="icon"
                                                                             className="h-6 w-6"
-                                                                            aria-label={`Reassign ${AUDIT_DEFINITIONS[item.id].title}`}
-                                                                            onClick={() => openAssignmentModal(roleByAssessment[item.id], 'reassign')}
+                                                                            aria-label={`Add ${AUDIT_DEFINITIONS[item.id].title} assignee`}
+                                                                            onClick={() => openAssignmentModal(roleByAssessment[item.id], 'assign')}
                                                                         >
                                                                             <Pencil className="h-3.5 w-3.5" />
                                                                         </Button>
@@ -1007,8 +973,8 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                             variant="ghost"
                                                                             size="icon"
                                                                             className="h-6 w-6"
-                                                                            aria-label={`Reassign ${AUDIT_DEFINITIONS[item.id].title}`}
-                                                                            onClick={() => openAssignmentModal(roleByAssessment[item.id], 'reassign')}
+                                                                            aria-label={`Add ${AUDIT_DEFINITIONS[item.id].title} assignee`}
+                                                                            onClick={() => openAssignmentModal(roleByAssessment[item.id], 'assign')}
                                                                         >
                                                                             <Pencil className="h-3.5 w-3.5" />
                                                                         </Button>

@@ -75,7 +75,7 @@ export function AutoCompleteComponent({
 
     return (
         <div className={cn("w-full", className)}>
-            <Popover open={open} onOpenChange={setOpen}>
+            <Popover open={open} onOpenChange={setOpen} modal={true}>
                 <PopoverTrigger asChild>
                     <Button
                         variant="outline"
@@ -88,7 +88,11 @@ export function AutoCompleteComponent({
                         <ChevronsUpDown className="opacity-50" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className={cn("w-full p-0", contentClassName)}>
+                <PopoverContent 
+                    className={cn("w-full p-0", contentClassName)}
+                    onWheel={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
+                >
                     <Command shouldFilter={!onSearchChange}>
                         {/* If onSearchChange is provided, we disable default client-side filtering with shouldFilter={false} */}
                         <CommandInput

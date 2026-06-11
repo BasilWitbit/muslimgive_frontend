@@ -31,11 +31,11 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
         return notFound()
     }
 
-    const c = res.payload?.data?.data || res.payload?.data;
-
-    if (!res.ok || !c) {
+    if (!res.ok || !res.payload?.data?.data) {
         return notFound()
     }
+
+    const c = res.payload.data.data;
     const charity = {
         id: c.id,
         charityTitle: c.name,

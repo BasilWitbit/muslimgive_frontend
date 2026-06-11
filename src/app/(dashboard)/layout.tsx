@@ -40,10 +40,13 @@ export default async function DashboardScreensLayout({
     const pendingPayload = pendingRes.ok ? (pendingRes.payload?.data as any) : null;
     const pendingCount = pendingPayload?.data?.meta?.total ?? pendingPayload?.meta?.total ?? 0;
 
+    const userRoles = Array.isArray(me?.roles) ? me.roles : [];
+
     return (
         <PermissionsProvider isAdmin={isAdmin} me={me} permissions={resolvedPermissions}>
             <DashboardLayoutComponent
                 permissions={resolvedPermissions}
+                roles={userRoles}
                 isAdmin={isAdmin}
                 initialDeepScanCount={pendingCount}
             >

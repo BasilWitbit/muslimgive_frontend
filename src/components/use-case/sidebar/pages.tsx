@@ -19,6 +19,7 @@ export type Page = {
         anyOf?: string[];
         allOf?: string[];
         adminOnly?: boolean;
+        roles?: string[];
     }
 }
 
@@ -34,7 +35,10 @@ export const PAGES: Page[] = [
         icon: <DashboardIcon />,
         type: 'menu',
         show: true,
-        permissions: { anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.CHARITY_MANAGE] },
+        permissions: { 
+            anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.CHARITY_MANAGE],
+            roles: ['operation-manager', 'project-manager']
+        },
     },
     {
         name: 'charities',

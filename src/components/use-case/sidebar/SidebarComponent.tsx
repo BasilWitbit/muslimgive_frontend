@@ -16,10 +16,11 @@ type MenuItemType = {
 
 type SideBarComponentProps = {
     permissions: string[];
+    roles: any[];
     isAdmin: boolean;
 }
 
-const SideBarComponent = async ({ permissions, isAdmin }: SideBarComponentProps) => {
+const SideBarComponent = async ({ permissions, roles, isAdmin }: SideBarComponentProps) => {
     const token = await authAdapter.getToken();
     if (!token) {
         redirect('/login')
@@ -30,7 +31,7 @@ const SideBarComponent = async ({ permissions, isAdmin }: SideBarComponentProps)
     const buildPages = (name: PageType) => PAGES
         .filter(eachPage => eachPage.show)
         .filter(eachPage => eachPage.type === name)
-        .filter(eachPage => isAllowed(permissionSet, eachPage.permissions, isAdmin))
+        .filter(eachPage => isAllowed(permissionSet, eachPage.permissions, isAdmin, roles))
         .map(page => ({
             name: page.name,
             title: page.heading,

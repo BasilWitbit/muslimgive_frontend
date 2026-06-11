@@ -21,14 +21,11 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
         redirect(`/login?continue=${encodeURIComponent(`/charities/${id}`)}`)
     }
 
-    console.log("CHARITY RESPONSE:", JSON.stringify(res, null, 2))
-
-    const c = res.payload?.data?.data || res.payload?.data;
-
-    if (!res.ok || !c) {
-        return <div className="p-6">Charity not found or an error occurred. Error: {res.message || 'Unknown'}</div>
+    if (!res.ok || !res.payload?.data?.data) {
+        return <div className="p-6">Charity not found or an error occurred.</div>
     }
 
+    const c = res.payload.data.data;
     console.log('Page Value Verification:', JSON.stringify(c.verificationSummary, null, 2));
     const toRoleSlug = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
     const roleAliases: Record<'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'read-only', string[]> = {

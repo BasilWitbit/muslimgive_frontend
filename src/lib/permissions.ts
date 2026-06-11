@@ -9,6 +9,7 @@ export type PermissionRequirement = {
     anyOf?: PermissionId[];
     allOf?: PermissionId[];
     adminOnly?: boolean;
+    roles?: string[];
 };
 
 export type RouteRequirement = {
@@ -61,10 +62,20 @@ export const isAllowed = (
     permissionSet: Set<PermissionId>,
     requirement?: PermissionRequirement,
     isAdmin: boolean = false,
+    userRoles: any[] = [],
 ): boolean => {
     if (isAdmin) return true;
     if (!requirement) return true;
     if (requirement.adminOnly && !isAdmin) return false;
+
+    if (requirement.roles && requirement.roles.length > 0) {
+        const hasRole = userRoles.some((r: any) => {
+            const slug = typeof r === 'string' ? r : r?.slug;
+            return requirement.roles?.includes(String(slug).toLowerCase());
+        });
+        if (!hasRole) return false;
+    }
+
     if (requirement.allOf && !hasAll(permissionSet, requirement.allOf)) return false;
     if (requirement.anyOf && !hasAny(permissionSet, requirement.anyOf)) return false;
     return true;

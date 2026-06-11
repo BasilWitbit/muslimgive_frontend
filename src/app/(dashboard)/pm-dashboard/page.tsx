@@ -5,12 +5,10 @@ import { getDashboardMetricsAction } from '@/app/actions/charities'
 import { getMeAction } from '@/app/actions/users'
 import { redirect } from 'next/navigation'
 import PmDashboardComponent from '@/components/use-case/PmDashboardComponent'
+import NotAuthorized from '@/components/common/NotAuthorized'
 
 const PmDashboardPage = async () => {
-    const [meRes, metricsRes] = await Promise.all([
-        getMeAction(true),
-        getDashboardMetricsAction()
-    ])
+    const meRes = await getMeAction(true);
 
     if (meRes.unauthenticated) {
         redirect('/login?continue=/pm-dashboard')
@@ -20,12 +18,13 @@ const PmDashboardPage = async () => {
     const isAllowed = roles.some((r: any) => {
         const slug = typeof r === 'string' ? r : r?.slug
         return ['operation-manager', 'project-manager', 'admin'].includes(String(slug).toLowerCase())
-    })
+    }) || Boolean(meRes.payload?.data?.isAdmin);
 
     if (!isAllowed) {
-        redirect('/charities')
+        return <NotAuthorized />
     }
 
+    const metricsRes = await getDashboardMetricsAction()
     const metrics = metricsRes.payload?.data?.data || null
 
     return (

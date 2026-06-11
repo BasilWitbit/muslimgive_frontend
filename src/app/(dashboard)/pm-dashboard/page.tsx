@@ -17,7 +17,7 @@ const PmDashboardPage = async () => {
     const roles = Array.isArray(meRes.payload?.data?.roles) ? meRes.payload.data.roles : []
     const isAllowed = roles.some((r: any) => {
         const slug = typeof r === 'string' ? r : r?.slug
-        return ['operation-manager', 'project-manager', 'admin'].includes(String(slug).toLowerCase())
+        return ['operation-manager', 'operations-manager', 'project-manager', 'admin'].includes(String(slug).toLowerCase())
     }) || Boolean(meRes.payload?.data?.isAdmin);
 
     if (!isAllowed) {

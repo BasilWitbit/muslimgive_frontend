@@ -36,8 +36,7 @@ export const PAGES: Page[] = [
         type: 'menu',
         show: true,
         permissions: { 
-            anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.CHARITY_MANAGE],
-            roles: ['operation-manager', 'project-manager']
+            roles: ['operation-manager', 'operations-manager', 'project-manager']
         },
     },
     {

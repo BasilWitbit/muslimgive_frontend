@@ -63,8 +63,7 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
     {
         pattern: /^\/pm-dashboard$/,
         requirement: { 
-            anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.CHARITY_MANAGE],
-            roles: ['operation-manager', 'project-manager']
+            roles: ['operation-manager', 'operations-manager', 'project-manager']
         },
     },
     {

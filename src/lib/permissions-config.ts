@@ -61,6 +61,10 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
         requirement: { anyOf: [PERMISSIONS.CREATE_CHARITY] },
     },
     {
+        pattern: /^\/pm-dashboard$/,
+        requirement: { anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.CHARITY_MANAGE] },
+    },
+    {
         pattern: /^\/charities\/preview$/,
         requirement: { anyOf: [PERMISSIONS.CREATE_CHARITY] },
     },

@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 import AssignProjectManager from '../../SingleCharityPageComponent/models/AssignProjectManager'
 import { usePermissions } from '@/components/common/permissions-provider'
 import { PERMISSIONS } from '@/lib/permissions-config'
-import { assignRolesToCharityAction, deleteCharityAction } from '@/app/actions/charities'
+import { assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction } from '@/app/actions/charities'
 import LinkComponent from '@/components/common/LinkComponent'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
 import { Trash2 } from 'lucide-react'
@@ -167,16 +167,17 @@ const SingleCharityCard: FC<IProps> = ({
                 <AssignProjectManager
                     users={projectManagers}
                     isSubmitting={isAssigning}
-                    onSelection={async (userId) => {
+                    onSelection={async (userIds) => {
                     try {
                         setIsAssigning(true)
-                        const payload = [{
-                            userId: userId,
-                            add: ['project-manager'],
-                            remove: []
-                        }];
+                        const payload = {
+                            roleAssignments: [{
+                                role: 'project-manager',
+                                userIds: userIds
+                            }]
+                        };
 
-                        const res = await assignRolesToCharityAction(id, payload);
+                        const res = await assignRolesByRoleToCharityAction(id, payload);
 
                         if (res.ok) {
                             toast.success('Project manager assigned successfully!');

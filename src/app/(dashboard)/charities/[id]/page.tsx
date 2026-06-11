@@ -1,6 +1,6 @@
 import SingleCharityPageComponent from '@/components/use-case/SingleCharityPageComponent'
 import { getCharityAction } from '@/app/actions/charities'
-import { listUsersAction } from '@/app/actions/users'
+import { listUsersAction, listReadOnlyUsersAction } from '@/app/actions/users'
 import React from 'react'
 import { SingleCharityType } from '@/components/use-case/CharitiesPageComponent/kanban/KanbanView'
 import { redirect } from 'next/navigation'
@@ -10,9 +10,10 @@ import { redirect } from 'next/navigation'
 const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> }) => {
     const { id } = await params
 
-    const [res, usersRes] = await Promise.all([
+    const [res, usersRes, readOnlyUsersRes] = await Promise.all([
         getCharityAction(id),
         listUsersAction({ limit: 200 }),
+        listReadOnlyUsersAction({ limit: 200 }),
     ])
 
     const isUnauthenticated = Boolean(res?.unauthenticated)
@@ -20,32 +21,43 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
         redirect(`/login?continue=${encodeURIComponent(`/charities/${id}`)}`)
     }
 
-    if (!res.ok || !res.payload?.data?.data) {
-        return <div className="p-6">Charity not found or an error occurred.</div>
+    console.log("CHARITY RESPONSE:", JSON.stringify(res, null, 2))
+
+    const c = res.payload?.data?.data || res.payload?.data;
+
+    if (!res.ok || !c) {
+        return <div className="p-6">Charity not found or an error occurred. Error: {res.message || 'Unknown'}</div>
     }
 
-    const c = res.payload.data.data;
     console.log('Page Value Verification:', JSON.stringify(c.verificationSummary, null, 2));
     const toRoleSlug = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-    const roleAliases: Record<'project-manager' | 'finance-assessor' | 'zakat-assessor', string[]> = {
+    const roleAliases: Record<'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'read-only', string[]> = {
         'project-manager': ['project-manager'],
         'finance-assessor': ['finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor'],
         'zakat-assessor': ['zakat-assessor', 'zakat-auditor'],
+        'read-only': ['read-only', 'user'],
     }
     const normalizeAssignmentRole = (rawRole?: string) => {
         const normalized = toRoleSlug(String(rawRole || ''))
         if (roleAliases['project-manager'].includes(normalized)) return 'project-manager'
         if (roleAliases['finance-assessor'].includes(normalized)) return 'finance-assessor'
         if (roleAliases['zakat-assessor'].includes(normalized)) return 'zakat-assessor'
+        if (roleAliases['read-only'].includes(normalized)) return 'read-only'
         return normalized || 'project-manager'
     }
     const allUsers = Array.isArray(usersRes?.payload?.data) ? usersRes.payload.data : []
-    const mapCandidates = (requiredRole: 'project-manager' | 'finance-assessor' | 'zakat-assessor') => {
+    const allReadOnlyUsers = Array.isArray(readOnlyUsersRes?.payload?.data) ? readOnlyUsersRes.payload.data : []
+
+    const mapCandidates = (requiredRole: 'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'read-only', sourceUsers: any[]) => {
         const aliases = roleAliases[requiredRole]
         const accepted = new Set(aliases)
-        const users = allUsers
+        const users = sourceUsers
         const filtered = users.filter((u: any) => {
             const roles: string[] = Array.isArray(u?.roles) ? u.roles : []
+            // Even if we query /read-only, we should be safe and double check roles, 
+            // but if the backend already filters it, this acts as a safe fallback or just accepts them if roles are missing.
+            // If it's the read-only endpoint, it might return users without roles explicitly attached in the response.
+            if (requiredRole === 'read-only' && roles.length === 0) return true;
             return roles.some(r => accepted.has(toRoleSlug(String(r))))
         })
         const deduped = new Map<string, { id: string; name: string; email: string | null }>()
@@ -53,16 +65,17 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
             if (!u?.id) return
             deduped.set(u.id, {
                 id: u.id,
-                name: `${u.firstName} ${u.lastName}`.trim(),
+                name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || u.email || 'Unknown User',
                 email: u.email ?? null,
             })
         })
         return Array.from(deduped.values())
     }
     const assignmentCandidatesByRole = {
-        projectManager: usersRes.ok ? mapCandidates('project-manager') : [],
-        financeAssessor: usersRes.ok ? mapCandidates('finance-assessor') : [],
-        zakatAssessor: usersRes.ok ? mapCandidates('zakat-assessor') : [],
+        projectManager: usersRes.ok ? mapCandidates('project-manager', allUsers) : [],
+        financeAssessor: usersRes.ok ? mapCandidates('finance-assessor', allUsers) : [],
+        zakatAssessor: usersRes.ok ? mapCandidates('zakat-assessor', allUsers) : [],
+        readOnly: readOnlyUsersRes.ok ? mapCandidates('read-only', allReadOnlyUsers) : [],
     };
     const members = (c.assignments || []).flatMap((a: any) => {
         const userId = a.user?.id

@@ -1,6 +1,7 @@
 import Charities from "../../common/IconComponents/pages_icons/Charities"
 import Profile from "../../common/IconComponents/pages_icons/Profile"
 import AccessControl from "../../common/IconComponents/pages_icons/AccessControl"
+import DashboardIcon from "../../common/IconComponents/pages_icons/Dashboard"
 import EmailIcon from "../../common/IconComponents/EmailIcon"
 import EmailIconBlack from "@/components/common/IconComponents/EmailIconBlack"
 import { PERMISSIONS } from "@/lib/permissions-config"
@@ -26,6 +27,15 @@ export const selectPageByName = (name: string): Page | undefined => {
 }
 
 export const PAGES: Page[] = [
+    {
+        name: 'pm-dashboard',
+        path: "/pm-dashboard",
+        heading: 'PM Dashboard',
+        icon: <DashboardIcon />,
+        type: 'menu',
+        show: true,
+        permissions: { anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.CHARITY_MANAGE] },
+    },
     {
         name: 'charities',
         path: "/charities",

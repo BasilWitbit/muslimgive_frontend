@@ -24,7 +24,7 @@ import { capitalizeWords, kebabToTitle } from '@/lib/helpers'
 import { getCurrencySymbol } from '@/lib/utils'
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
-import { addCharityCommentAction, assignRolesToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
+import { addCharityCommentAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
 import { Trash2 } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
@@ -45,7 +45,7 @@ type IProps = SingleCharityType & {
 };
 
 type ModelControl = {
-    nameOfModel: null | TaskIds | 'manage-team' | 'configure-role' | 'eligibility-override' | 'eligibility-test' | 'assign-finance-assessor' | 'assign-zakat-assessor' | 'assign-finance-auditor' | 'assign-zakat-auditor' | 'edit-charity-details';
+    nameOfModel: null | TaskIds | 'manage-team' | 'configure-role' | 'eligibility-override' | 'eligibility-test' | 'assign-finance-assessor' | 'assign-zakat-assessor' | 'assign-finance-auditor' | 'assign-zakat-auditor' | 'assign-read-only' | 'edit-charity-details';
 }
 type AssignmentMode = 'assign' | 'reassign'
 
@@ -160,6 +160,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     const projectManagerCandidates = assignmentCandidatesByRole?.projectManager ?? []
     const financeAssessorCandidates = assignmentCandidatesByRole?.financeAssessor ?? []
     const zakatAssessorCandidates = assignmentCandidatesByRole?.zakatAssessor ?? []
+    const readOnlyCandidates = assignmentCandidatesByRole?.readOnly ?? []
 
     const resolveCountry = (value?: string) => {
         if (!value) return 'united-states'
@@ -178,7 +179,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
 
     const resolvedCountry = resolveCountry(country)
 
-    const handleOpenModel = (nameOfModel: TaskIds | 'manage-team' | 'configure-role' | 'eligibility-override' | 'eligibility-test' | 'assign-finance-assessor' | 'assign-zakat-assessor' | 'edit-charity-details') => {
+    const handleOpenModel = (nameOfModel: TaskIds | 'manage-team' | 'configure-role' | 'eligibility-override' | 'eligibility-test' | 'assign-finance-assessor' | 'assign-zakat-assessor' | 'assign-read-only' | 'edit-charity-details') => {
         setModelState(prevState => ({ ...prevState, nameOfModel }));
     }
 
@@ -188,7 +189,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
         setAssignmentMode('assign')
     }
 
-    const openAssignmentModal = (role: 'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'finance-auditor' | 'zakat-auditor', mode: AssignmentMode = 'assign') => {
+    const openAssignmentModal = (role: 'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'finance-auditor' | 'zakat-auditor' | 'read-only', mode: AssignmentMode = 'assign') => {
         setAssignmentMode(mode)
         if (role === 'project-manager') {
             handleOpenModel('assign-project-manager')
@@ -196,6 +197,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
         }
         if (role === 'finance-assessor' || role === 'finance-auditor') {
             handleOpenModel('assign-finance-assessor')
+            return
+        }
+        if (role === 'read-only') {
+            handleOpenModel('assign-read-only')
             return
         }
         handleOpenModel('assign-zakat-assessor')
@@ -233,21 +238,23 @@ const SingleCharityPageComponent: FC<IProps> = ({
         anyOf: [PERMISSIONS.AUDIT_SUBMISSION_CREATE, PERMISSIONS.AUDIT_SUBMISSION_COMPLETE],
     })
 
-    const roleAliasesByCanonical: Record<'project-manager' | 'finance-auditor' | 'zakat-auditor' | 'admin', string[]> = {
+    const roleAliasesByCanonical: Record<'project-manager' | 'finance-auditor' | 'zakat-auditor' | 'admin' | 'read-only', string[]> = {
         'project-manager': ['project-manager'],
         'finance-auditor': ['finance-auditor', 'financial-auditor', 'finance-assessor', 'financial-assessor'],
         'zakat-auditor': ['zakat-auditor', 'zakat-assessor'],
         'admin': ['admin'],
+        'read-only': ['read-only', 'user'],
     }
 
     const roleSlots = [
         { slug: 'project-manager', label: 'Project Manager' },
         { slug: 'finance-auditor', label: 'Finance Assessor' },
         { slug: 'zakat-auditor', label: 'Zakat Assessor' },
+        { slug: 'read-only', label: 'User' },
         { slug: 'admin', label: 'Admin' },
     ]
 
-    const getMemberNamesByRole = (role: 'project-manager' | 'finance-auditor' | 'zakat-auditor' | 'admin') => {
+    const getMemberNamesByRole = (role: 'project-manager' | 'finance-auditor' | 'zakat-auditor' | 'admin' | 'read-only') => {
         const aliases = new Set(roleAliasesByCanonical[role])
         return Array.from(new Set(
             members
@@ -259,7 +266,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
 
     const membersByRole = roleSlots.map(slot => ({
         ...slot,
-        names: getMemberNamesByRole(slot.slug as 'project-manager' | 'finance-auditor' | 'zakat-auditor' | 'admin')
+        names: getMemberNamesByRole(slot.slug as 'project-manager' | 'finance-auditor' | 'zakat-auditor' | 'admin' | 'read-only')
     }))
     const projectManagerAssigned = membersByRole.find(m => m.slug === 'project-manager')?.names.length
         ? true
@@ -409,19 +416,23 @@ const SingleCharityPageComponent: FC<IProps> = ({
         }
     }, [charityId])
 
-    const assignSingleRole = async (userId: string, roleSlug: 'project-manager' | 'finance-assessor' | 'zakat-assessor') => {
+    const assignRole = async (userIds: string[], roleSlug: 'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'read-only') => {
         try {
-            const res = await assignRolesToCharityAction(charityId, [{
-                userId,
-                add: [roleSlug],
-                remove: []
-            }])
+            const payload = {
+                roleAssignments: [{
+                    role: roleSlug,
+                    userIds
+                }]
+            };
+
+            const res = await assignRolesByRoleToCharityAction(charityId, payload);
 
             if (res.ok) {
                 const labels = {
                     'project-manager': 'Project manager',
                     'finance-assessor': 'Financial assessor',
                     'zakat-assessor': 'Zakat assessor',
+                    'read-only': 'User',
                 } as const
                 toast.success(`${labels[roleSlug]} assigned successfully`)
                 handleCloseModel()
@@ -435,10 +446,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
         }
     }
 
-    const handleRoleSelection = async (userId: string, roleSlug: 'project-manager' | 'finance-assessor' | 'zakat-assessor') => {
+    const handleRoleSelection = async (userIds: string[], roleSlug: 'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'read-only') => {
         setIsAssigningRole(true)
         try {
-            await assignSingleRole(userId, roleSlug)
+            await assignRole(userIds, roleSlug)
         } finally {
             setIsAssigningRole(false)
         }
@@ -512,6 +523,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
             handleOpenModel('edit-charity-details')
             return
         }
+        if (selection === 'assign-read-only') {
+            handleOpenModel('assign-read-only')
+            return
+        }
         if (selection === 'view-email-logs') {
             router.push(`/email-logs?charity=${encodeURIComponent(charityTitle)}`)
             return
@@ -529,6 +544,17 @@ const SingleCharityPageComponent: FC<IProps> = ({
                     <div className='flex gap-1 items-center'>
                         <Pencil className="h-4 w-4 text-[#666E76]" />
                         <span>Edit Charity Details</span>
+                    </div>
+                )
+            }
+            : null,
+        canAssignAssessorRole || canAssignPMRole
+            ? {
+                value: 'assign-read-only',
+                label: (
+                    <div className='flex gap-1 items-center'>
+                        <UserCheck className="h-4 w-4 text-[#666E76]" />
+                        <span>Assign User</span>
                     </div>
                 )
             }
@@ -1059,9 +1085,9 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 open={modelState.nameOfModel === 'assign-project-manager'}
             >
                 {canAssignPMRole ? (
-                    <AssignProjectManager onSelection={async (userId) => {
-                        await handleRoleSelection(userId, 'project-manager')
-                    }} users={projectManagerCandidates} onCancel={() => {
+                    <AssignProjectManager onSelection={async (userIds) => {
+                        await handleRoleSelection(userIds, 'project-manager')
+                    }} users={projectManagerCandidates} initialSelectedIds={members.filter(m => roleAliasesByCanonical['project-manager'].includes(m.role)).map(m => m.id)} onCancel={() => {
                         handleCloseModel()
                     }} isSubmitting={isAssigningRole} />
                 ) : null}
@@ -1077,8 +1103,9 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         roleLabel="financial assessor"
                         actionLabel="Assign Financial Assessor"
                         users={financeAssessorCandidates}
-                        onSelection={async (userId) => {
-                            await handleRoleSelection(userId, 'finance-assessor')
+                        initialSelectedIds={members.filter(m => roleAliasesByCanonical['finance-auditor'].includes(m.role)).map(m => m.id)}
+                        onSelection={async (userIds) => {
+                            await handleRoleSelection(userIds, 'finance-assessor')
                         }}
                         onCancel={handleCloseModel}
                         isSubmitting={isAssigningRole}
@@ -1096,8 +1123,29 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         roleLabel="zakat assessor"
                         actionLabel="Add Zakat Assessor"
                         users={zakatAssessorCandidates}
-                        onSelection={async (userId) => {
-                            await handleRoleSelection(userId, 'zakat-assessor')
+                        initialSelectedIds={members.filter(m => roleAliasesByCanonical['zakat-auditor'].includes(m.role)).map(m => m.id)}
+                        onSelection={async (userIds) => {
+                            await handleRoleSelection(userIds, 'zakat-assessor')
+                        }}
+                        onCancel={handleCloseModel}
+                        isSubmitting={isAssigningRole}
+                    />
+                ) : null}
+            </ModelComponentWithExternalControl>
+
+            <ModelComponentWithExternalControl
+                title="Add User"
+                onOpenChange={handleCloseModel}
+                open={modelState.nameOfModel === 'assign-read-only'}
+            >
+                {canAssignAssessorRole ? (
+                    <AssignProjectManager
+                        roleLabel="user"
+                        actionLabel="Add User"
+                        users={readOnlyCandidates}
+                        initialSelectedIds={members.filter(m => roleAliasesByCanonical['read-only'].includes(m.role)).map(m => m.id)}
+                        onSelection={async (userIds) => {
+                            await handleRoleSelection(userIds, 'read-only')
                         }}
                         onCancel={handleCloseModel}
                         isSubmitting={isAssigningRole}

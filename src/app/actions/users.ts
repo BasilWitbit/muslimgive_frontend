@@ -48,6 +48,21 @@ export const listUsersAction = async (params?: ListUsersParams): Promise<Respons
     return await _get(endpoint);
 }
 
+/**
+ * GET /admin/users/read-only
+ * Lists all read-only users.
+ */
+export const listReadOnlyUsersAction = async (params?: ListUsersParams): Promise<ResponseType> => {
+    const query = new URLSearchParams();
+
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.search) query.append('search', params.search);
+
+    const endpoint = `/admin/users/read-only?${query.toString()}`;
+    return await _get(endpoint);
+}
+
 // Cached version of getMeAction for layout - revalidates every 60 seconds
 const getCachedMe = unstable_cache(
     async (token: string) => _getWithAccessToken('/users/me', token),

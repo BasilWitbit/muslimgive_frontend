@@ -214,6 +214,23 @@ export const assignRolesToCharityAction = async (charityId: string, payload: Ass
 }
 
 /**
+ * PATCH /charities/{charityId}/assign (Role-Centric Bulk Assignment)
+ * Replaces full list of users for specific roles in a charity
+ */
+export type RoleAssignment = {
+    role: 'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'finance-auditor' | 'zakat-auditor' | 'read-only' | string;
+    userIds: string[];
+}
+
+export type AssignRolesByRolePayload = {
+    roleAssignments: RoleAssignment[];
+}
+
+export const assignRolesByRoleToCharityAction = async (charityId: string, payload: AssignRolesByRolePayload): Promise<ResponseType> => {
+    return await _patch(`/charities/${charityId}/assign`, payload);
+}
+
+/**
  * PATCH /charities/{charityId}/assign
  * Reassigns a single role to a specific user (optionally removing from others)
  */
@@ -297,3 +314,11 @@ export const sendBulkEmailReportAction = async (payload: SendBulkEmailPayload): 
     return await _post('/report', payload);
 }
 
+
+/**
+ * GET /admin/charities/dashboard-metrics
+ * Fetches aggregated KPI metrics for the PM dashboard.
+ */
+export const getDashboardMetricsAction = async (): Promise<ResponseType> => {
+    return await _get('/admin/charities/dashboard-metrics');
+}

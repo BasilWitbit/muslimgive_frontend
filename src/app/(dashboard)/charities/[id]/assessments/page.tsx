@@ -49,8 +49,9 @@ const AssessmentHistoryPage = () => {
             try {
                 setIsLoading(true)
                 const response = await getCharityAction(charityId)
-                if (response.ok && response.payload?.data?.data) {
-                    const charityData = response.payload.data.data
+                const c = response.payload?.data?.data || response.payload?.data;
+                if (response.ok && c) {
+                    const charityData = c
                     setReviews(charityData.reviews)
                     const raw = String(charityData.countryCode || 'united-states').toLowerCase()
                     const normalized = raw === 'uk' || raw === 'united kingdom' || raw === 'united-kingdom'

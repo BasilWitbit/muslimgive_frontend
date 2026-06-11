@@ -35,6 +35,7 @@ type AssignmentCandidatesByRole = {
     projectManager: AssignmentCandidate[]
     financeAssessor: AssignmentCandidate[]
     zakatAssessor: AssignmentCandidate[]
+    readOnly: AssignmentCandidate[]
 }
 
 export type StatusType = 'pending-eligibility' | 'unassigned' | 'open-to-review' | 'pending-admin-review' | 'approved' | 'ineligible'

@@ -1,9 +1,6 @@
 import React, { FC } from 'react'
-import { SingleFormPageCommonProps } from '.'
 
-type IProps = SingleFormPageCommonProps
-
-const Page: FC<IProps> = () => {
+const Page: FC = () => {
     return (
         <div>
             {/* TODO: Implement Zakat page content */}

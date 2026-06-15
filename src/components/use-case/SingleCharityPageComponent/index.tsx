@@ -232,11 +232,12 @@ const SingleCharityPageComponent: FC<IProps> = ({
     const canAssignAssessorRole = canAssignPMRole || canManageCharity
     const canViewEmailLogs = isAllowed({ anyOf: [PERMISSIONS.SEND_EMAIL_CHARITY_OWNER] })
     const canDeleteCharity = isAllowed({ anyOf: [PERMISSIONS.DELETE_CHARITY] }) || currentUserRoles.includes('operation-manager')
-    const canEditCharity = isAllowed({ anyOf: [PERMISSIONS.UPDATE_CHARITY, PERMISSIONS.CHARITY_MANAGE] })
-        || currentUserRoles.includes('operation-manager')
-    const canSubmitAssessment = isAllowed({
+    const canEditCharity = !currentUserRoles.includes('read-only') && (isAllowed({ anyOf: [PERMISSIONS.UPDATE_CHARITY, PERMISSIONS.CHARITY_MANAGE] })
+        || currentUserRoles.includes('operation-manager'))
+    const canSubmitAssessment = !currentUserRoles.includes('read-only') && isAllowed({
         anyOf: [PERMISSIONS.AUDIT_SUBMISSION_CREATE, PERMISSIONS.AUDIT_SUBMISSION_COMPLETE],
     })
+    const canPostComment = !currentUserRoles.includes('read-only') && isAllowed({ anyOf: [PERMISSIONS.CREATE_CHARITY_COMMENT] })
 
     const roleAliasesByCanonical: Record<'project-manager' | 'finance-auditor' | 'zakat-auditor' | 'admin' | 'read-only', string[]> = {
         'project-manager': ['project-manager'],
@@ -961,7 +962,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                     // but definitely block if isLocked is true.
                                                     const hasManagerRole = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase())) || (me?.roles || []).some(r => typeof r === 'string' && ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
                                                     const isCore2Or3Assessor = (item.id === 'core-area-2' || item.id === 'core-area-3') && isCurrentUserAssignedToRole(requiredRole)
-                                                    const canStartAssessment = (isEditable === true) || hasManagerRole || isCore2Or3Assessor || (isEditable !== false && !isLocked && (canManageCharity || isCurrentUserAssignedToRole(requiredRole)))
+                                                    const canStartAssessment = !currentUserRoles.includes('read-only') && ((isEditable === true) || hasManagerRole || isCore2Or3Assessor || (isEditable !== false && !isLocked && (canManageCharity || isCurrentUserAssignedToRole(requiredRole))))
 
                                                     const assignmentAction = needsProjectManager
                                                         ? {
@@ -1065,19 +1066,21 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             </div>
                         ))
                     )}
-                    <div className="flex flex-col gap-2">
-                        <textarea
-                            className="min-h-[90px] w-full rounded-md border border-[#E4E7EC] px-3 py-2 text-sm outline-none focus:border-[#84ADFF]"
-                            placeholder="Add a comment..."
-                            value={commentInput}
-                            onChange={(event) => setCommentInput(event.target.value)}
-                        />
-                        <div className="flex justify-end">
-                            <Button variant="primary" onClick={handleSubmitComment} disabled={isSubmittingComment}>
-                                {isSubmittingComment ? 'Posting...' : 'Post Comment'}
-                            </Button>
+                    {canPostComment && (
+                        <div className="flex flex-col gap-2">
+                            <textarea
+                                className="min-h-[90px] w-full rounded-md border border-[#E4E7EC] px-3 py-2 text-sm outline-none focus:border-[#84ADFF]"
+                                placeholder="Add a comment..."
+                                value={commentInput}
+                                onChange={(event) => setCommentInput(event.target.value)}
+                            />
+                            <div className="flex justify-end">
+                                <Button variant="primary" onClick={handleSubmitComment} disabled={isSubmittingComment}>
+                                    {isSubmittingComment ? 'Posting...' : 'Post Comment'}
+                                </Button>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </CardComponent>
             <ModelComponentWithExternalControl title="Assign Project Manager"

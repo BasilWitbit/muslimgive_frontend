@@ -30,6 +30,7 @@ export const PERMISSIONS = {
     AUDIT_CHARITY_VIEW: "assessment:charity:view",
     AUDIT_SUBMISSION_CREATE: "assessment:submission:create",
     AUDIT_SUBMISSION_COMPLETE: "assessment:submission:complete",
+    CREATE_CHARITY_COMMENT: "create:charity_comment",
 } as const;
 
 export const ROUTE_REQUIREMENTS: RouteRequirement[] = [

@@ -5,7 +5,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Mail, ExternalLink, ChevronLeft, ChevronRight, Trash2, ChevronDown, Loader2, History } from 'lucide-react'
+import { Mail, ExternalLink, ChevronLeft, ChevronRight, Trash2, ChevronDown, Loader2, History, Users } from 'lucide-react'
 import Link from 'next/link'
 import {
     Select,
@@ -14,6 +14,7 @@ import {
     SelectContent,
     SelectItem,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { SingleCharityType } from '../kanban/KanbanView'
 import Can from '@/components/common/Can'
 import { PERMISSIONS } from '@/lib/permissions-config'
@@ -270,20 +271,48 @@ const TabularView: FC<Props> = ({ charities, onRefresh }) => {
                                     <TableCell className="py-4">{c.charityOwnerName}</TableCell>
 
                                     <TableCell className="py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex -space-x-2">
-                                                {c.members.slice(0, 3).map((m) => (
-                                                    <Avatar key={m.id} className="w-8 h-8 border-2 border-white">
-                                                        {m.profilePicture ? (
-                                                            <AvatarImage src={m.profilePicture} alt={m.name} />
-                                                        ) : (
-                                                            <AvatarFallback>{m.name.split(' ').map(n => n[0]).slice(0, 2).join('')}</AvatarFallback>
-                                                        )}
-                                                    </Avatar>
-                                                ))}
-                                            </div>
-                                            <div className="text-sm text-muted-foreground">{c.members.length}</div>
-                                        </div>
+                                        {c.members.length > 0 ? (
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <button
+                                                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#E7EEF8] bg-[#F9FAFB] hover:bg-[#EEF2F8] transition-colors text-sm text-[#344054] font-medium"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <Users className="h-3.5 w-3.5 text-[#667085]" />
+                                                        {c.members.length} member{c.members.length !== 1 ? 's' : ''}
+                                                    </button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-64 p-0" align="start" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="px-3 py-2 border-b border-[#E7EEF8]">
+                                                        <span className="text-xs font-semibold text-[#344054]">Team Members</span>
+                                                    </div>
+                                                    <div className="max-h-48 overflow-y-auto">
+                                                        {c.members.map((m) => {
+                                                            const roleLabel = m.role?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Member'
+                                                            return (
+                                                                <div key={m.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#F9FAFB] border-b border-[#F2F4F7] last:border-b-0">
+                                                                    <Avatar className="w-7 h-7 shrink-0">
+                                                                        {m.profilePicture ? (
+                                                                            <AvatarImage src={m.profilePicture} alt={m.name} />
+                                                                        ) : (
+                                                                            <AvatarFallback className="text-[10px] bg-[#E7EEF8] text-[#344054]">
+                                                                                {m.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                                                            </AvatarFallback>
+                                                                        )}
+                                                                    </Avatar>
+                                                                    <div className="flex flex-col min-w-0">
+                                                                        <span className="text-sm font-medium text-[#101928] truncate">{m.name}</span>
+                                                                        <span className="text-[10px] text-[#667085]">{roleLabel}</span>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground italic">No members</span>
+                                        )}
                                     </TableCell>
 
                                     <TableCell className="py-4 text-center">{`${c.assessmentsCompleted}/4`}</TableCell>
@@ -330,9 +359,13 @@ const TabularView: FC<Props> = ({ charities, onRefresh }) => {
 
                                     {/* Audit Start Date */}
                                     <TableCell className="py-4">
-                                        <span className="text-sm text-[#344054]">
-                                            {formatDate(timeline?.startedAt)}
-                                        </span>
+                                        {timeline?.startedAt ? (
+                                            <span className="text-sm text-[#344054]">
+                                                {formatDate(timeline.startedAt)}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground italic">Not started yet</span>
+                                        )}
                                     </TableCell>
 
                                     {/* Audit Completion Date */}

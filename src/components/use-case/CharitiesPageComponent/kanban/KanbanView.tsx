@@ -127,6 +127,23 @@ export type SingleCharityType = {
     reassessmentCycle?: number,
     overallScorePercent?: number | null,
     overallScoreResult?: 'pass' | 'fail' | null,
+    communication?: {
+        reportEmailSent?: boolean
+        lastReportEmailSentAt?: string | null
+        emailsSentCount?: number
+        lastEmailSentAt?: string | null
+        lastEmailSubject?: string | null
+        lastEmailStatus?: string | null
+        sequenceStatus?: string | null
+        sequenceStep?: number | null
+        nextEmailAt?: string | null
+    } | null,
+    auditTimeline?: {
+        startedAt?: string | null
+        completedAt?: string | null
+        auditsCompleted?: number
+        auditsTotal?: number
+    } | null,
     reviews?: {
         eligibility: string
         core1: CoreAreaReview

@@ -86,16 +86,16 @@ export function TableComponent<TData, TValue = unknown>({
                 <TableBody>
                     {rows?.length ? (
                         rows.map((row) => (
-                        <TableRow
-                            key={row.id}
-                            data-state={row.getIsSelected() && "selected"}
-                            onClick={(e) => {
-                                if (!onRowClick) return
-                                const target = e.target as HTMLElement | null
-                                if (target && target.closest("button,input,textarea,select,a")) return
-                                onRowClick(row)
-                            }}
-                        >
+                            <TableRow
+                                key={row.id}
+                                data-state={row.getIsSelected() && "selected"}
+                                onClick={(e) => {
+                                    if (!onRowClick) return
+                                    const target = e.target as HTMLElement | null
+                                    if (target && target.closest("button,input,textarea,select,a")) return
+                                    onRowClick(row)
+                                }}
+                            >
                                 {row.getVisibleCells().map((cell) => (
                                     <TableCell key={cell.id}>
                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

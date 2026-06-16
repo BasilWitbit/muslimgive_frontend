@@ -52,7 +52,7 @@ type CharitiesPageComponentProps = {
 
 const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ projectManagers = [] }) => {
     const [queryInput, setQueryInput] = useState('')
-    const [view, setView] = useState<ViewsType>('kanban');
+    const [view, setView] = useState<ViewsType>('tabular');
     const [openBulkEmailModal, setOpenBulkEmailModal] = useState(false)
     const [charities, setCharities] = useState<SingleCharityType[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -121,7 +121,9 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ project
             ? `${Math.max(1, Math.floor((Date.now() - new Date(c.startDate).getTime()) / (1000 * 60 * 60 * 24 * 365)))} years`
             : c.startYear
                 ? `${Math.max(1, new Date().getFullYear() - Number(c.startYear))} years`
-                : undefined
+                : undefined,
+        communication: c.communication ?? null,
+        auditTimeline: c.auditTimeline ?? null,
     })
 
     const fetchCharities = async (search: string, filters: any = {}) => {
@@ -141,12 +143,16 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ project
             if (res.ok && res.payload?.data?.data?.charities) {
                 // Map backend data to SingleCharityType
                 const rawCharities = res.payload.data.data.charities;
+                console.log('🔍 Raw charities from API (first 3):', rawCharities.slice(0, 3).map((c: any) => ({
+                    name: c.name,
+                    communication: c.communication,
+                    auditTimeline: c.auditTimeline,
+                })))
                 const mapped: SingleCharityType[] = Array.isArray(rawCharities) ? rawCharities.map(mapCharity) : [];
                 setCharities(mapped)
             } else {
                 toast.error(res.message || "Failed to fetch charities")
             }
-
 
         } catch (error) {
             console.error(error)
@@ -372,7 +378,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ project
                         {view === "kanban" ? (
                             <KanbanView charities={searchedRows} onCardNavigate={() => setIsNavigating(true)} projectManagers={projectManagers} />
                         ) : null}
-                        {view === "tabular" ? <TabularView charities={searchedRows} /> : null}
+                        {view === "tabular" ? <TabularView charities={searchedRows} onRefresh={() => fetchCharities(queryInput, { status: statusFilters.length ? statusFilters : undefined, categories: categoryFilters.length ? categoryFilters : undefined, zakat: zakatFilter, islamic: islamicFilter, sortBy, order })} /> : null}
                     </>
                 )}
             </div>

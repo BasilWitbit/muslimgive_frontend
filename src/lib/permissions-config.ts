@@ -63,7 +63,7 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
     },
     {
         pattern: /^\/pm-dashboard$/,
-        requirement: { 
+        requirement: {
             roles: ['operation-manager', 'operations-manager', 'project-manager']
         },
     },

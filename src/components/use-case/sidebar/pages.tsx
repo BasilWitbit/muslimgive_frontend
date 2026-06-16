@@ -35,7 +35,7 @@ export const PAGES: Page[] = [
         icon: <DashboardIcon />,
         type: 'menu',
         show: true,
-        permissions: { 
+        permissions: {
             roles: ['operation-manager', 'operations-manager', 'project-manager']
         },
     },

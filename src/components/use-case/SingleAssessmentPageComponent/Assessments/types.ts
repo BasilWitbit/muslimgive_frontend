@@ -1,6 +1,11 @@
-import { FileStatusEvidence, LinkStatusEvidence } from "./CoreArea1_CharityStatus";
-
 type Arr<T> = T[];
+
+export type CoreArea1Values = {
+    registered_in_country_collecting_funds: 'yes' | 'no';
+    regulatory_status: 'no_concerns' | 'suspended_revoked_under_investigation';
+    charity_number_visible_on_website: 'clearly_visible' | 'partially_visible' | 'not_visible';
+    contact_info_accessible_on_website: 'easily_accessible' | 'limited' | 'not_available';
+}
 
 export type CoreArea3Values = {
     'clear-public-zakat-policy-available': Arr<
@@ -198,15 +203,12 @@ export type CoreArea3Values = {
 
 
 export type CoreArea4Values = {
-    'board-members-names-on-website': 'yes' | 'no';
-    'number-of-board-members':
-    | '3-or-more'
-    | '1-to-2'
-    | '0';
-    'board-members-photos-on-website': 'yes' | 'no';
-    'leadership-team-names-on-website': 'yes' | 'no';
-    'leadership-photos-on-website': 'yes' | 'no';
-    'minimum-3-board-members-at-arms-length': 'yes' | 'no';
+    board_members_names_featured_on_website: 'none' | 'one_to_two_members' | 'three_or_more_members';
+    board_members_photos_featured_on_website: 'none' | 'one_to_two_members' | 'three_or_more_members';
+    leadership_team_names_featured_on_website: 'none' | 'one_to_two_members' | 'three_or_more_members';
+    leadership_photos_featured_on_website: 'none' | 'one_to_two_members' | 'three_or_more_members';
+    ceo_identification: 'yes' | 'no';
+    minimum_3_board_members_at_arms_length: 'yes' | 'no';
 }
 
 export type CoreArea2Values = {
@@ -221,15 +223,4 @@ export type CoreArea2Values = {
     pyAssessmentedStatementsAvailable: string;
     impactReportAvailable: string;
     notes: string;
-}
-
-export type CoreArea1Values = {
-    charityNumber: number;
-    charityCommissionProfileLink: string;
-    registrationStatus: 'registered' | 'not_registered' | 'pending';
-    eligibleForGiftAid: boolean;
-    registrationDate: Date | null;
-    statusEvidence: FileStatusEvidence | LinkStatusEvidence | null;
-    giftStatusEvidenceUrl: string;
-    statusNotes: string;
 }

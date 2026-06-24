@@ -2,7 +2,6 @@
 import { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page';
 import { AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS';
 import React, { FC, useEffect, useState } from 'react'
-import PreviewValueLayout from '../../UI/PreviewValueLayout';
 import LinkComponent from '@/components/common/LinkComponent';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -10,6 +9,8 @@ import ModelComponentWithExternalControl from '@/components/common/ModelComponen
 import SubmittedSymbol from '../../Assessments/CoreArea1_CharityStatus/SubmittedSymbol';
 import { completeAssessmentAction, getAssessmentAction } from '@/app/actions/assessments';
 import { toast } from 'sonner';
+import { CRITERIA_OPTION_TEXT } from './CRITERIA_OPTION_TEXT';
+import { cn } from '@/lib/utils';
 
 export type PreviewPageCommonProps = {
     country: CountryCode;
@@ -20,10 +21,47 @@ export type PreviewPageCommonProps = {
 
 type IProps = PreviewPageCommonProps;
 
+type AnswerItem = {
+    rating?: string | null;
+    discretionary_points?: number | null;
+    links?: string[];
+    note?: string;
+};
+
+const RATING_STYLES: Record<string, { bg: string; text: string; dot: string }> = {
+    strong: { bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
+    moderate: { bg: 'bg-sky-50', text: 'text-sky-800', dot: 'bg-sky-500' },
+    needs_improvement: { bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
+    concern: { bg: 'bg-rose-50', text: 'text-rose-800', dot: 'bg-rose-500' },
+};
+
+const normalizeRatingKey = (rating?: string | null) => {
+    if (!rating) return '';
+    return rating.toLowerCase().replace(/\s+/g, '_');
+};
+
+const formatRating = (rating?: string | null) => {
+    const key = normalizeRatingKey(rating);
+    if (!key) return '—';
+    return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+};
+
+const RatingCell = ({ rating }: { rating?: string | null }) => {
+    const key = normalizeRatingKey(rating);
+    if (!key) return <span className="text-gray-400">—</span>;
+    const style = RATING_STYLES[key] ?? { bg: 'bg-gray-50', text: 'text-gray-700', dot: 'bg-gray-400' };
+    return (
+        <span className={cn('inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', style.bg, style.text)}>
+            <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', style.dot)} />
+            {formatRating(rating)}
+        </span>
+    );
+};
+
 const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
     const isEditMode = status === 'submitted' || status === 'completed';
     const [rubric, setRubric] = useState<any>(null);
-    const [answers, setAnswers] = useState<any>(null);
+    const [answers, setAnswers] = useState<Record<string, AnswerItem> | null>(null);
     const [scoring, setScoring] = useState<any>(null);
     const [showSubmittedModel, setShowSubmittedModel] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,19 +93,14 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
     const handleComplete = async () => {
         setIsSubmitting(true);
         try {
-            const completePayload = {
-                charityId,
-                coreArea: 3
-            };
-            const completeRes = await completeAssessmentAction(completePayload);
+            const completeRes = await completeAssessmentAction({ charityId, coreArea: 3 });
 
             if (!completeRes.ok) {
                 toast.error(completeRes.message || "Failed to complete assessment");
                 return;
             }
-            
-            setShowSubmittedModel(true);
 
+            setShowSubmittedModel(true);
             setTimeout(() => {
                 setShowSubmittedModel(false);
                 router.push(`/charities/${charityId}`)
@@ -81,179 +114,223 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
     }
 
     if (isLoading) {
-        return <div className="p-8 text-center text-gray-500">Loading preview...</div>
+        return <div className="py-6 text-center text-sm text-gray-500">Loading preview…</div>
     }
 
     if (!rubric || !answers) {
-        return <div className="p-8 text-center text-red-500">No assessment data available.</div>
+        return <div className="py-6 text-center text-sm text-red-500">No assessment data available.</div>
     }
 
     const { sections, criteria } = rubric;
 
+    const getSectionScore = (sectionId: string) => {
+        return scoring?.section_scores?.find((s: any) => s.sectionId === sectionId);
+    };
+
+    const getPointsDisplay = (criterion: any, ans: AnswerItem) => {
+        if (criterion.isDiscretionary && ans.rating === 'moderate') {
+            return ans.discretionary_points != null ? String(ans.discretionary_points) : '—';
+        }
+        if (criterion.pointsPossible != null) {
+            return <span className="text-[#8B95A5]">{criterion.pointsPossible}</span>;
+        }
+        return '—';
+    };
+
     return (
-        <div className='flex flex-col gap-6'>
-            
-            {/* Scoring Results Panel */}
+        <div className="flex flex-col gap-4">
+            {/* Compact scoring strip */}
             {scoring && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-4">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">Scoring Summary</h2>
-
-                    {/* Mandatory Gate Alert */}
-                    {scoring.auto_concern && (
-                        <div className="bg-red-50 border border-red-300 rounded-md p-4 mb-4">
-                            <p className="text-sm font-semibold text-red-800">
-                                ⚠ Mandatory metrics scored below 22.5 / {scoring.mandatory_max ?? 28}.
-                            </p>
-                            <p className="text-sm text-red-700 mt-1">
-                                Per assessment rules, final rating is <strong>Concern</strong> regardless of the overall score ({scoring.grand_total} / {scoring.grand_max}).
-                            </p>
-                        </div>
-                    )}
-                    {scoring.caution_flag && !scoring.auto_concern && (
-                        <div className="bg-yellow-50 border border-yellow-300 rounded-md p-4 mb-4">
-                            <p className="text-sm font-semibold text-yellow-800">
-                                ⚠ Mandatory metrics passed with Caution ({scoring.mandatory_score} / {scoring.mandatory_max ?? 28}).
-                            </p>
-                            <p className="text-sm text-yellow-700 mt-1">
-                                Final rating uses grand total but includes a caution label.
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Primary Scores */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        {/* Mandatory Score - shown first and prominently */}
-                        <div className={`p-4 rounded-md border shadow-sm flex flex-col gap-1 ${scoring.auto_concern ? 'bg-red-50 border-red-200' : scoring.caution_flag ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
-                            <span className="text-sm font-semibold text-gray-500">Mandatory Metrics</span>
-                            <span className={`text-2xl font-bold ${scoring.auto_concern ? 'text-red-700' : scoring.caution_flag ? 'text-yellow-700' : 'text-green-700'}`}>
-                                {scoring.mandatory_score ?? '—'} / {scoring.mandatory_max ?? 28}
-                            </span>
-                            <span className={`text-xs font-medium ${scoring.auto_concern ? 'text-red-600' : scoring.caution_flag ? 'text-yellow-600' : 'text-green-600'}`}>
-                                {scoring.auto_concern ? '✗ Below 22.5 — Gate Failed' : scoring.caution_flag ? '⚠ Caution (22.5–27.9)' : '✓ Gate Passed'}
-                            </span>
-                        </div>
-
-                        {/* Grand Total */}
-                        <div className="bg-white p-4 rounded-md border shadow-sm flex flex-col gap-1">
-                            <span className="text-sm font-semibold text-gray-500">Grand Total</span>
-                            <span className="text-2xl font-bold text-gray-900">
-                                {scoring.grand_total} / {scoring.grand_max}
-                            </span>
-                            {scoring.auto_concern && (
-                                <span className="text-xs text-gray-500">Overridden by mandatory gate</span>
+                <div className="overflow-hidden rounded-lg border border-[#D0D7E2] bg-white shadow-sm">
+                    {(scoring.auto_concern || scoring.caution_flag) && (
+                        <div className={cn(
+                            'border-b px-3 py-2 text-[11px] leading-snug',
+                            scoring.auto_concern
+                                ? 'border-rose-200 bg-rose-50 text-rose-800'
+                                : 'border-amber-200 bg-amber-50 text-amber-800',
+                        )}>
+                            {scoring.auto_concern ? (
+                                <>
+                                    <span className="font-semibold">Mandatory gate failed</span>
+                                    {' — '}
+                                    below 22.5 / {scoring.mandatory_max ?? 28}. Final rating is <strong>Concern</strong> regardless of grand total ({scoring.grand_total} / {scoring.grand_max}).
+                                </>
+                            ) : (
+                                <>
+                                    <span className="font-semibold">Caution</span>
+                                    {' — '}
+                                    mandatory {scoring.mandatory_score} / {scoring.mandatory_max ?? 28} (22.5–27.9).
+                                </>
                             )}
                         </div>
+                    )}
 
-                        {/* Final Rating */}
-                        <div className={`p-4 rounded-md border shadow-sm flex flex-col gap-1 ${scoring.final_rating === 'Concern' ? 'bg-red-50 border-red-200' : scoring.final_rating === 'Needs Improvement' ? 'bg-orange-50 border-orange-200' : scoring.final_rating === 'Moderate' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'}`}>
-                            <span className="text-sm font-semibold text-gray-500">Final Rating</span>
-                            <span className={`text-2xl font-bold ${scoring.final_rating === 'Concern' ? 'text-red-600' : scoring.final_rating === 'Needs Improvement' ? 'text-orange-500' : scoring.final_rating === 'Moderate' ? 'text-blue-600' : 'text-green-600'}`}>
-                                {scoring.final_rating || 'N/A'}
-                            </span>
-                            {scoring.auto_concern && (
-                                <span className="text-xs text-red-600">Due to mandatory gate, not grand total</span>
-                            )}
-                        </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[640px] border-collapse text-xs">
+                            <thead>
+                                <tr className="bg-[#F4F6F9] text-[10px] font-semibold uppercase tracking-wide text-[#5C6B7A]">
+                                    <th className="border-b border-r border-[#D0D7E2] px-3 py-2 text-left">Mandatory</th>
+                                    <th className="border-b border-r border-[#D0D7E2] px-3 py-2 text-left">Grand Total</th>
+                                    <th className="border-b border-r border-[#D0D7E2] px-3 py-2 text-left">Final Rating</th>
+                                    {scoring.section_scores?.map((sec: any, idx: number) => (
+                                        <th key={idx} className="border-b border-r border-[#D0D7E2] px-3 py-2 text-left last:border-r-0">
+                                            <span className="block truncate max-w-[120px]" title={sec.section_title || sec.sectionId}>
+                                                {sec.section_title || sec.sectionId}
+                                            </span>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr className="bg-white">
+                                    <td className={cn(
+                                        'border-b border-r border-[#E4E9F0] px-3 py-2.5 font-mono font-semibold tabular-nums',
+                                        scoring.auto_concern ? 'text-rose-700' : scoring.caution_flag ? 'text-amber-700' : 'text-emerald-700',
+                                    )}>
+                                        {scoring.mandatory_score ?? '—'}/{scoring.mandatory_max ?? 28}
+                                    </td>
+                                    <td className="border-b border-r border-[#E4E9F0] px-3 py-2.5 font-mono font-semibold tabular-nums text-[#101928]">
+                                        {scoring.grand_total}/{scoring.grand_max}
+                                    </td>
+                                    <td className="border-b border-r border-[#E4E9F0] px-3 py-2.5">
+                                        <RatingCell rating={scoring.final_rating} />
+                                    </td>
+                                    {scoring.section_scores?.map((sec: any, idx: number) => (
+                                        <td key={idx} className="border-b border-r border-[#E4E9F0] px-3 py-2.5 font-mono tabular-nums text-[#344054] last:border-r-0">
+                                            {sec.score}/{sec.max}
+                                        </td>
+                                    ))}
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-
-                    {/* Section Scores Breakdown */}
-                    {scoring.section_scores && scoring.section_scores.length > 0 && (
-                        <div className="mt-2">
-                            <h3 className="text-sm font-semibold text-gray-600 mb-2">Section Breakdown</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                                {scoring.section_scores.map((sec: any, idx: number) => (
-                                    <div key={idx} className="bg-white px-3 py-2 rounded border border-gray-200 flex justify-between items-center">
-                                        <span className="text-xs text-gray-600 truncate mr-2">{sec.section_title || sec.sectionId}</span>
-                                        <span className="text-sm font-bold text-gray-800 whitespace-nowrap">{sec.score} / {sec.max}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Rating Bands Reference */}
-                    <div className="mt-4 pt-3 border-t border-gray-200">
-                        <p className="text-xs text-gray-400">
-                            Rating bands: Strong 66–76 | Moderate 51–65 | Needs Improvement 36–50 | Concern 0–35
-                            {scoring.auto_concern ? ' • Mandatory gate override applies' : ''}
-                        </p>
+                    <div className="border-t border-[#E4E9F0] bg-[#FAFBFC] px-3 py-1.5 text-[10px] text-[#8B95A5]">
+                        Bands: Strong 66–76 · Moderate 51–65 · Needs Improvement 36–50 · Concern 0–35
+                        {scoring.auto_concern ? ' · Mandatory gate override applies' : ''}
                     </div>
                 </div>
             )}
 
-            {/* Answers List */}
-            <div className="flex flex-col gap-4">
-                {sections.map((section: any) => {
-                    const sectionCriteria = criteria.filter((c: any) => c.sectionId === section.id);
-                    if (sectionCriteria.length === 0) return null;
+            {/* Section spreadsheets */}
+            {sections.map((section: any) => {
+                const sectionCriteria = criteria.filter((c: any) => c.sectionId === section.id);
+                if (sectionCriteria.length === 0) return null;
 
-                    // If section is optional and skipped, we might still show it but mention it was skipped
-                    if (section.optional && scoring?.optional_skipped) {
-                        return (
-                            <div key={section.id} className="border border-gray-200 p-4 rounded-md bg-gray-50">
-                                <h3 className="text-lg font-bold text-gray-700">{section.title}</h3>
-                                <p className="text-sm text-gray-500 mt-1">This optional section was skipped.</p>
-                            </div>
-                        )
-                    }
-
+                if (section.optional && scoring?.optional_skipped) {
                     return (
-                        <div key={section.id} className="border border-gray-200 rounded-md overflow-hidden">
-                            <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
-                                <h3 className="text-lg font-bold text-gray-900">{section.title}</h3>
-                            </div>
-                            <div className="flex flex-col gap-4 p-4">
-                                {sectionCriteria.map((c: any) => {
-                                    const ans = answers[c.id];
-                                    if (!ans) return null;
-
-                                    return (
-                                        <div key={c.id} className="border-b last:border-0 pb-4 last:pb-0">
-                                            <PreviewValueLayout label={c.label} result={
-                                                <div className="flex flex-col gap-3 mt-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-semibold text-xs text-gray-500 uppercase">Rating:</span>
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
-                                                            {ans.rating ? ans.rating.replace('_', ' ') : 'None'}
-                                                        </span>
-                                                        {c.isDiscretionary && ans.rating === 'moderate' && (
-                                                            <span className="text-sm text-gray-500 ml-2">
-                                                                (Points: {ans.discretionary_points ?? 0})
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    {ans.links && ans.links.length > 0 && (
-                                                        <div>
-                                                            <span className="font-semibold text-xs text-gray-500 uppercase mb-1 block">Links:</span>
-                                                            <ul className="list-disc pl-5">
-                                                                {ans.links.map((link: string, idx: number) => (
-                                                                    <li key={idx}>
-                                                                        <LinkComponent openInNewTab className='hover:underline text-primary break-all' to={link}>{link}</LinkComponent>
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    )}
-
-                                                    {ans.note && (
-                                                        <div>
-                                                            <span className="font-semibold text-xs text-gray-500 uppercase mb-1 block">Note:</span>
-                                                            <p className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-3 rounded-md border border-gray-100">{ans.note}</p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            } />
-                                        </div>
-                                    )
-                                })}
+                        <div key={section.id} className="overflow-hidden rounded-lg border border-[#D0D7E2] bg-[#FAFBFC]">
+                            <div className="flex items-center justify-between border-b border-[#D0D7E2] bg-[#F4F6F9] px-3 py-2">
+                                <span className="text-xs font-semibold text-[#344054]">{section.title}</span>
+                                <span className="text-[10px] italic text-[#8B95A5]">Skipped (optional)</span>
                             </div>
                         </div>
-                    )
-                })}
-            </div>
+                    );
+                }
 
-            <div className='flex flex-col gap-3 mb-8 sm:flex-row sm:items-center sm:gap-4 mt-4'>
+                const sectionScore = getSectionScore(section.id);
+                const answeredCount = sectionCriteria.filter((c: any) => answers[c.id]?.rating).length;
+
+                return (
+                    <div key={section.id} className="overflow-hidden rounded-lg border border-[#D0D7E2] bg-white shadow-sm">
+                        <div className="flex items-center justify-between gap-3 border-b border-[#D0D7E2] bg-[#F4F6F9] px-3 py-2">
+                            <span className="text-xs font-semibold text-[#101928]">{section.title}</span>
+                            <div className="flex items-center gap-3 text-[10px] text-[#5C6B7A] shrink-0">
+                                <span>{answeredCount}/{sectionCriteria.length} rated</span>
+                                {sectionScore && (
+                                    <span className="font-mono font-semibold tabular-nums text-[#266dd3]">
+                                        {sectionScore.score}/{sectionScore.max}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[720px] border-collapse text-xs">
+                                <thead>
+                                    <tr className="bg-[#FAFBFC] text-[10px] font-semibold uppercase tracking-wide text-[#8B95A5]">
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[52px]">ID</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[180px]">Criterion</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[130px]">Rating</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-center w-[48px]">Pts</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[200px]">Descriptor</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[140px]">Links</th>
+                                        <th className="border-b border-[#E4E9F0] px-2 py-1.5 text-left min-w-[140px]">Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sectionCriteria.map((c: any, rowIdx: number) => {
+                                        const ans = answers[c.id];
+                                        if (!ans) return null;
+
+                                        const descriptor = ans.rating
+                                            ? CRITERIA_OPTION_TEXT[c.id]?.[normalizeRatingKey(ans.rating)] ?? ''
+                                            : '';
+                                        const pts = getPointsDisplay(c, ans);
+
+                                        return (
+                                            <tr
+                                                key={c.id}
+                                                className={cn(
+                                                    'group transition-colors hover:bg-[#F0F6FF]',
+                                                    rowIdx % 2 === 1 ? 'bg-[#FAFBFC]' : 'bg-white',
+                                                )}
+                                            >
+                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top font-mono text-[10px] font-medium text-[#266dd3] whitespace-nowrap">
+                                                    {c.id}
+                                                </td>
+                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-[11px] leading-snug text-[#344054]">
+                                                    <span className="line-clamp-3" title={c.label}>{c.label}</span>
+                                                </td>
+                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top">
+                                                    <RatingCell rating={ans.rating} />
+                                                </td>
+                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-center font-mono tabular-nums text-[11px] text-[#344054]">
+                                                    {pts}
+                                                </td>
+                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-[10px] leading-snug text-[#5C6B7A]">
+                                                    {descriptor ? (
+                                                        <span className="line-clamp-2" title={descriptor}>{descriptor}</span>
+                                                    ) : (
+                                                        <span className="text-gray-300">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top">
+                                                    {ans.links && ans.links.length > 0 ? (
+                                                        <div className="flex flex-col gap-0.5">
+                                                            {ans.links.map((link: string, idx: number) => (
+                                                                <LinkComponent
+                                                                    key={idx}
+                                                                    openInNewTab
+                                                                    className="block truncate text-[10px] text-[#266dd3] hover:underline max-w-[130px]"
+                                                                    to={link}
+                                                                    title={link}
+                                                                >
+                                                                    {link.replace(/^https?:\/\/(www\.)?/, '')}
+                                                                </LinkComponent>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-300">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="border-b border-[#EEF1F5] px-2 py-1.5 align-top text-[10px] leading-snug text-[#5C6B7A]">
+                                                    {ans.note ? (
+                                                        <span className="line-clamp-2 whitespace-pre-wrap" title={ans.note}>{ans.note}</span>
+                                                    ) : (
+                                                        <span className="text-gray-300">—</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
+            })}
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
                 <Button
                     className="w-full sm:w-36 bg-[#266dd3] hover:bg-[#1f5bb5]"
                     onClick={handleComplete}
@@ -263,19 +340,17 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                 </Button>
                 <Button
                     className="w-full sm:w-36"
-                    variant={'outline'}
-                    onClick={() => {
-                        router.push(`/charities/${charityId}/assessments/core-area-3`)
-                    }}
+                    variant="outline"
+                    onClick={() => router.push(`/charities/${charityId}/assessments/core-area-3`)}
                 >
                     Edit
                 </Button>
             </div>
 
-            <ModelComponentWithExternalControl open={showSubmittedModel} title='' onOpenChange={(openState) => setShowSubmittedModel(openState)}>
-                <div className="flex flex-col gap-2 items-center">
+            <ModelComponentWithExternalControl open={showSubmittedModel} title="" onOpenChange={setShowSubmittedModel}>
+                <div className="flex flex-col items-center gap-2">
                     <SubmittedSymbol />
-                    <div className='font-semibold'>Assessment Completed!</div>
+                    <div className="font-semibold">Assessment Completed!</div>
                     <div className="text-sm">Navigating back to the Charity Page</div>
                 </div>
             </ModelComponentWithExternalControl>

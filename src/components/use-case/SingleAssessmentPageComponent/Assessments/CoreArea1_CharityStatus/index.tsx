@@ -1,34 +1,28 @@
-
 import React, { FC, useMemo, useState } from 'react'
-import SingleSectionQuestion from '../../SingleSectionQuestion'
-import { Link } from 'lucide-react'
 import AssessmentSectionCard from '../../UI/AuditSectionCard'
 import RadioGroupComponent from '@/components/common/RadioGroupComponent'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
-import DatePicker from '@/components/common/ControlledDatePickerComponent'
-import { Label } from '@/components/ui/label'
-import { ControlledTextFieldComponent } from '@/components/common/TextFieldComponent/ControlledTextFieldComponent'
-import ControlledFileUploadComponent, { UploadedItem } from '@/components/common/FileUploadComponent/ControlledFileUploadComponent'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
-import { CORE_AREA_1_FORMS } from '@/lib/assessment-forms/core-area-1'
+import { CORE_AREA_1_FORMS, getOptionValue, getQuestionFieldKey } from '@/lib/assessment-forms/core-area-1'
 import { Question } from '@/lib/assessment-forms/types'
+import { computeCoreArea1Score, computeRatingBand, normalizeScore } from '@/lib/audit-scoring'
+import RatingBandBadge from '@/components/common/RatingBandBadge'
 
+type FormDataType = Record<string, string>;
 
-export type FileStatusEvidence = {
-    type: 'file';
-    fileInfo: UploadedItem | null;
-}
-
-export type LinkStatusEvidence = {
-    type: 'link';
-    linkUrl: string;
-}
-
-// We use a flexible type for form data since fields depend on the country
-type FormDataType = Record<string, any>;
-
-const INITIAL_FORM_DATA: FormDataType = {}
+const mapCountry = (country: string): 'united-kingdom' | 'united-states' | 'canada' => {
+    const countryMap: Record<string, 'united-kingdom' | 'united-states' | 'canada'> = {
+        'united-kingdom': 'united-kingdom',
+        'united-states': 'united-states',
+        'canada': 'canada',
+        'uk': 'united-kingdom',
+        'usa': 'united-states',
+        'us': 'united-states',
+        'ca': 'canada',
+    };
+    return countryMap[country] || 'united-kingdom';
+};
 
 type CoreArea1Props = {
     charityId: string;
@@ -39,48 +33,34 @@ type CoreArea1Props = {
 
 const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', currentUserRoles = [], status }) => {
     const router = useRouter()
-    const [formData, setFormData] = useState<FormDataType>(INITIAL_FORM_DATA)
+    const [formData, setFormData] = useState<FormDataType>({})
     const [isEditable, setIsEditable] = useState(true)
 
     const isManager = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
     const canEdit = isEditable || isManager;
 
     const currentForm = useMemo(() => {
-        // Map app country codes to form definition country codes
-        const countryMap: Record<string, 'united-kingdom' | 'united-states' | 'canada'> = {
-            'united-kingdom': 'united-kingdom',
-            'united-states': 'united-states',
-            'canada': 'canada',
-            'uk': 'united-kingdom',
-            'usa': 'united-states',
-            'us': 'united-states',
-            'ca': 'canada'
-        };
-        const mappedCountry = countryMap[country] || 'united-kingdom';
+        const mappedCountry = mapCountry(country);
         return CORE_AREA_1_FORMS.find(f => f.countryCode === mappedCountry) || CORE_AREA_1_FORMS[0];
     }, [country]);
 
-    const updateFormData = (field: string, value: any) => {
+    const liveScore = useMemo(() => computeCoreArea1Score(formData), [formData]);
+    const liveRatingBand = useMemo(
+        () => computeRatingBand(normalizeScore(liveScore, 10)),
+        [liveScore],
+    );
+
+    const updateFormData = (field: string, value: string) => {
         setFormData((prev) => ({
             ...prev,
             [field]: value,
         }))
     }
 
-    // Prefill logic
     React.useEffect(() => {
         const fetchAssessment = async () => {
             if (!charityId) return;
             try {
-                // Fetch Core Area 1
-                // We need to import getAssessmentAction. Since it's a default export from actions/assessments is not possible, we use named import logic if I imported it efficiently?
-                // Checking imports... I need to add import first.
-                // Assuming I will add the import in a separate block or included here if the tool allows.
-                // I will use dynamic import or just add the import at the top in a separate step if needed, but replace_file_content works on blocks.
-                // I'll add the logic here and rely on TypeScript to tell me if I missed import, then fix it.
-                // Actually I should add import line at the top first.
-
-                // Fetching...
                 const { getAssessmentAction } = await import('@/app/actions/assessments');
                 const res = await getAssessmentAction(charityId, 1);
 
@@ -89,80 +69,16 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
                     setIsEditable(res.payload.data.data.isEditable !== false);
                     const newFormData: FormDataType = {};
 
-                    const getPayloadKey = (code: string, label: string) => {
-                        if (code === 'CS01') return 'charity_registration_number';
-                        if (code === 'CS02') {
-                            if (country === 'united-states' || country === 'usa' || country === 'us') return 'irs_profile_link';
-                            if (country === 'canada' || country === 'ca') return 'cra_profile_link';
-                            return 'charity_commission_profile_link';
-                        }
-                        if (code === 'CS03') return 'registrationStatus';
-                        if (code === 'CS04') {
-                            if (country === 'united-kingdom' || country === 'uk') return 'gift_aid_eligible';
-                            return 'tax_deductible';
-                        }
-                        if (code === 'CS05' && (country !== 'united-kingdom' && country !== 'uk')) return 'evidence_for_pending_registration_provided';
-                        if (code === 'CS06' && (country === 'united-kingdom' || country === 'uk')) return 'evidence_for_pending_registration_provided';
-                        
-                        if (code === 'CS07' && (country !== 'united-kingdom' && country !== 'uk')) return 'statusNotes';
-                        if (code === 'CS08' && (country === 'united-kingdom' || country === 'uk')) return 'statusNotes';
-                        
-                        if (code === 'CS09') return 'registrationDate';
-                        if (code === 'CS11') return 'statusEvidenceLink';
-                        
-                        return label.toLowerCase().replace(/[()]/g, '').trim().replace(/\s+/g, '_');
-                    };
-
                     currentForm.questions.forEach(q => {
-                        const key = getPayloadKey(q.code, q.label);
-                        // Check if we have a specific override for this question
-                        let ans = answers[key];
-
-                        if (q.code === 'CS01' && !ans) {
-                            ans = answers['charity_number'];
-                        }
-
-                        const isUsOrCanada = country === 'united-states' || country === 'usa' || country === 'us' || country === 'canada' || country === 'ca';
-                        if (q.code === 'CS02' && isUsOrCanada && !ans) {
-                            ans = answers['charity_commission_profile_link'];
-                        }
-
-                        if (ans !== undefined && ans !== null) {
-                            // Handle file/date/radio mapping if needed
-                            if (q.type === 'file' && typeof ans === 'string') {
-                                // If it's a string URL (which fits the new CS11 text input usage), just use it string.
-                                // BUT wait, if CS11 is rendered as TEXT now, we can just assign the string directly!
-                                // We changed CS11 to render as text in 'renderQuestion', so we should treat it as text data here.
-
-                                if (q.code === 'CS11') {
-                                    newFormData[q.code] = ans;
-                                } else {
-                                    // Legacy file handling for other file fields or if CS11 was still file
-                                    newFormData[q.code] = {
-                                        type: 'file',
-                                        fileInfo: {
-                                            name: 'Uploaded Evidence',
-                                            url: ans,
-                                            size: 0,
-                                            type: 'application/octet-stream'
-                                        }
-                                    };
-                                }
-                            } else if (q.type === 'date' && typeof ans === 'string') {
-                                // Convert date string to Date object
-                                const dateObj = new Date(ans);
-                                if (!isNaN(dateObj.getTime())) {
-                                    newFormData[q.code] = dateObj;
-                                }
-                            } else {
-                                newFormData[q.code] = ans;
-                            }
+                        const key = getQuestionFieldKey(q);
+                        const ans = answers[key];
+                        if (ans !== undefined && ans !== null && ans !== '') {
+                            newFormData[key] = String(ans);
                         }
                     });
 
-                    // Only update if we found answers
                     if (Object.keys(newFormData).length > 0) {
-                        setFormData(prev => ({ ...prev, ...newFormData }));
+                        setFormData(newFormData);
                     }
                 }
             } catch (error) {
@@ -173,270 +89,56 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
         fetchAssessment();
     }, [charityId, currentForm]);
 
-    const handleUpload = async (incoming: File[], fieldCode: string) => {
-        const mapped = incoming.map((f) => ({
-            id: crypto.randomUUID(),
-            name: f.name,
-            size: f.size,
-            type: f.type,
-            file: f,
-        }));
-
-        updateFormData(fieldCode, {
-            type: 'file',
-            fileInfo: mapped[0]
-        })
-    };
-
     const renderQuestion = (question: Question) => {
-        const fieldCode = question.code; // e.g., CS01
+        const fieldKey = getQuestionFieldKey(question);
 
-        // Helper logic to check dependencies (scoreLogic-like conditions for visibility)
-        // Simplified check based on "Evidence for Pending Registration" dependency
-        if (question.code === 'CS06' && formData['CS03'] !== 'Pending Registration') return null; // Logic from JSON
-
-        // User Request: Remove Status Evidence Type (CS10) box completely.
-        if (question.code === 'CS10') return null;
-
-        // User Request: Remove Status Evidence File (CS11) completely (rendered inside CS09 card instead).
-        if (question.code === 'CS11') return null;
-
-        // User Request: Hide standalone "Evidence Link (if applicable)" field (CS07 UK, CS06 US/CA)
-        // We're already showing "Status Evidence Link" inside the Registration Date card
-        if (question.label === 'Evidence Link (if applicable)') return null;
-
-        switch (question.type) {
-            case 'text':
-                try {
-                    // Specific handling for link fields to add the link icon
-                    if (question.label.toLowerCase().includes('link')) {
-                        return (
-                            <SingleSectionQuestion
-                                key={question.id}
-                                heading={question.label}
-                                type='text'
-                                id={`core_1__${fieldCode}`}
-                                required={question.required}
-                                inputProps={{
-                                    type: 'text',
-                                    value: formData[fieldCode] || '',
-                                    onChange: (e: any) => updateFormData(fieldCode, e.target.value),
-                                    icon: {
-                                        component: <Link size={14} color="#266dd3" />,
-                                        direction: 'left'
-                                    }
-                                }}
-                            />
-                        )
-                    }
-                    return (
-                        <SingleSectionQuestion
-                            key={question.id}
-                            heading={question.label}
-                            type='text'
-                            id={`core_1__${fieldCode}`}
-                            required={question.required}
-                            inputProps={{
-                                type: 'text', // Fallback to text, though CS01 might be number for UK but text for others
-                                value: formData[fieldCode] || '',
-                                onChange: (e: any) => updateFormData(fieldCode, e.target.value),
-                            }}
-                        />
-                    )
-                } catch { return null }
-
-            case 'radio':
-                try {
-                    return (
-                        <AssessmentSectionCard key={question.id}>
-                            <RadioGroupComponent
-                                value={formData[fieldCode]}
-                                onChange={(newVal) => updateFormData(fieldCode, newVal)}
-                                label={question.label}
-                                labelClassNames='text-sm'
-                                name={`core_1__${fieldCode}`}
-                                required={question.required}
-                                options={question.options.map(opt => ({ label: opt.label, value: opt.label }))} // Using label as value for simplicity based on JSON scoreLogic
-                            />
-                        </AssessmentSectionCard>
-                    )
-                } catch { return null }
-
-            case 'date':
-                try {
-                    // Group CS09 (Date) and CS11 (Evidence Link) into one card per user request
-                    if (fieldCode === 'CS09') {
-                        // Show this card only if Registration Status is 'Registered' or 'Pending Registration'
-                        const shouldShowDateCard = formData['CS03'] === 'Registered' || formData['CS03'] === 'Pending Registration';
-                        if (!shouldShowDateCard) return null;
-
-                        const cs11 = currentForm.questions.find(q => q.code === 'CS11');
-                        return (
-                            <AssessmentSectionCard key={question.id}>
-                                <div className="flex flex-col gap-6">
-                                    {/* Registration Date */}
-                                    <div className="flex flex-col gap-2">
-                                        <TypographyComponent className='font-semibold text-sm'>
-                                            {question.label}
-                                        </TypographyComponent>
-                                        <DatePicker
-                                            disabledFutureDates
-                                            label={question.label}
-                                            onChange={(date) => updateFormData(fieldCode, date ?? null)}
-                                            value={formData[fieldCode] ?? undefined}
-                                        />
-                                    </div>
-
-                                    {/* Status Evidence Link (CS11) */}
-                                    {cs11 && (
-                                        <div className="flex flex-col gap-2">
-                                            <TypographyComponent className='font-semibold text-sm'>
-                                                Status Evidence Link (if applicable)
-                                            </TypographyComponent>
-                                            <ControlledTextFieldComponent
-                                                type='text'
-                                                value={formData['CS11'] || ''}
-                                                onChange={(e: any) => updateFormData('CS11', e.target.value)}
-                                                icon={{
-                                                    component: <Link size={14} color="#266dd3" />,
-                                                    direction: 'left'
-                                                }}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            </AssessmentSectionCard>
-                        );
-                    }
-
-                    return (
-                        <div key={question.id} className="flex flex-col gap-2 mb-4">
-                            <TypographyComponent className='font-semibold text-sm'>
-                                {question.label}
-                            </TypographyComponent>
-                            <DatePicker
-                                disabledFutureDates
-                                label={question.label}
-                                onChange={(date) => updateFormData(fieldCode, date ?? null)}
-                                value={formData[fieldCode] ?? undefined}
-                            />
-                        </div>
-                    )
-                } catch { return null }
-
-            case 'file':
-                try {
-                    // Skip CS11 here as it is rendered with CS09
-                    if (fieldCode === 'CS11') return null;
-
-                    return (
-                        <div key={question.id} className="flex flex-col gap-2 mb-4">
-                            <Label htmlFor={`core_1__${fieldCode}`} className="block text-sm font-semibold w-full sm:w-1/2">{question.label}</Label>
-                            <ControlledFileUploadComponent
-                                required={question.required}
-                                value={formData[fieldCode]?.fileInfo ? [formData[fieldCode].fileInfo] : []}
-                                onFileUpload={(files) => handleUpload(files, fieldCode)}
-                                onRemove={() => updateFormData(fieldCode, null)}
-                                limit={1}
-                                disabled={formData[fieldCode]?.fileInfo !== undefined && formData[fieldCode]?.fileInfo !== null}
-                            />
-                        </div>
-                    )
-                } catch { return null }
-
-            case 'paragraph':
-                try {
-                    return (
-                        <SingleSectionQuestion
-                            key={question.id}
-                            type="textarea"
-                            heading={question.label}
-                            lines={6}
-                            id={`core_1__${fieldCode}`}
-                            required={question.required}
-                            value={formData[fieldCode] || ''}
-                            onInputChange={(_name, value) => updateFormData(fieldCode, value)}
-                        />
-                    )
-                } catch { return null }
-
-            default:
-                return null;
+        if (question.type === 'radio') {
+            return (
+                <AssessmentSectionCard key={question.id}>
+                    <RadioGroupComponent
+                        value={formData[fieldKey]}
+                        onChange={(newVal) => updateFormData(fieldKey, newVal)}
+                        label={question.label}
+                        labelClassNames='text-sm'
+                        name={`core_1__${fieldKey}`}
+                        required={question.required}
+                        options={question.options.map(opt => ({
+                            label: opt.label,
+                            value: getOptionValue(opt),
+                        }))}
+                    />
+                </AssessmentSectionCard>
+            );
         }
+
+        return null;
     }
 
-    const handleSaveDraft = async () => {
-        const answers: Record<string, any> = {};
-
-        const getPayloadKey = (code: string, label: string) => {
-            if (code === 'CS01') return 'charity_registration_number';
-            if (code === 'CS02') {
-                if (country === 'united-states' || country === 'usa' || country === 'us') return 'irs_profile_link';
-                if (country === 'canada' || country === 'ca') return 'cra_profile_link';
-                return 'charity_commission_profile_link';
-            }
-            if (code === 'CS03') return 'registrationStatus';
-            if (code === 'CS04') {
-                if (country === 'united-kingdom' || country === 'uk') return 'gift_aid_eligible';
-                return 'tax_deductible';
-            }
-            if (code === 'CS05' && (country !== 'united-kingdom' && country !== 'uk')) return 'evidence_for_pending_registration_provided';
-            if (code === 'CS06' && (country === 'united-kingdom' || country === 'uk')) return 'evidence_for_pending_registration_provided';
-            
-            if (code === 'CS07' && (country !== 'united-kingdom' && country !== 'uk')) return 'statusNotes';
-            if (code === 'CS08' && (country === 'united-kingdom' || country === 'uk')) return 'statusNotes';
-            
-            if (code === 'CS09') return 'registrationDate';
-            if (code === 'CS11') return 'statusEvidenceLink';
-            
-            return label.toLowerCase().replace(/[()]/g, '').trim().replace(/\s+/g, '_');
-        };
-
+    const buildAnswers = () => {
+        const answers: Record<string, string> = {};
         currentForm.questions.forEach(q => {
-            const key = getPayloadKey(q.code, q.label);
-            const val = formData[q.code];
-
-            if (val !== undefined && val !== null && val !== "") {
-                if (q.type === 'file' && val?.fileInfo?.url) {
-                    // If it's a file and has a URL (already uploaded/prefilled), send the URL
-                    answers[key] = val.fileInfo.url;
-                } else if (q.type === 'file' && val?.fileInfo?.file) {
-                    // new file upload logic - skipped for now
-                } else if (q.type === 'date' && val instanceof Date) {
-                    // Format date as YYYY-MM-DD
-                    const year = val.getFullYear();
-                    const month = String(val.getMonth() + 1).padStart(2, '0');
-                    const day = String(val.getDate()).padStart(2, '0');
-                    answers[key] = `${year}-${month}-${day}`;
-                } else {
-                    answers[key] = val;
-                }
-            } else if ((q.code === 'CS05' && (country !== 'united-kingdom' && country !== 'uk')) || 
-                       (q.code === 'CS06' && (country === 'united-kingdom' || country === 'uk'))) {
-                answers[key] = val || null;
+            const key = getQuestionFieldKey(q);
+            const val = formData[key];
+            if (val !== undefined && val !== null && val !== '') {
+                answers[key] = val;
             }
         });
+        return answers;
+    };
 
-        console.log('Core Area 1 Draft Payload:', { charityId, coreArea: 1, answers });
+    const handleSaveDraft = async () => {
+        const answers = buildAnswers();
 
         if (Object.keys(answers).length > 0) {
             try {
                 const { submitAssessmentAction, editAssessmentAction } = await import('@/app/actions/assessments');
-                
                 const isEdit = status === 'submitted' || status === 'completed';
+                const payload = { charityId, coreArea: 1, answers };
 
                 if (isEdit) {
-                    await editAssessmentAction({
-                        charityId,
-                        coreArea: 1,
-                        answers
-                    });
+                    await editAssessmentAction(payload);
                 } else {
-                    await submitAssessmentAction({
-                        charityId,
-                        coreArea: 1,
-                        answers
-                    });
+                    await submitAssessmentAction(payload);
                 }
             } catch (e) {
                 console.error("Failed to save draft", e);
@@ -444,21 +146,9 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
         }
     }
 
-    // Reorder questions to show Registration Date + Status Evidence Link right after Registration Status
-    const reorderedQuestions = useMemo(() => {
-        const questions = [...currentForm.questions];
-        const cs03Index = questions.findIndex(q => q.code === 'CS03');
-        const cs09Index = questions.findIndex(q => q.code === 'CS09');
-
-        if (cs03Index !== -1 && cs09Index !== -1 && cs09Index > cs03Index) {
-            // Remove CS09 from its current position
-            const [cs09] = questions.splice(cs09Index, 1);
-            // Insert it right after CS03
-            questions.splice(cs03Index + 1, 0, cs09);
-        }
-
-        return questions;
-    }, [currentForm.questions]);
+    const allRequiredFilled = currentForm.questions
+        .filter(q => q.required)
+        .every(q => Boolean(formData[getQuestionFieldKey(q)]));
 
     return (
         <>
@@ -469,22 +159,32 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
                     </div>
                 )}
                 <TypographyComponent variant="h3">{currentForm.title}</TypographyComponent>
-                {reorderedQuestions.map(question => renderQuestion(question))}
+                {Object.keys(formData).length > 0 && (
+                    <div className="flex items-center gap-2">
+                        <TypographyComponent className="text-sm font-medium">Live score preview:</TypographyComponent>
+                        <span className="text-sm font-semibold text-[#266dd3]">{liveScore}/10</span>
+                        <RatingBandBadge ratingBand={liveRatingBand} />
+                    </div>
+                )}
+                {currentForm.questions.map(question => renderQuestion(question))}
             </div>
 
             {!canEdit ? null : (
                 <div className='flex flex-col gap-3 mb-8 mt-8 sm:flex-row sm:items-center sm:gap-4'>
-                    <Button className="w-full sm:w-36" variant='primary' onClick={async () => {
-                        // Save to local storage for immediate preview usage
-                        if (typeof window !== 'undefined') {
-                            localStorage.setItem(`assessment-form-data-${charityId}-core-area-1`, JSON.stringify(formData));
-                        }
-
-                        // Save to API as draft
-                        await handleSaveDraft();
-
-                        router.push(`/charities/${charityId}/assessments/core-area-1?preview-mode=true&country=${country}`)
-                    }}>Preview</Button>
+                    <Button
+                        className="w-full sm:w-36"
+                        variant='primary'
+                        disabled={!allRequiredFilled}
+                        onClick={async () => {
+                            if (typeof window !== 'undefined') {
+                                localStorage.setItem(`assessment-form-data-${charityId}-core-area-1`, JSON.stringify(formData));
+                            }
+                            await handleSaveDraft();
+                            router.push(`/charities/${charityId}/assessments/core-area-1?preview-mode=true&country=${country}`)
+                        }}
+                    >
+                        Preview
+                    </Button>
                     <Button className="w-full sm:w-36" variant={'outline'}>Cancel</Button>
                 </div>
             )}

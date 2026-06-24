@@ -23,6 +23,8 @@ import { deleteCharityAction, getCharityAction, sendBulkEmailReportAction } from
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/components/common/permissions-provider'
+import RatingBandBadge from '@/components/common/RatingBandBadge'
+import { RatingBand } from '@/lib/audit-scoring'
 
 type Props = {
     charities: SingleCharityType[]
@@ -35,6 +37,7 @@ type CoreAreaReview = {
     score: number | null
     totalScore: number
     result: 'pass' | 'fail' | null
+    ratingBand?: string | null
 }
 
 type CharityReviews = {
@@ -47,7 +50,7 @@ type CharityReviews = {
 }
 
 const CORE_AREA_META: Record<string, { label: string; color: string }> = {
-    core1: { label: 'Core Area 1 — Charity Status', color: '#3B82F6' },
+    core1: { label: 'Core Area 1 — Charity Legitimacy', color: '#3B82F6' },
     core2: { label: 'Core Area 2 — Financial Accountability', color: '#8B5CF6' },
     core3: { label: 'Core Area 3 — Zakat', color: '#10B981' },
     core4: { label: 'Core Area 4 — Governance', color: '#F59E0B' },
@@ -526,6 +529,11 @@ const TabularView: FC<Props> = ({ charities, onRefresh }) => {
                                                                                         </span>
                                                                                     )}
                                                                                 </div>
+                                                                                {(key === 'core1' || key === 'core4') && area.ratingBand ? (
+                                                                                    <div className="mt-1.5">
+                                                                                        <RatingBandBadge ratingBand={area.ratingBand as RatingBand} className="text-[10px]" />
+                                                                                    </div>
+                                                                                ) : null}
                                                                             </>
                                                                         )}
                                                                     </div>

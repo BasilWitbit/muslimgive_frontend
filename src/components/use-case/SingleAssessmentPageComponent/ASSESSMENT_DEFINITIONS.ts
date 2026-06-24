@@ -1,7 +1,7 @@
 export const AUDIT_DEFINITIONS = {
     'core-area-1': {
-        title: 'Charity Status (Core Area 1)',
-        description: 'Covers eligibility, registration checks, and the baseline charity profile.',
+        title: 'Charity Legitimacy (Core Area 1)',
+        description: 'Covers registration visibility, regulatory standing, and public legitimacy signals on the charity website.',
     },
     'core-area-2': {
         title: 'Financial Accountability (Core Area 2)',

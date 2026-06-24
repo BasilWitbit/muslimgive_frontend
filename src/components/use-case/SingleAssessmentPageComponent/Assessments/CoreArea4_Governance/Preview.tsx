@@ -9,7 +9,8 @@ import ModelComponentWithExternalControl from '@/components/common/ModelComponen
 import SubmittedSymbol from '../../Assessments/CoreArea1_CharityStatus/SubmittedSymbol';
 import { submitAssessmentAction, completeAssessmentAction, getAssessmentAction, editAssessmentAction } from '@/app/actions/assessments';
 import { toast } from 'sonner';
-import { CORE_AREA_4_FORMS } from '@/lib/assessment-forms/core-area-4';
+import { CORE_AREA_4_FORMS, getQuestionFieldKey } from '@/lib/assessment-forms/core-area-4';
+import { CORE_AREA_4_VALUE_LABELS } from '@/lib/audit-scoring';
 
 export type PreviewPageCommonProps = {
     country: CountryCode;
@@ -20,6 +21,24 @@ export type PreviewPageCommonProps = {
 
 type IProps = PreviewPageCommonProps;
 
+const mapCountry = (country: string): 'united-kingdom' | 'united-states' | 'canada' => {
+    const countryMap: Record<string, 'united-kingdom' | 'united-states' | 'canada'> = {
+        'united-kingdom': 'united-kingdom',
+        'united-states': 'united-states',
+        'canada': 'canada',
+        'uk': 'united-kingdom',
+        'usa': 'united-states',
+        'us': 'united-states',
+        'ca': 'canada',
+    };
+    return countryMap[country] || 'united-kingdom';
+};
+
+const formatValue = (value: string | undefined) => {
+    if (!value) return '-';
+    return CORE_AREA_4_VALUE_LABELS[value] ?? value;
+};
+
 const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI = false }) => {
     const isEditMode = status === 'submitted' || status === 'completed';
     const [assessmentVals, setAssessmentVals] = useState<Record<string, string> | null>(null);
@@ -28,17 +47,7 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     const router = useRouter();
 
     const currentForm = useMemo(() => {
-        const countryMap: Record<string, 'united-kingdom' | 'united-states' | 'canada'> = {
-            'united-kingdom': 'united-kingdom',
-            'united-states': 'united-states',
-            'canada': 'canada',
-            'uk': 'united-kingdom',
-            'usa': 'united-states',
-            'us': 'united-states',
-            'ca': 'canada'
-        };
-        // Safely handle if country is undefined or not in map, default to uk
-        const mappedCountry = (country && countryMap[country]) ? countryMap[country] : 'united-kingdom';
+        const mappedCountry = mapCountry(country);
         return CORE_AREA_4_FORMS.find(f => f.countryCode === mappedCountry) || CORE_AREA_4_FORMS[0];
     }, [country]);
 
@@ -49,28 +58,13 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                     const res = await getAssessmentAction(charityId, 4);
                     if (res.ok && res.payload?.data?.data?.answers) {
                         const answers = res.payload.data.data.answers;
-
-                        const toSnakeCase = (str: string) =>
-                            str.toLowerCase()
-                                .replace(/[?]/g, '') // remove question marks
-                                .replace(/[()]/g, '')
-                                .replace(/['’]/g, '') // remove apostrophes
-                                .trim()
-                                .replace(/\s+/g, '_');
-
                         const mappedAnswers: Record<string, string> = {};
+
                         currentForm.questions.forEach(q => {
-                            const key = toSnakeCase(q.label);
+                            const key = getQuestionFieldKey(q);
                             const ans = answers[key];
                             if (ans !== undefined && ans !== null) {
-                                // API returns snake_case (e.g. "yes"), but form options are Title Case (e.g. "Yes")
-                                // Find the matching option by converting option label to snake_case
-                                const matchingOption = q.options.find(opt => toSnakeCase(opt.label) === ans);
-                                if (matchingOption) {
-                                    mappedAnswers[q.code] = matchingOption.label;
-                                } else {
-                                    mappedAnswers[q.code] = ans;
-                                }
+                                mappedAnswers[key] = String(ans);
                             }
                         });
 
@@ -94,67 +88,37 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
         };
 
         fetchData();
-    }, [charityId, fetchFromAPI]);
+    }, [charityId, fetchFromAPI, currentForm]);
 
     const handleSubmit = async () => {
         if (!assessmentVals) return;
-        console.log('[PreviewCoreArea4] handleSubmit triggered. isEditMode:', isEditMode);
+        setIsSubmitting(true);
+
         try {
-            const toSnakeCaseConverted = (str: string) =>
-                str.toLowerCase()
-                    .replace(/[?]/g, '')
-                    .replace(/[()]/g, '')
-                    .replace(/['’]/g, '')
-                    .trim()
-                    .replace(/\s+/g, '_');
-
-            const mappedAnswers: Record<string, any> = {};
-            const normalizedCountry = country as 'united-kingdom' | 'united-states' | 'canada';
-            
-            const currentFormDef = CORE_AREA_4_FORMS.find(f => f.countryCode === normalizedCountry);
-            const questions = currentFormDef?.questions || [];
-
-            if (assessmentVals) {
-                Object.entries(assessmentVals).forEach(([code, val]) => {
-                    const q = questions.find((question: any) => question.code === code);
-                    if (q) {
-                        const key = toSnakeCaseConverted(q.label);
-                        // Convert value to snake_case as well (e.g. "Yes" -> "yes", "3 or more" -> "3_or_more")
-                        mappedAnswers[key] = toSnakeCaseConverted(val);
-                    }
-                });
-            }
-
             const payload = {
                 charityId,
                 coreArea: 4,
-                answers: mappedAnswers
+                answers: assessmentVals,
             };
-            console.log('[PreviewCoreArea4] Sending Payload:', JSON.stringify(payload, null, 2));
 
             const res = isEditMode
                 ? await editAssessmentAction(payload)
                 : await submitAssessmentAction(payload);
-            
-            console.log('[PreviewCoreArea4] API Response:', JSON.stringify(res, null, 2));
 
             if (res.ok) {
                 if (!isEditMode) {
-                    const completePayload = {
+                    const completeRes = await completeAssessmentAction({
                         charityId,
-                        coreArea: 4
-                    };
-                    const completeRes = await completeAssessmentAction(completePayload);
+                        coreArea: 4,
+                    });
 
                     if (!completeRes.ok) {
                         toast.error(completeRes.message || "Failed to complete assessment");
-                        setIsSubmitting(false);
                         return;
                     }
                 }
-                
-                setShowSubmittedModel(true);
 
+                setShowSubmittedModel(true);
                 setTimeout(() => {
                     setShowSubmittedModel(false);
                     router.push(`/charities/${charityId}`)
@@ -177,12 +141,12 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     return (
         <div className='flex flex-col gap-4'>
             {currentForm.questions.map(question => {
-                const answer = assessmentVals[question.code];
+                const key = getQuestionFieldKey(question);
                 return (
                     <PreviewValueLayout
                         key={question.id}
                         label={question.label}
-                        result={answer || '-'}
+                        result={formatValue(assessmentVals[key])}
                     />
                 );
             })}

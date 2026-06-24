@@ -1,6 +1,8 @@
 import React from 'react'
 import { getCharityReportAction } from '@/app/actions/charities'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
+import RatingBandBadge from '@/components/common/RatingBandBadge'
+import { RatingBand } from '@/lib/audit-scoring'
 
 const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }) => {
     const { charityId } = await params
@@ -67,6 +69,11 @@ const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }
                         <TypographyComponent variant="caption" className="text-[#667085]">
                             Score: {area.score ?? 'N/A'} / {area.totalScore ?? 'N/A'}
                         </TypographyComponent>
+                        {(area.coreArea === 1 || area.coreArea === 4) && area.ratingBand ? (
+                            <div className="mt-1">
+                                <RatingBandBadge ratingBand={area.ratingBand as RatingBand} />
+                            </div>
+                        ) : null}
                         <TypographyComponent variant="caption" className="text-[#667085]">
                             Result: {area.result ? area.result.toUpperCase() : 'N/A'}
                         </TypographyComponent>

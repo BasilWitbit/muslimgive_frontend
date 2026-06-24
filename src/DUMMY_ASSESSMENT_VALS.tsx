@@ -24,27 +24,10 @@ type AssessmentValueType = {
 
 export const DUMMY_AUDIT_VALUES: AssessmentValueType = {
     'core-area-1': {
-        charityNumber: 123456,
-        charityCommissionProfileLink: 'https://www.gov.uk/find-charity-information/example-charity',
-        registrationStatus: 'registered',
-        eligibleForGiftAid: true,
-        registrationDate: new Date('2015-06-12'),
-        // statusEvidence: {
-        //     type: 'file',
-        //     fileInfo: {
-        //         id: '1',
-        //         url: 'https://example.org/registration-proof',
-        //         name: 'registration-proof.pdf',
-        //         size: 1024000,
-        //         type: 'application/pdf'
-        //     }
-        // },
-        statusEvidence: {
-            type: 'link',
-            linkUrl: 'https://example.org/registration-proof'
-        },
-        giftStatusEvidenceUrl: 'https://example.org/gift-aid-proof',
-        statusNotes: 'Charity is fully registered and eligible for Gift Aid.',
+        registered_in_country_collecting_funds: 'yes',
+        regulatory_status: 'no_concerns',
+        charity_number_visible_on_website: 'clearly_visible',
+        contact_info_accessible_on_website: 'easily_accessible',
         score: 9,
         totalScore: 10,
         grade: 'A',
@@ -119,12 +102,12 @@ export const DUMMY_AUDIT_VALUES: AssessmentValueType = {
     },
 
     'core-area-4': {
-        'board-members-names-on-website': 'yes',
-        'number-of-board-members': '3-or-more',
-        'board-members-photos-on-website': 'yes',
-        'leadership-team-names-on-website': 'yes',
-        'leadership-photos-on-website': 'no',
-        'minimum-3-board-members-at-arms-length': 'yes',
+        board_members_names_featured_on_website: 'three_or_more_members',
+        board_members_photos_featured_on_website: 'three_or_more_members',
+        leadership_team_names_featured_on_website: 'three_or_more_members',
+        leadership_photos_featured_on_website: 'one_to_two_members',
+        ceo_identification: 'yes',
+        minimum_3_board_members_at_arms_length: 'yes',
         grade: 'A',
         score: 10,
         totalScore: 10,

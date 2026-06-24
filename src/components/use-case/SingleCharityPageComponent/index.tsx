@@ -907,7 +907,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                 </TypographyComponent>
                                                                 {percent !== null ? (
                                                                     <TypographyComponent variant="caption" className="text-[#666E76]">
-                                                                        Score: {percent}%
+                                                                        Score: {score}/{total}
+                                                                        {(item.id === 'core-area-1' || item.id === 'core-area-4') && review?.ratingBand ? (
+                                                                            <> · {review.ratingBand}</>
+                                                                        ) : null}
                                                                     </TypographyComponent>
                                                                 ) : null}
                                                             </div>

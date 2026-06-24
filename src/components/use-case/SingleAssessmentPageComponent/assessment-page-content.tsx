@@ -11,6 +11,8 @@ import CoreArea1 from './Assessments/CoreArea1_CharityStatus'
 import CoreArea2 from './Assessments/CoreArea2_FinancialAccountability'
 import CoreArea3 from './Assessments/CoreArea3_Zakat'
 import CoreArea4 from './Assessments/CoreArea4_Governance'
+import RatingBandBadge from '@/components/common/RatingBandBadge'
+import { RatingBand } from '@/lib/audit-scoring'
 
 
 type AssessmentPageContentProps = {
@@ -36,6 +38,7 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
 
     const [score, setScore] = React.useState<number | null>(null);
     const [totalScore, setTotalScore] = React.useState<number | null>(null);
+    const [ratingBand, setRatingBand] = React.useState<RatingBand | null>(null);
 
     const getCoreAreaIdFromSlug = (slug: AssessmentSlug): number => {
         switch (slug) {
@@ -58,23 +61,22 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                 const res = await getAssessmentAction(charityId, coreAreaId);
 
                 if (res.ok && res.payload?.data?.data) {
-                    setScore(res.payload.data.data.score);
-                    // Assuming API returns totalScore or similar. If strictly following user JSON snippet which showed 'totalScore' inside 'core1' object in a 'reviews' object
-                    // but getAssessmentAction returns the specific assessment data directly.
-                    // The user's JSON snippet seemed to be from a summary endpoint, but getAssessmentAction likely returns the specific assessment details.
-                    // Let's assume the specific assessment endpoint also returns totalScore or we calculate it.
-                    // However, relying on the previous tool output of getAssessmentAction implementation, it just calls /assessments/charities/{id}?core-area={n}.
-                    // Without seeing the exact response of THAT endpoint, I'll trust standard patterns and try to read 'totalScore' from data.
-                    // If it's missing, I might need to default or check further.
-                    // But based on user request "have the score form api be there", I'll try to use what's likely there.
-                    setTotalScore(res.payload.data.data.totalScore ?? 10);
+                    const data = res.payload.data.data;
+                    setScore(data.score);
+                    const defaultTotal = coreAreaId === 4 && location === 'united-kingdom' ? 12.5 : 10;
+                    setTotalScore(data.totalScore ?? defaultTotal);
+                    if (coreAreaId === 1 || coreAreaId === 4) {
+                        setRatingBand(data.ratingBand ?? null);
+                    } else {
+                        setRatingBand(null);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch assessment score', error);
             }
         };
         fetchScore();
-    }, [charityId, assessmentSlug]);
+    }, [charityId, assessmentSlug, location]);
 
     const renderAssessment = (assessmentId: AssessmentSlug) => {
         switch (assessmentId) {
@@ -109,11 +111,12 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                 <div className="flex flex-col gap-3">
                     <TypographyComponent variant='h2'>{charityTitle}</TypographyComponent>
                     {score !== null && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <TypographyComponent className='text-sm font-medium'>Current Score:</TypographyComponent>
                             <Badge className="bg-[#266dd3] hover:bg-[#1e5bb8] text-white">
                                 {score}/{totalScore}
                             </Badge>
+                            <RatingBandBadge ratingBand={ratingBand} />
                         </div>
                     )}
                     <TypographyComponent className='text-gray-400 text-sm'>Please enter relevant information regarding the charity</TypographyComponent>

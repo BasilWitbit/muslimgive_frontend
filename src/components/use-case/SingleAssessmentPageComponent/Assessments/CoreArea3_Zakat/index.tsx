@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Link } from 'lucide-react';
 import { CRITERIA_OPTION_TEXT } from './CRITERIA_OPTION_TEXT';
 
@@ -234,6 +235,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                         <div className="flex flex-col gap-8 p-1">
                             {group.items.map(criterion => {
                                 const ans = answers[criterion.id] || { rating: null };
+                                const hasNotesOrLinks = Boolean(ans.note?.trim() || ans.links?.length);
                                 return (
                                     <div key={criterion.id} className="flex flex-col gap-4 border-b pb-6 last:border-0 last:pb-0 border-gray-100">
                                         <div className="flex flex-col gap-1">
@@ -301,47 +303,62 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                             </div>
                                         )}
 
-                                        <div className="flex flex-col gap-3 mt-2">
-                                            <div className="flex flex-col gap-2">
-                                                <Label className="text-sm font-medium text-gray-700">Notes / Comments (Optional)</Label>
-                                                <Textarea
-                                                    placeholder="Add your comments here..."
-                                                    disabled={!canEdit}
-                                                    value={ans.note || ""}
-                                                    onChange={(e) => {
-                                                        setAnswers(prev => ({
-                                                            ...prev,
-                                                            [criterion.id]: {
-                                                                ...prev[criterion.id],
-                                                                note: e.target.value
-                                                            }
-                                                        }))
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="flex flex-col gap-2">
-                                                <Label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                                                    <Link className="h-4 w-4 text-gray-500" />
-                                                    Links (Optional)
-                                                </Label>
-                                                <Textarea
-                                                    placeholder="One URL per line"
-                                                    disabled={!canEdit}
-                                                    value={(ans.links || []).join('\n')}
-                                                    onChange={(e) => {
-                                                        const links = e.target.value.split('\n').map(l => l.trim()).filter(Boolean);
-                                                        setAnswers(prev => ({
-                                                            ...prev,
-                                                            [criterion.id]: {
-                                                                ...prev[criterion.id],
-                                                                links
-                                                            }
-                                                        }))
-                                                    }}
-                                                    rows={2}
-                                                />
-                                            </div>
-                                        </div>
+                                        <Accordion
+                                            type="single"
+                                            collapsible
+                                            className="mt-2"
+                                            defaultValue={hasNotesOrLinks ? 'notes' : undefined}
+                                        >
+                                            <AccordionItem value="notes" className="rounded-md border border-gray-200 overflow-hidden border-b">
+                                                <AccordionTrigger className="px-3 py-2 text-sm font-medium text-gray-700 hover:no-underline">
+                                                    Notes / Comments / Links
+                                                    <span className="text-xs font-normal text-gray-400">(Optional)</span>
+                                                </AccordionTrigger>
+                                                <AccordionContent className="px-3">
+                                                    <div className="flex flex-col gap-3">
+                                                        <div className="flex flex-col gap-2">
+                                                            <Label className="text-sm font-medium text-gray-700">Notes / Comments</Label>
+                                                            <Textarea
+                                                                placeholder="Add your comments here..."
+                                                                disabled={!canEdit}
+                                                                value={ans.note || ""}
+                                                                onChange={(e) => {
+                                                                    setAnswers(prev => ({
+                                                                        ...prev,
+                                                                        [criterion.id]: {
+                                                                            ...prev[criterion.id],
+                                                                            note: e.target.value
+                                                                        }
+                                                                    }))
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="flex flex-col gap-2">
+                                                            <Label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                                                                <Link className="h-4 w-4 text-gray-500" />
+                                                                Links
+                                                            </Label>
+                                                            <Textarea
+                                                                placeholder="One URL per line"
+                                                                disabled={!canEdit}
+                                                                value={(ans.links || []).join('\n')}
+                                                                onChange={(e) => {
+                                                                    const links = e.target.value.split('\n').map(l => l.trim()).filter(Boolean);
+                                                                    setAnswers(prev => ({
+                                                                        ...prev,
+                                                                        [criterion.id]: {
+                                                                            ...prev[criterion.id],
+                                                                            links
+                                                                        }
+                                                                    }))
+                                                                }}
+                                                                rows={2}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        </Accordion>
                                     </div>
                                 )
                             })}

@@ -2,7 +2,6 @@
 import { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page';
 import { AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS';
 import React, { FC, useEffect, useState } from 'react'
-import LinkComponent from '@/components/common/LinkComponent';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import ModelComponentWithExternalControl from '@/components/common/ModelComponent/ModelComponentWithExternalControl';
@@ -45,6 +44,25 @@ const formatRating = (rating?: string | null) => {
     if (!key) return '—';
     return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
+
+const criterionScore = (
+    outcome: string | null | undefined,
+    max: 1 | 2,
+    discretionary?: number | null,
+): number | null => {
+    const key = normalizeRatingKey(outcome);
+    if (!key) return null;
+    if (key === 'strong') return max;
+    if (key === 'concern') return 0;
+    if (key === 'moderate') {
+        if (discretionary != null) return Number(discretionary.toFixed(2));
+        return Number((max * 0.67).toFixed(2));
+    }
+    if (key === 'needs_improvement') return Number((max * 0.33).toFixed(2));
+    return 0;
+};
+
+const formatScore = (score: number) => (Number.isInteger(score) ? String(score) : score.toFixed(2));
 
 const RatingCell = ({ rating }: { rating?: string | null }) => {
     const key = normalizeRatingKey(rating);
@@ -127,14 +145,14 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
         return scoring?.section_scores?.find((s: any) => s.sectionId === sectionId);
     };
 
-    const getPointsDisplay = (criterion: any, ans: AnswerItem) => {
-        if (criterion.isDiscretionary && ans.rating === 'moderate') {
-            return ans.discretionary_points != null ? String(ans.discretionary_points) : '—';
-        }
-        if (criterion.pointsPossible != null) {
-            return <span className="text-[#8B95A5]">{criterion.pointsPossible}</span>;
-        }
-        return '—';
+    const getEarnedScoreDisplay = (criterion: any, ans: AnswerItem) => {
+        const max = (criterion.pointsPossible === 2 ? 2 : 1) as 1 | 2;
+        const discretionary = criterion.isDiscretionary && normalizeRatingKey(ans.rating) === 'moderate'
+            ? ans.discretionary_points
+            : undefined;
+        const score = criterionScore(ans.rating, max, discretionary);
+        if (score == null) return '—';
+        return formatScore(score);
     };
 
     return (
@@ -248,13 +266,11 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                             <table className="w-full min-w-[720px] border-collapse text-xs">
                                 <thead>
                                     <tr className="bg-[#FAFBFC] text-[10px] font-semibold uppercase tracking-wide text-[#8B95A5]">
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[52px]">ID</th>
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[180px]">Criterion</th>
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[130px]">Rating</th>
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-center w-[48px]">Pts</th>
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[200px]">Descriptor</th>
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[140px]">Links</th>
-                                        <th className="border-b border-[#E4E9F0] px-2 py-1.5 text-left min-w-[140px]">Notes</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[180px]">Mandatory Metric</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[220px]">Subcriteria</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[130px]">Outcome</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[220px]">Text to match the outcome</th>
+                                        <th className="border-b border-[#E4E9F0] px-2 py-1.5 text-center w-[60px]">Score</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -265,7 +281,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                                         const descriptor = ans.rating
                                             ? CRITERIA_OPTION_TEXT[c.id]?.[normalizeRatingKey(ans.rating)] ?? ''
                                             : '';
-                                        const pts = getPointsDisplay(c, ans);
+                                        const pts = getEarnedScoreDisplay(c, ans);
 
                                         return (
                                             <tr
@@ -275,17 +291,14 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                                                     rowIdx % 2 === 1 ? 'bg-[#FAFBFC]' : 'bg-white',
                                                 )}
                                             >
-                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top font-mono text-[10px] font-medium text-[#266dd3] whitespace-nowrap">
-                                                    {c.id}
+                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-[11px] leading-snug text-[#344054]">
+                                                    <span className="line-clamp-2" title={c.metricTitle}>{c.metricTitle}</span>
                                                 </td>
                                                 <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-[11px] leading-snug text-[#344054]">
                                                     <span className="line-clamp-3" title={c.label}>{c.label}</span>
                                                 </td>
                                                 <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top">
                                                     <RatingCell rating={ans.rating} />
-                                                </td>
-                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-center font-mono tabular-nums text-[11px] text-[#344054]">
-                                                    {pts}
                                                 </td>
                                                 <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-[10px] leading-snug text-[#5C6B7A]">
                                                     {descriptor ? (
@@ -294,31 +307,8 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                                                         <span className="text-gray-300">—</span>
                                                     )}
                                                 </td>
-                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top">
-                                                    {ans.links && ans.links.length > 0 ? (
-                                                        <div className="flex flex-col gap-0.5">
-                                                            {ans.links.map((link: string, idx: number) => (
-                                                                <LinkComponent
-                                                                    key={idx}
-                                                                    openInNewTab
-                                                                    className="block truncate text-[10px] text-[#266dd3] hover:underline max-w-[130px]"
-                                                                    to={link}
-                                                                    title={link}
-                                                                >
-                                                                    {link.replace(/^https?:\/\/(www\.)?/, '')}
-                                                                </LinkComponent>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-gray-300">—</span>
-                                                    )}
-                                                </td>
-                                                <td className="border-b border-[#EEF1F5] px-2 py-1.5 align-top text-[10px] leading-snug text-[#5C6B7A]">
-                                                    {ans.note ? (
-                                                        <span className="line-clamp-2 whitespace-pre-wrap" title={ans.note}>{ans.note}</span>
-                                                    ) : (
-                                                        <span className="text-gray-300">—</span>
-                                                    )}
+                                                <td className="border-b border-[#EEF1F5] px-2 py-1.5 align-top text-center font-mono tabular-nums text-[11px] text-[#344054]">
+                                                    {pts}
                                                 </td>
                                             </tr>
                                         );

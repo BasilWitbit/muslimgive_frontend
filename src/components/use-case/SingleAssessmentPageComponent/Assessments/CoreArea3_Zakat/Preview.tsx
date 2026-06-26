@@ -9,6 +9,7 @@ import SubmittedSymbol from '../../Assessments/CoreArea1_CharityStatus/Submitted
 import { completeAssessmentAction, getAssessmentAction } from '@/app/actions/assessments';
 import { toast } from 'sonner';
 import { CRITERIA_OPTION_TEXT } from './CRITERIA_OPTION_TEXT';
+import { formatScore, getEarnedScoreForCriterion, normalizeRatingKey } from './scoring';
 import { cn } from '@/lib/utils';
 
 export type PreviewPageCommonProps = {
@@ -34,35 +35,11 @@ const RATING_STYLES: Record<string, { bg: string; text: string; dot: string }> =
     concern: { bg: 'bg-rose-50', text: 'text-rose-800', dot: 'bg-rose-500' },
 };
 
-const normalizeRatingKey = (rating?: string | null) => {
-    if (!rating) return '';
-    return rating.toLowerCase().replace(/\s+/g, '_');
-};
-
 const formatRating = (rating?: string | null) => {
     const key = normalizeRatingKey(rating);
     if (!key) return '—';
     return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
-
-const criterionScore = (
-    outcome: string | null | undefined,
-    max: 1 | 2,
-    discretionary?: number | null,
-): number | null => {
-    const key = normalizeRatingKey(outcome);
-    if (!key) return null;
-    if (key === 'strong') return max;
-    if (key === 'concern') return 0;
-    if (key === 'moderate') {
-        if (discretionary != null) return Number(discretionary.toFixed(2));
-        return Number((max * 0.67).toFixed(2));
-    }
-    if (key === 'needs_improvement') return Number((max * 0.33).toFixed(2));
-    return 0;
-};
-
-const formatScore = (score: number) => (Number.isInteger(score) ? String(score) : score.toFixed(2));
 
 const RatingCell = ({ rating }: { rating?: string | null }) => {
     const key = normalizeRatingKey(rating);
@@ -146,13 +123,10 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
     };
 
     const getEarnedScoreDisplay = (criterion: any, ans: AnswerItem) => {
-        const max = (criterion.pointsPossible === 2 ? 2 : 1) as 1 | 2;
-        const discretionary = criterion.isDiscretionary && normalizeRatingKey(ans.rating) === 'moderate'
-            ? ans.discretionary_points
-            : undefined;
-        const score = criterionScore(ans.rating, max, discretionary);
-        if (score == null) return '—';
-        return formatScore(score);
+        const max = criterion.pointsPossible;
+        const score = getEarnedScoreForCriterion(criterion, ans);
+        if (score == null) return `—/${max}`;
+        return `${formatScore(score)}/${max}`;
     };
 
     return (
@@ -270,7 +244,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                                         <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[220px]">Subcriteria</th>
                                         <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[130px]">Outcome</th>
                                         <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[220px]">Text to match the outcome</th>
-                                        <th className="border-b border-[#E4E9F0] px-2 py-1.5 text-center w-[60px]">Score</th>
+                                        <th className="border-b border-[#E4E9F0] px-2 py-1.5 text-center w-[72px]">Score</th>
                                     </tr>
                                 </thead>
                                 <tbody>

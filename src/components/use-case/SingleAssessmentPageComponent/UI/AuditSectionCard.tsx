@@ -3,7 +3,7 @@ import React, { FC, ReactNode } from 'react'
 
 type IProps = {
     children: ReactNode
-    title?: string
+    title?: ReactNode
 }
 
 const AssessmentSectionCard: FC<IProps> = ({ children, title }) => {

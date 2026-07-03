@@ -17,7 +17,10 @@ const SignOutBtnInSidebar = () => {
                     router.replace(res?.redirectTo ?? '/login')
                 })
             }
-                variant={"ghost"} className="w-full justify-start items-center"><span><SignOut /></span>Sign Out</Button>
+                variant={"ghost"} className="w-full justify-start items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                <span><SignOut /></span>
+                <span className="group-data-[collapsible=icon]:hidden">Sign Out</span>
+            </Button>
         </div>
     )
 }

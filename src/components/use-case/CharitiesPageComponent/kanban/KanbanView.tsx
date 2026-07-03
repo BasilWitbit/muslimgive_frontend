@@ -25,18 +25,20 @@ type Member = {
     role: BaseRoles
 }
 
-type AssignmentCandidate = {
+export type AssignmentCandidate = {
     id: string
     name: string
     email?: string | null
 }
 
-type AssignmentCandidatesByRole = {
+export type AssignmentCandidatesByRole = {
     projectManager: AssignmentCandidate[]
     financeAssessor: AssignmentCandidate[]
     zakatAssessor: AssignmentCandidate[]
     readOnly: AssignmentCandidate[]
 }
+
+export type AssignableCharityRole = 'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'read-only'
 
 export type StatusType = 'pending-eligibility' | 'unassigned' | 'open-to-review' | 'pending-admin-review' | 'approved' | 'ineligible'
 
@@ -202,7 +204,7 @@ const KanbanView: FC<IProps> = ({ charities, onCardNavigate, projectManagers = [
         },
         {
             color: '#266DD3',
-            title: 'Pending Review by Admin',
+            title: 'Pending Review',
             id: 'pending-admin-review',
         },
         {

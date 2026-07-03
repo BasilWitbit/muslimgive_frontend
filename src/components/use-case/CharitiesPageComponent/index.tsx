@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react'
 import LinkComponent from '@/components/common/LinkComponent'
 import KanbanTabularToggle, { ViewsType } from '../KanbanTabularToggle'
 import EmailIcon from '@/components/common/IconComponents/EmailIcon'
-import KanbanView, { SingleCharityType } from './kanban/KanbanView'
+import KanbanView, { SingleCharityType, type AssignmentCandidatesByRole } from './kanban/KanbanView'
 import TabularView from './tabular/TabularView'
 import ModelComponentWithExternalControl from '@/components/common/ModelComponent/ModelComponentWithExternalControl'
 import BulkEmailModal from './BulkEmailModal'
@@ -15,6 +15,7 @@ import Can from '@/components/common/Can'
 import { PERMISSIONS } from '@/lib/permissions-config'
 
 
+import { mapCharityMembersFromAssignments } from '@/lib/assignment-candidates'
 import { listCharitiesAction, listDeletedCharitiesAction, restoreCharityAction } from '@/app/actions/charities'
 import { toast } from 'sonner'
 
@@ -30,7 +31,7 @@ const STATUS_KEYS = [
     { id: 'unassigned', label: 'Unassigned' },
     { id: 'pending-eligibility', label: 'Pending Eligibility Review' },
     { id: 'open-to-review', label: 'Open To Review' },
-    { id: 'pending-admin-review', label: 'Pending Admin Review' },
+    { id: 'pending-admin-review', label: 'Pending Review' },
     { id: 'approved', label: 'Approved' },
     { id: 'ineligible', label: 'Ineligible' },
 ]
@@ -47,10 +48,10 @@ const CATEGORY_KEYS = [
 ]
 
 type CharitiesPageComponentProps = {
-    projectManagers?: { id: string, name: string, email: string | null }[];
+    assignmentCandidatesByRole?: AssignmentCandidatesByRole
 }
 
-const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ projectManagers = [] }) => {
+const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignmentCandidatesByRole }) => {
     const [queryInput, setQueryInput] = useState('')
     const [view, setView] = useState<ViewsType>('tabular');
     const [openBulkEmailModal, setOpenBulkEmailModal] = useState(false)
@@ -79,12 +80,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ project
         logoUrl: c.logoUrl ?? null,
         charityOwnerName: c.submittedByName || [c.owner?.firstName, c.owner?.lastName].filter(Boolean).join(' ') || "-",
         charityDesc: c.description || "",
-        members: (c.assignments || []).map((a: any) => ({
-            id: a.user?.id,
-            name: `${a.user?.firstName} ${a.user?.lastName}`,
-            profilePicture: null,
-            role: a.roles?.[0]?.slug || 'project-manager'
-        })),
+        members: mapCharityMembersFromAssignments(c.assignments),
         comments: c.commentsCount || 0,
         assessmentsCompleted: (c.reviews?.summary?.completed || 0) as any,
         status: c.status || 'unassigned',
@@ -376,9 +372,9 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ project
                 ) : (
                     <>
                         {view === "kanban" ? (
-                            <KanbanView charities={searchedRows} onCardNavigate={() => setIsNavigating(true)} projectManagers={projectManagers} />
+                            <KanbanView charities={searchedRows} onCardNavigate={() => setIsNavigating(true)} projectManagers={assignmentCandidatesByRole?.projectManager ?? []} />
                         ) : null}
-                        {view === "tabular" ? <TabularView charities={searchedRows} onRefresh={() => fetchCharities(queryInput, { status: statusFilters.length ? statusFilters : undefined, categories: categoryFilters.length ? categoryFilters : undefined, zakat: zakatFilter, islamic: islamicFilter, sortBy, order })} /> : null}
+                        {view === "tabular" ? <TabularView charities={searchedRows} assignmentCandidatesByRole={assignmentCandidatesByRole} onRefresh={() => fetchCharities(queryInput, { status: statusFilters.length ? statusFilters : undefined, categories: categoryFilters.length ? categoryFilters : undefined, zakat: zakatFilter, islamic: islamicFilter, sortBy, order })} /> : null}
                     </>
                 )}
             </div>

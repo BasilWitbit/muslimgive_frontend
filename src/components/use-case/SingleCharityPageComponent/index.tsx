@@ -10,6 +10,13 @@ import IconDropdownMenuComponent from '@/components/common/IconDropdownMenuCompo
 import EmailIcon from '@/components/common/IconComponents/EmailIcon'
 import CardComponent from '@/components/common/CardComponent'
 import { TaskIds } from '@/types/assessments'
+import {
+    AUDIT_DISPLAY_MAX,
+    formatAuditScore,
+    getAreaDisplayScore,
+    getOverallDisplayScore,
+    getZakatDisplayScores,
+} from '@/lib/audit-score-display'
 
 // Extending TaskIds for local modal state management if needed, or ensuring TaskIds includes it.
 // Since TaskIds is imported, we can't easily extend it here without changing the type definition in the other file.
@@ -393,7 +400,37 @@ const SingleCharityPageComponent: FC<IProps> = ({
     }
     const isCurrentUserAssigned = effectiveUserId ? members.some(member => member.id === effectiveUserId) : false
     const assessmentActionLabel = reassessmentCycle && reassessmentCycle > 0 ? 'Re-Assess' : 'Start'
-    const overallScoreLabel = typeof overallScorePercent === 'number' ? `${overallScorePercent}%` : null
+    const overallScoreLabel = (() => {
+        if (!reviews) {
+            return typeof overallScorePercent === 'number'
+                ? `${formatAuditScore(overallScorePercent)}/${AUDIT_DISPLAY_MAX.overall}`
+                : null
+        }
+        const overall = getOverallDisplayScore(reviews, overallScorePercent)
+        return overall !== null ? `${formatAuditScore(overall)}/${AUDIT_DISPLAY_MAX.overall}` : null
+    })()
+
+    const getAssessmentScoreLabel = (assessmentId: TaskIds, review?: { score: number | null; totalScore: number; ratingBand?: string | null; weightedScore?: number | null; weightageScore?: number | null }) => {
+        if (!review || review.score === null) return null
+
+        if (assessmentId === 'core-area-3') {
+            const zakatScores = getZakatDisplayScores(review)
+            return `Assessment: ${formatAuditScore(zakatScores.assessmentScore)}/${AUDIT_DISPLAY_MAX.core3Assessment} · Weightage: ${formatAuditScore(zakatScores.weightageScore)}/${AUDIT_DISPLAY_MAX.core3Weightage}`
+        }
+
+        const displayMax = assessmentId === 'core-area-2'
+            ? AUDIT_DISPLAY_MAX.core2
+            : assessmentId === 'core-area-4'
+                ? AUDIT_DISPLAY_MAX.core4
+                : AUDIT_DISPLAY_MAX.core1
+
+        const displayScore = getAreaDisplayScore(review, displayMax)
+        const bandSuffix = (assessmentId === 'core-area-1' || assessmentId === 'core-area-4') && review.ratingBand
+            ? ` · ${review.ratingBand}`
+            : ''
+
+        return `Score: ${formatAuditScore(displayScore)}/${displayMax}${bandSuffix}`
+    }
 
     useEffect(() => {
         const fetchComments = async () => {
@@ -718,7 +755,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                         done={isAdminReviewed}
                                         successText="Reviewed"
                                         pendingText="Pending"
-                                        meta={overallScoreLabel ? `Grade: ${overallScoreLabel}` : undefined}
+                                        meta={overallScoreLabel ? `Score: ${overallScoreLabel}` : undefined}
                                     />
                                     <div className="flex items-center justify-between rounded-lg border border-[#EEF2F6] bg-white p-3">
                                         <div className="flex items-center gap-2">
@@ -875,11 +912,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                 completedAssessments.map(item => {
                                                     const review = getReview(item.reviewKey)
                                                     const status = getAssessmentStatus(item.statusKey, item.reviewKey)
-                                                    const score = review?.score
-                                                    const total = review?.totalScore
-                                                    const percent = typeof score === 'number' && typeof total === 'number' && total > 0
-                                                        ? Math.round((score / total) * 100)
-                                                        : null
+                                                    const scoreLabel = getAssessmentScoreLabel(item.id, review)
                                                     const assignedNames = getAssignedNamesForAssessment(item.id)
                                                     const isAssigned = assignedNames !== 'Unassigned'
                                                     return (
@@ -905,12 +938,9 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                 <TypographyComponent variant="caption" className="text-[#666E76]">
                                                                     Status: {assessmentStatusLabel(status)}
                                                                 </TypographyComponent>
-                                                                {percent !== null ? (
+                                                                {scoreLabel ? (
                                                                     <TypographyComponent variant="caption" className="text-[#666E76]">
-                                                                        Score: {score}/{total}
-                                                                        {(item.id === 'core-area-1' || item.id === 'core-area-4') && review?.ratingBand ? (
-                                                                            <> · {review.ratingBand}</>
-                                                                        ) : null}
+                                                                        {scoreLabel}
                                                                     </TypographyComponent>
                                                                 ) : null}
                                                             </div>

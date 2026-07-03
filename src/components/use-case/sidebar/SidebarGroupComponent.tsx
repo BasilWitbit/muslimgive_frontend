@@ -46,13 +46,13 @@ export const SidebarGroupComponent: FC<SidebarGroupProps> = ({ label, options })
     return <SidebarGroup>
         <SidebarGroupLabel>{label}</SidebarGroupLabel>
         <SidebarGroupContent>
-            <SidebarMenu className="flex flex-col gap-3">
+            <SidebarMenu className="flex flex-col gap-2 group-data-[collapsible=icon]:gap-1">
                 {options.map((item) => {
                     const isActive = item.name === firstPath;
                     if (item.action.type === 'button') {
                         return (
                             <SidebarMenuItem key={item.name}>
-                                <SidebarMenuButton className={cn("flex gap-3", isActive ? "font-bold text-primary" : "")} variant={"default"} onClick={() => {
+                                <SidebarMenuButton tooltip={item.title} className={cn("flex gap-3 group-data-[collapsible=icon]:justify-center", isActive ? "font-bold text-primary bg-primary/10" : "")} variant={"default"} onClick={() => {
                                     if (item.action.type === 'button')
                                         item.action.clickHandler()
                                 }} >
@@ -65,8 +65,8 @@ export const SidebarGroupComponent: FC<SidebarGroupProps> = ({ label, options })
                     if (item.action.type === 'url') {
                         return (
                             <SidebarMenuItem key={item.title}>
-                                <SidebarMenuButton variant={"default"} asChild>
-                                    <LinkComponent className={cn("flex gap-3", isActive ? "font-bold text-primary" : "")} to={item.action.target}>
+                                <SidebarMenuButton tooltip={item.title} variant={"default"} asChild>
+                                    <LinkComponent className={cn("flex gap-3 group-data-[collapsible=icon]:justify-center", isActive ? "font-bold text-primary bg-primary/10" : "")} to={item.action.target}>
                                         <span>{item.icon}</span>
                                         <span>{item.title}</span>
                                     </LinkComponent>

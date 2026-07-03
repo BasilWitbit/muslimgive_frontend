@@ -85,7 +85,7 @@ const AppbarComponent = ({ initialDeepScanCount = 0 }: AppbarProps) => {
     return (
         <div className='border-b border-[rgb(178,178,178)/10] border-opacity-10 px-4 py-[14px] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5'>
             <div className="flex items-center gap-3 w-full">
-                <div className="md:hidden">
+                <div>
                     <SidebarTrigger />
                 </div>
                 <TypographyComponent variant='h1' className='w-full'>

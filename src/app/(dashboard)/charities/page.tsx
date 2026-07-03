@@ -1,27 +1,20 @@
 import CharitiesPageComponent from '@/components/use-case/CharitiesPageComponent'
 import React from 'react'
-import { listUsersAction } from '@/app/actions/users'
+import { listUsersAction, listReadOnlyUsersAction } from '@/app/actions/users'
+import { buildAssignmentCandidatesByRole } from '@/lib/assignment-candidates'
 
 const Charities = async () => {
-    const usersRes = await listUsersAction({ limit: 200 })
+    const [usersRes, readOnlyUsersRes] = await Promise.all([
+        listUsersAction({ limit: 200 }),
+        listReadOnlyUsersAction({ limit: 200 }),
+    ])
+
     const allUsers = Array.isArray(usersRes?.payload?.data) ? usersRes.payload.data : []
-
-    const toRoleSlug = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-    const roleAliases = ['project-manager']
-
-    const projectManagers = allUsers
-        .filter((u: any) => {
-            const roles: string[] = Array.isArray(u?.roles) ? u.roles : []
-            return roles.some(r => roleAliases.includes(toRoleSlug(String(r))))
-        })
-        .map((u: any) => ({
-            id: u.id,
-            name: `${u.firstName} ${u.lastName}`.trim() || u.name || "Unnamed User",
-            email: u.email ?? null,
-        }))
+    const readOnlyUsers = Array.isArray(readOnlyUsersRes?.payload?.data) ? readOnlyUsersRes.payload.data : []
+    const assignmentCandidatesByRole = buildAssignmentCandidatesByRole(allUsers, readOnlyUsers)
 
     return (
-        <CharitiesPageComponent projectManagers={projectManagers} />
+        <CharitiesPageComponent assignmentCandidatesByRole={assignmentCandidatesByRole} />
     )
 }
 

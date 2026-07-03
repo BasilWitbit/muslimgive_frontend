@@ -1,7 +1,7 @@
 import { ImageComponent } from "@/components/common/ImageComponent";
 import { Item, SidebarGroupComponent } from "./SidebarGroupComponent";
 import { PAGES, PageType } from "./pages";
-import { Sidebar, SidebarContent, SidebarProvider } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarRail } from "@/components/ui/sidebar";
 import SignOutBtnInSidebar from "../sign-out-button-sidebar/SignOutBtnInSidebar";
 import { authAdapter } from "@/auth/adapters";
 import { redirect } from "next/navigation";
@@ -59,23 +59,27 @@ const SideBarComponent = async ({ permissions, roles, isAdmin }: SideBarComponen
     ];
 
     return (
-        <SidebarProvider>
-            <Sidebar>
-                <SidebarContent>
-                    <div className="pt-5 px-3" >
-                        <LinkComponent to="/charities">
+        <Sidebar collapsible="icon" className="border-r border-[#ECEFF3]">
+            <SidebarContent className="bg-white">
+                <div className="pt-5 px-3 group-data-[collapsible=icon]:px-2">
+                    <LinkComponent to="/charities" className="flex items-center justify-center md:justify-start">
+                        <span className="group-data-[collapsible=icon]:hidden">
                             <ImageComponent source="/logo__white.png" alt="MuslimGive Logo" height={30} width={120} priority />
-                        </LinkComponent>
-                    </div>
-                    <div className="flex flex-col gap-2 grow">
-                        {menu.map(eachMenuItem => {
-                            return <SidebarGroupComponent key={eachMenuItem.title} label={eachMenuItem.title} options={eachMenuItem.items} />
-                        })}
-                    </div>
-                    <SignOutBtnInSidebar />
-                </SidebarContent>
-            </Sidebar >
-        </SidebarProvider>
+                        </span>
+                        <span className="hidden h-8 w-8 items-center justify-center rounded-md bg-[#266DD3] text-xs font-semibold text-white group-data-[collapsible=icon]:inline-flex">
+                            MG
+                        </span>
+                    </LinkComponent>
+                </div>
+                <div className="flex flex-col gap-2 grow">
+                    {menu.map(eachMenuItem => {
+                        return <SidebarGroupComponent key={eachMenuItem.title} label={eachMenuItem.title} options={eachMenuItem.items} />
+                    })}
+                </div>
+                <SignOutBtnInSidebar />
+            </SidebarContent>
+            <SidebarRail />
+        </Sidebar >
     )
 }
 

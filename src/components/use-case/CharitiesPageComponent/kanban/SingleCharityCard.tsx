@@ -1,6 +1,6 @@
 'use client'
 import React, { FC } from 'react'
-import { SingleCharityType } from './KanbanView'
+import { SingleCharityType, type AssignmentCandidate } from './KanbanView'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
 import { Card } from '@/components/ui/card'
 import CardChatIcon from '@/components/common/IconComponents/CardChatIcon'
@@ -20,7 +20,7 @@ import ConfirmActionModal from '@/components/common/ConfirmActionModal'
 import { Trash2 } from 'lucide-react'
 type IProps = Omit<SingleCharityType, 'category'> & {
     onNavigate?: () => void
-    projectManagers?: { id: string, name: string, email: string | null }[]
+    projectManagers?: AssignmentCandidate[]
 }
 
 const SingleCharityCard: FC<IProps> = ({

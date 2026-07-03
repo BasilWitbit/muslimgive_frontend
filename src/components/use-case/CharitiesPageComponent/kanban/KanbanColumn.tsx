@@ -2,13 +2,13 @@
 import { Card } from '@/components/ui/card'
 import React, { FC } from 'react'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
-import { KanbanColType, SingleCharityType } from './KanbanView'
+import { KanbanColType, SingleCharityType, type AssignmentCandidate } from './KanbanView'
 import SingleCharityCard from './SingleCharityCard'
 
 type IProps = Omit<KanbanColType, 'id'> & {
     cards: SingleCharityType[]
     onCardNavigate?: () => void
-    projectManagers?: { id: string, name: string, email: string | null }[]
+    projectManagers?: AssignmentCandidate[]
 }
 
 const KanbanColumn: FC<IProps> = ({ color, title, cards, onCardNavigate, projectManagers = [] }) => {

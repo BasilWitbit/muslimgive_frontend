@@ -175,7 +175,7 @@ export type SingleCharityType = {
 type IProps = {
     charities: SingleCharityType[]
     onCardNavigate?: () => void
-    projectManagers?: { id: string, name: string, email: string | null }[]
+    projectManagers?: AssignmentCandidate[]
 }
 
 const KanbanView: FC<IProps> = ({ charities, onCardNavigate, projectManagers = [] }) => {

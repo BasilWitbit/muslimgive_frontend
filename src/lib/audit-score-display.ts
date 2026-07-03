@@ -17,7 +17,7 @@ export const AUDIT_AREA_LABELS = {
 export type AuditCoreAreaKey = keyof typeof AUDIT_AREA_LABELS
 
 export type AuditReviewLike = {
-    status: string
+    status?: string
     score: number | null
     totalScore: number
     result?: 'pass' | 'fail' | null
@@ -81,8 +81,9 @@ export function computeOverallFromReviews(reviews: {
         getAreaDisplayScore(reviews.core4, AUDIT_DISPLAY_MAX.core4),
     ]
 
-    if (parts.some((part) => part === null)) return null
-    return Number(parts.reduce((sum, part) => sum + (part ?? 0), 0).toFixed(1))
+    const resolvedParts = parts.filter((part): part is number => part !== null)
+    if (resolvedParts.length !== parts.length) return null
+    return Number(resolvedParts.reduce((sum, part) => sum + part, 0).toFixed(1))
 }
 
 export function getOverallDisplayScore(

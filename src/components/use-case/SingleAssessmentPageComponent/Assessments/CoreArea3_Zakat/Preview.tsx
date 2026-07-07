@@ -28,6 +28,25 @@ type AnswerItem = {
     note?: string;
 };
 
+const METRIC_ROW_BACKGROUNDS = {
+    even: 'bg-white',
+    odd: 'bg-[#F2F4F7]',
+} as const;
+
+const METRIC_TABLE_CELL_BORDER = 'border-[#D4DAE3]';
+
+const getMetricIndexById = (criteria: Array<{ metricId: string }>) => {
+    const metricIndexById = new Map<string, number>();
+
+    criteria.forEach((criterion) => {
+        if (!metricIndexById.has(criterion.metricId)) {
+            metricIndexById.set(criterion.metricId, metricIndexById.size);
+        }
+    });
+
+    return metricIndexById;
+};
+
 const RATING_STYLES: Record<string, { bg: string; text: string; dot: string }> = {
     strong: { bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
     moderate: { bg: 'bg-sky-50', text: 'text-sky-800', dot: 'bg-sky-500' },
@@ -204,7 +223,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
             )}
 
             {/* Section spreadsheets */}
-            {sections.map((section: any) => {
+            {sections.map((section: any, sectionIndex: number) => {
                 const sectionCriteria = criteria.filter((c: any) => c.sectionId === section.id);
                 if (sectionCriteria.length === 0) return null;
 
@@ -212,7 +231,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                     return (
                         <div key={section.id} className="overflow-hidden rounded-lg border border-[#D0D7E2] bg-[#FAFBFC]">
                             <div className="flex items-center justify-between border-b border-[#D0D7E2] bg-[#F4F6F9] px-3 py-2">
-                                <span className="text-xs font-semibold text-[#344054]">{section.title}</span>
+                                <span className="text-xs font-semibold text-[#344054]">{sectionIndex === 0 ? section.title : 'Metric'}</span>
                                 <span className="text-[10px] italic text-[#8B95A5]">Skipped (optional)</span>
                             </div>
                         </div>
@@ -221,11 +240,12 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
 
                 const sectionScore = getSectionScore(section.id);
                 const answeredCount = sectionCriteria.filter((c: any) => answers[c.id]?.rating).length;
+                const metricIndexById = getMetricIndexById(sectionCriteria);
 
                 return (
                     <div key={section.id} className="overflow-hidden rounded-lg border border-[#D0D7E2] bg-white shadow-sm">
                         <div className="flex items-center justify-between gap-3 border-b border-[#D0D7E2] bg-[#F4F6F9] px-3 py-2">
-                            <span className="text-xs font-semibold text-[#101928]">{section.title}</span>
+                            <span className="text-xs font-semibold text-[#101928]">{sectionIndex === 0 ? section.title : 'Metric'}</span>
                             <div className="flex items-center gap-3 text-[10px] text-[#5C6B7A] shrink-0">
                                 <span>{answeredCount}/{sectionCriteria.length} rated</span>
                                 {sectionScore && (
@@ -248,7 +268,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {sectionCriteria.map((c: any, rowIdx: number) => {
+                                    {sectionCriteria.map((c: any) => {
                                         const ans = answers[c.id];
                                         if (!ans) return null;
 
@@ -256,32 +276,35 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                                             ? CRITERIA_OPTION_TEXT[c.id]?.[normalizeRatingKey(ans.rating)] ?? ''
                                             : '';
                                         const pts = getEarnedScoreDisplay(c, ans);
+                                        const metricIndex = metricIndexById.get(c.metricId) ?? 0;
 
                                         return (
                                             <tr
                                                 key={c.id}
                                                 className={cn(
                                                     'group transition-colors hover:bg-[#F0F6FF]',
-                                                    rowIdx % 2 === 1 ? 'bg-[#FAFBFC]' : 'bg-white',
+                                                    metricIndex % 2 === 1
+                                                        ? METRIC_ROW_BACKGROUNDS.odd
+                                                        : METRIC_ROW_BACKGROUNDS.even,
                                                 )}
                                             >
-                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-[11px] leading-snug text-[#344054]">
+                                                <td className={cn('border-b border-r px-2 py-1.5 align-top text-[11px] leading-snug text-[#344054]', METRIC_TABLE_CELL_BORDER)}>
                                                     <span className="line-clamp-2" title={c.metricTitle}>{c.metricTitle}</span>
                                                 </td>
-                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-[11px] leading-snug text-[#344054]">
+                                                <td className={cn('border-b border-r px-2 py-1.5 align-top text-[11px] leading-snug text-[#344054]', METRIC_TABLE_CELL_BORDER)}>
                                                     <span className="line-clamp-3" title={c.label}>{c.label}</span>
                                                 </td>
-                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top">
+                                                <td className={cn('border-b border-r px-2 py-1.5 align-top', METRIC_TABLE_CELL_BORDER)}>
                                                     <RatingCell rating={ans.rating} />
                                                 </td>
-                                                <td className="border-b border-r border-[#EEF1F5] px-2 py-1.5 align-top text-[10px] leading-snug text-[#5C6B7A]">
+                                                <td className={cn('border-b border-r px-2 py-1.5 align-top text-[10px] leading-snug text-[#5C6B7A]', METRIC_TABLE_CELL_BORDER)}>
                                                     {descriptor ? (
                                                         <span className="line-clamp-2" title={descriptor}>{descriptor}</span>
                                                     ) : (
                                                         <span className="text-gray-300">—</span>
                                                     )}
                                                 </td>
-                                                <td className="border-b border-[#EEF1F5] px-2 py-1.5 align-top text-center font-mono tabular-nums text-[11px] text-[#344054]">
+                                                <td className={cn('border-b px-2 py-1.5 align-top text-center font-mono tabular-nums text-[11px] text-[#344054]', METRIC_TABLE_CELL_BORDER)}>
                                                     {pts}
                                                 </td>
                                             </tr>

@@ -74,11 +74,23 @@ const isCriterionComplete = (criterion: RubricCriterion, ans?: AnswerItem): bool
 
 const isCriterionAttempted = (ans?: AnswerItem) => Boolean(ans?.rating);
 
-const getCriteriaProgress = (items: RubricCriterion[], answers: Record<string, AnswerItem>) => {
-    const total = items.length;
-    const attempted = items.filter(c => isCriterionAttempted(answers[c.id])).length;
-    const complete = items.filter(c => isCriterionComplete(c, answers[c.id])).length;
-    return { total, attempted, complete };
+const getSectionDisplayTitle = (section: RubricSection, index: number) =>
+    index === 0 ? section.title : 'Metric';
+
+const getPointsProgress = (items: RubricCriterion[], answers: Record<string, AnswerItem>) => {
+    const { max, earned } = getGroupScoreSummary(items, answers);
+    const earnedValue = earned ?? 0;
+    const isComplete = earned != null && earnedValue >= max;
+    const hasProgress = earned != null && earnedValue > 0;
+
+    return {
+        max,
+        earned: earnedValue,
+        earnedLabel: formatScore(earnedValue),
+        maxLabel: formatScore(max),
+        isComplete,
+        hasProgress,
+    };
 };
 
 const isSectionCompleteForSection = (
@@ -312,7 +324,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                 >
                     {sections.map((section, idx) => {
                         const sectionCriteria = getSectionCriteria(section.id);
-                        const sectionProgress = getCriteriaProgress(sectionCriteria, answers);
+                        const sectionProgress = getPointsProgress(sectionCriteria, answers);
                         const isCurrent = step === idx;
                         const groupedMetrics = groupCriteriaByMetric(section.id);
                         const sectionSkipped = section.optional && optionalSkipped;
@@ -323,12 +335,12 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                     className={cn(
                                         'px-2 py-2 text-xs hover:no-underline',
                                         isCurrent && 'text-[#266dd3]',
-                                        sectionProgress.complete === sectionProgress.total && sectionProgress.total > 0 && 'text-emerald-800',
+                                        sectionProgress.isComplete && sectionProgress.max > 0 && 'text-emerald-800',
                                     )}
                                 >
                                     <span className="flex flex-1 items-center gap-1.5 text-left min-w-0">
                                         <span className="font-semibold shrink-0">{idx + 1}.</span>
-                                        <span className="line-clamp-2">{section.title}</span>
+                                        <span className="line-clamp-2">{getSectionDisplayTitle(section, idx)}</span>
                                     </span>
                                     <span className="ml-2 flex shrink-0 items-center gap-1">
                                         {sectionSkipped ? (
@@ -336,16 +348,16 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                         ) : (
                                             <span className={cn(
                                                 'rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
-                                                sectionProgress.complete === sectionProgress.total && sectionProgress.total > 0
+                                                sectionProgress.isComplete && sectionProgress.max > 0
                                                     ? 'bg-emerald-100 text-emerald-700'
-                                                    : sectionProgress.attempted > 0
+                                                    : sectionProgress.hasProgress
                                                         ? 'bg-emerald-50 text-emerald-600'
                                                         : 'bg-gray-100 text-gray-400',
                                             )}>
-                                                {sectionProgress.attempted}/{sectionProgress.total}
+                                                {sectionProgress.earnedLabel}/{sectionProgress.maxLabel}
                                             </span>
                                         )}
-                                        {sectionProgress.complete === sectionProgress.total && sectionProgress.total > 0 && (
+                                        {sectionProgress.isComplete && sectionProgress.max > 0 && (
                                             <Check className="h-3 w-3 shrink-0 text-emerald-600" />
                                         )}
                                     </span>
@@ -365,7 +377,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                     </button>
                                     <Accordion type="multiple" className="space-y-0.5">
                                         {Object.entries(groupedMetrics).map(([metricId, group]) => {
-                                            const metricProgress = getCriteriaProgress(group.items, answers);
+                                            const metricProgress = getPointsProgress(group.items, answers);
                                             return (
                                             <AccordionItem
                                                 key={`${section.id}-${metricId}`}
@@ -374,22 +386,22 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                             >
                                                 <AccordionTrigger className={cn(
                                                     'rounded px-1 py-1 text-[11px] font-medium hover:no-underline hover:bg-gray-50',
-                                                    metricProgress.complete === metricProgress.total && metricProgress.total > 0
+                                                    metricProgress.isComplete && metricProgress.max > 0
                                                         ? 'text-emerald-800'
-                                                        : metricProgress.attempted > 0
+                                                        : metricProgress.hasProgress
                                                             ? 'text-emerald-700'
                                                             : 'text-gray-600',
                                                 )}>
                                                     <span className="line-clamp-1 text-left flex-1">{metricId}</span>
                                                     <span className={cn(
                                                         'ml-1 shrink-0 rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums',
-                                                        metricProgress.complete === metricProgress.total && metricProgress.total > 0
+                                                        metricProgress.isComplete && metricProgress.max > 0
                                                             ? 'bg-emerald-100 text-emerald-700'
-                                                            : metricProgress.attempted > 0
+                                                            : metricProgress.hasProgress
                                                                 ? 'bg-emerald-50 text-emerald-600'
                                                                 : 'bg-gray-100 text-gray-400',
                                                     )}>
-                                                        {metricProgress.attempted}/{metricProgress.total}
+                                                        {metricProgress.earnedLabel}/{metricProgress.maxLabel}
                                                     </span>
                                                 </AccordionTrigger>
                                                 <AccordionContent className="pb-1 pl-2">
@@ -484,7 +496,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
 
             <div className="mb-8 flex flex-col gap-6">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900">{currentSection.title}</h2>
+                    <h2 className="text-xl font-bold text-gray-900">{getSectionDisplayTitle(currentSection, step)}</h2>
                     {currentSection.optional && canEdit && (
                         <div className="mt-4 flex items-center space-x-2 bg-blue-50 p-4 rounded-md border border-blue-100">
                             <Switch

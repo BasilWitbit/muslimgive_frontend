@@ -12,7 +12,7 @@ import CoreArea2 from './Assessments/CoreArea2_FinancialAccountability'
 import CoreArea3 from './Assessments/CoreArea3_Zakat'
 import CoreArea4 from './Assessments/CoreArea4_Governance'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
-import { RatingBand } from '@/lib/audit-scoring'
+import { computeCoreArea1RatingBandFromReview, RatingBand } from '@/lib/audit-scoring'
 
 
 type AssessmentPageContentProps = {
@@ -64,8 +64,16 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                     const data = res.payload.data.data;
                     setScore(data.score);
                     const defaultTotal = coreAreaId === 4 && location === 'united-kingdom' ? 12.5 : 10;
-                    setTotalScore(data.totalScore ?? defaultTotal);
-                    if (coreAreaId === 1 || coreAreaId === 4) {
+                    const resolvedTotalScore = data.totalScore ?? defaultTotal;
+                    setTotalScore(resolvedTotalScore);
+                    if (coreAreaId === 1) {
+                        setRatingBand(
+                            computeCoreArea1RatingBandFromReview(
+                                typeof data.score === 'number' ? data.score : null,
+                                resolvedTotalScore,
+                            ),
+                        );
+                    } else if (coreAreaId === 4) {
                         setRatingBand(data.ratingBand ?? null);
                     } else {
                         setRatingBand(null);

@@ -1,7 +1,6 @@
 'use client'
 
 import React, { FC, useMemo, useState, useEffect } from 'react'
-import clsx from 'clsx'
 import { Button } from '@/components/ui/button'
 import { TableComponent } from '@/components/common/TableComponent'
 import { ColumnDef } from '@tanstack/react-table'
@@ -10,6 +9,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import ControlledSearchBarComponent from '@/components/common/SearchBarComponent/ControlledSearchBarComponent'
 import { sendBulkEmailReportAction } from '@/app/actions/charities'
 import { toast } from 'sonner'
+import StatusPill from '@/components/common/StatusPill'
+import { CHARITY_STATUS_COLORS } from '@/lib/chip-styles'
+import { cn } from '@/lib/utils'
 
 export type CharityWithoutMembersAndDesc = Omit<SingleCharityType, 'members' | 'charityDesc'>
 
@@ -18,38 +20,27 @@ type StatusTypeCompProps = {
     className?: string
 }
 
-export const StatusTypeComp: FC<StatusTypeCompProps> = ({ status, className }) => {
-    const statusColors: Record<StatusType, string> = {
-        'pending-eligibility': 'bg-red-500 text-white font-normal',
-        'unassigned': 'bg-pink-400 text-white font-normal',
-        'open-to-review': 'bg-sky-400 text-white font-normal',
-        'pending-admin-review': 'bg-blue-600 text-white font-normal',
-        'approved': 'bg-green-400 text-white font-normal',
-        'ineligible': 'bg-gray-800 text-white font-normal',
-    }
-
-    return (
-        <div className={clsx("flex items-center", className || "justify-center")}>
-            <span
-                className={`px-2 inline-flex text-xs leading-5 rounded-full ${statusColors[status]}`}
-            >
-                {formatStatus(status)}
-            </span>
-        </div>
-    )
+const STATUS_LABELS: Record<StatusType, string> = {
+    'pending-eligibility': 'Pending Eligibility Review',
+    unassigned: 'Unassigned',
+    'open-to-review': 'Open To Review',
+    'pending-admin-review': 'Pending Review',
+    approved: 'Approved',
+    ineligible: 'Ineligible',
 }
+
+export const StatusTypeComp: FC<StatusTypeCompProps> = ({ status, className }) => (
+    <div className={cn('flex items-center', className || 'justify-center')}>
+        <StatusPill
+            label={STATUS_LABELS[status]}
+            color={CHARITY_STATUS_COLORS[status] ?? '#8B5CF6'}
+        />
+    </div>
+)
 
 type BulkEmailModalProps = {
     onClose?: () => void
     charities?: CharityWithoutMembersAndDesc[]
-}
-
-const formatStatus = (status: StatusType) => {
-    const separator = String.fromCharCode(45)
-    return status
-        .split(separator)
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ')
 }
 
 const BulkEmailModal: FC<BulkEmailModalProps> = ({ onClose, charities = [] }) => {

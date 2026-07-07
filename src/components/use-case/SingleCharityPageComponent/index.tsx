@@ -17,6 +17,7 @@ import {
     getOverallDisplayScore,
     getZakatDisplayScores,
 } from '@/lib/audit-score-display'
+import { computeCoreArea1RatingBandFromReview } from '@/lib/audit-scoring'
 
 // Extending TaskIds for local modal state management if needed, or ensuring TaskIds includes it.
 // Since TaskIds is imported, we can't easily extend it here without changing the type definition in the other file.
@@ -425,9 +426,13 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 : AUDIT_DISPLAY_MAX.core1
 
         const displayScore = getAreaDisplayScore(review, displayMax)
-        const bandSuffix = (assessmentId === 'core-area-1' || assessmentId === 'core-area-4') && review.ratingBand
-            ? ` · ${review.ratingBand}`
-            : ''
+        const coreAreaBand =
+            assessmentId === 'core-area-1'
+                ? computeCoreArea1RatingBandFromReview(review.score, review.totalScore)
+                : assessmentId === 'core-area-4'
+                    ? review.ratingBand
+                    : null
+        const bandSuffix = coreAreaBand ? ` · ${coreAreaBand}` : ''
 
         return `Score: ${formatAuditScore(displayScore)}/${displayMax}${bandSuffix}`
     }

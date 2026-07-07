@@ -8,7 +8,9 @@ import UserCardLayout from './UserCardLayout';
 import { Button } from '@/components/ui/button';
 import EditIcon from '@/components/common/IconComponents/EditIcon';
 import SimpleCardDataFormat from './SimpleCardDataFormat';
-import ProfilePictureUpload from '../ProfilePageComponent/ProfilePictureUpload';
+import ProfilePictureUpload from '../ProfilePageComponent/ProfilePictureUpload'
+import StatusPill from '@/components/common/StatusPill'
+import { getUserRoleColor, USER_STATUS_COLORS } from '@/lib/chip-styles';
 
 type IProps = Data & {
     onEditPersonalInfo?: () => void;
@@ -136,24 +138,19 @@ const UserData: FC<IProps> = ({
                             <div className="text-xs font-normal text-[#666E76]">Roles</div>
                             <div className="flex flex-wrap gap-2">
                                 {roles.length === 0 ? <>No Role Assigned</> : <>
-                                    {roles.map(eachRole => <p key={eachRole} className={cn("min-w-[50px] text-gray-600 bg-gray-100 border border-gray-300 text-xs p-0.5 rounded-lg flex justify-center font-normal px-2", kanit.className)}>
-                                        {kebabToTitle(eachRole)}
-                                    </p>)}
+                                    {roles.map((eachRole) => (
+                                        <StatusPill
+                                            key={eachRole}
+                                            label={kebabToTitle(eachRole)}
+                                            color={getUserRoleColor(eachRole)}
+                                        />
+                                    ))}
                                 </>}
                             </div>
                         </div>
                         <div className="flex flex-col gap-2">
                             <div className="text-xs font-normal text-[#666E76]">Status</div>
-                            <p
-                                className={cn(
-                                    'px-3 py-0.5 text-xs w-fit rounded-lg flex justify-center border',
-                                    status === 'Active'
-                                        ? 'bg-[#5CF269] border-[#57de62]'
-                                        : 'bg-[#F25F5C] text-white border-[#e75b59]'
-                                )}
-                            >
-                                {status}
-                            </p>
+                            <StatusPill label={status} color={USER_STATUS_COLORS[status]} />
                         </div>
                     </div>
                 </UserCardLayout>

@@ -2,7 +2,7 @@ import React from 'react'
 import { getCharityReportAction } from '@/app/actions/charities'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
-import { RatingBand } from '@/lib/audit-scoring'
+import { computeCoreArea1RatingBandFromReview, RatingBand } from '@/lib/audit-scoring'
 import {
     AUDIT_AREA_LABELS,
     AUDIT_DISPLAY_MAX,
@@ -105,6 +105,11 @@ const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }
                     const displayScore = area.coreArea !== 3
                         ? getAreaDisplayScore(review, CORE_AREA_DISPLAY_MAX[area.coreArea] ?? 10)
                         : null
+                    const coreAreaBand = area.coreArea === 1
+                        ? computeCoreArea1RatingBandFromReview(review.score, review.totalScore)
+                        : area.coreArea === 4
+                            ? area.ratingBand
+                            : null
 
                     return (
                         <div key={area.coreArea} className="rounded-xl border border-[#E4E7EC] bg-white p-5">
@@ -128,9 +133,9 @@ const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }
                                     Score: {formatAuditScore(displayScore)}/{CORE_AREA_DISPLAY_MAX[area.coreArea] ?? area.totalScore ?? 'N/A'}
                                 </TypographyComponent>
                             )}
-                            {(area.coreArea === 1 || area.coreArea === 4) && area.ratingBand ? (
+                            {(area.coreArea === 1 || area.coreArea === 4) && coreAreaBand ? (
                                 <div className="mt-1">
-                                    <RatingBandBadge ratingBand={area.ratingBand as RatingBand} />
+                                    <RatingBandBadge ratingBand={coreAreaBand as RatingBand} />
                                 </div>
                             ) : null}
                             <TypographyComponent variant="caption" className="text-[#667085]">

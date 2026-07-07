@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { CORE_AREA_1_FORMS, getOptionValue, getQuestionFieldKey } from '@/lib/assessment-forms/core-area-1'
 import { Question } from '@/lib/assessment-forms/types'
-import { computeCoreArea1Score, computeRatingBand, normalizeScore } from '@/lib/audit-scoring'
+import { computeCoreArea1RatingBand, computeCoreArea1Score } from '@/lib/audit-scoring'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
 
 type FormDataType = Record<string, string>;
@@ -46,7 +46,7 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
 
     const liveScore = useMemo(() => computeCoreArea1Score(formData), [formData]);
     const liveRatingBand = useMemo(
-        () => computeRatingBand(normalizeScore(liveScore, 10)),
+        () => computeCoreArea1RatingBand(liveScore),
         [liveScore],
     );
 

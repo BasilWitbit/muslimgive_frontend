@@ -6,6 +6,8 @@ import { PopoverTrigger } from '@radix-ui/react-popover';
 import React, { FC, useState } from 'react'
 import Can from '@/components/common/Can'
 import { PERMISSIONS } from '@/lib/permissions-config'
+import StatusPill from '@/components/common/StatusPill'
+import { USER_STATUS_COLORS } from '@/lib/chip-styles'
 
 type IProps = {
     id: string,
@@ -30,16 +32,7 @@ const AccordionHeader: FC<IProps> = ({ id, firstName, lastName, status, location
             </p>
             <p className="md:min-w-[150px]">{location}</p>
             <div className="md:w-[100px] flex justify-center items-center">
-                <p
-                    className={cn(
-                        'px-3 py-0.5 text-xs rounded-lg flex justify-center border',
-                        status === 'Active'
-                            ? 'bg-[#5CF269] border-[#57de62]'
-                            : 'bg-[#F25F5C] text-white border-[#e75b59]'
-                    )}
-                >
-                    {status}
-                </p>
+                <StatusPill label={status} color={USER_STATUS_COLORS[status]} />
             </div>
             <Popover
                 open={isOpen}

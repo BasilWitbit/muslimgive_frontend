@@ -257,20 +257,6 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
     const getSectionCriteria = (sectionId: string) =>
         rubric.criteria.filter(c => c.sectionId === sectionId);
 
-    const isSectionComplete = (section: RubricSection) =>
-        isSectionCompleteForSection(section, rubric.criteria, answers, optionalSkipped);
-
-    const isCurrentPageComplete = currentSection.optional && optionalSkipped
-        ? true
-        : getSectionCriteria(currentSection.id).every(c => isCriterionComplete(c, answers[c.id]));
-
-    const areAllSectionsComplete = sections.every(s => isSectionComplete(s));
-
-    const getIncompleteCriteriaOnPage = () => {
-        if (currentSection.optional && optionalSkipped) return [];
-        return getSectionCriteria(currentSection.id).filter(c => !isCriterionComplete(c, answers[c.id]));
-    };
-
     const goToStep = (nextStep: number) => {
         setStep(nextStep);
         setScrollTargetId(null);
@@ -299,18 +285,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
 
     const handleNextOrPreview = async () => {
         if (step < sections.length - 1) {
-            const incomplete = getIncompleteCriteriaOnPage();
-            if (incomplete.length > 0) {
-                toast.error(`Please answer all questions on this page before continuing (${incomplete.map(c => c.id).join(', ')}).`);
-                return;
-            }
             goToStep(step + 1);
-            return;
-        }
-
-        if (!areAllSectionsComplete) {
-            const incompleteSections = sections.filter(s => !isSectionComplete(s));
-            toast.error(`Please complete all sections before previewing: ${incompleteSections.map(s => s.title).join(', ')}`);
             return;
         }
 
@@ -320,9 +295,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
         }
     };
 
-    const isNextDisabled = step < sections.length - 1
-        ? !isCurrentPageComplete
-        : !areAllSectionsComplete;
+    const isNextDisabled = isSubmitting;
 
     const AssessmentSidebar = () => (
         <aside className="w-full shrink-0 lg:w-60 xl:w-64">
@@ -703,13 +676,6 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                         {step === 0 ? 'Cancel' : 'Back'}
                     </Button>
                 </div>
-                {canEdit && isNextDisabled && (
-                    <p className="text-xs text-amber-700">
-                        {step < sections.length - 1
-                            ? 'Answer every question on this page to continue.'
-                            : 'Complete all sections before previewing.'}
-                    </p>
-                )}
             </div>
             </div>
         </div>

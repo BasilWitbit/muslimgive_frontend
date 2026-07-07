@@ -24,7 +24,9 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/components/common/permissions-provider'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
-import { RatingBand } from '@/lib/audit-scoring'
+import StatusPill from '@/components/common/StatusPill'
+import { CHARITY_STATUS_COLORS } from '@/lib/chip-styles'
+import { computeCoreArea1RatingBandFromReview, RatingBand } from '@/lib/audit-scoring'
 import {
     AUDIT_AREA_LABELS,
     AUDIT_DISPLAY_MAX,
@@ -151,14 +153,14 @@ function formatDate(dateStr?: string | null): string {
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-/* ── Existing helpers ── */
-const statusMeta: Record<string, { title: string; color: string }> = {
-    'pending-eligibility': { title: 'Pending Eligibility Review', color: '#F25F5C' },
-    'unassigned': { title: 'Unassigned', color: '#F25CD4' },
-    'open-to-review': { title: 'Open To Review', color: '#5CD9F2' },
-    'pending-admin-review': { title: 'Pending Review', color: '#266DD3' },
-    'approved': { title: 'Approved', color: '#5CF269' },
-    'ineligible': { title: 'Ineligible', color: '#112133' },
+/* ── Charity status labels ── */
+const statusMeta: Record<string, { title: string }> = {
+    'pending-eligibility': { title: 'Pending Eligibility Review' },
+    'unassigned': { title: 'Unassigned' },
+    'open-to-review': { title: 'Open To Review' },
+    'pending-admin-review': { title: 'Pending Review' },
+    'approved': { title: 'Approved' },
+    'ineligible': { title: 'Ineligible' },
 }
 
 function parseMonths(totalDuration?: string) {
@@ -169,13 +171,6 @@ function parseMonths(totalDuration?: string) {
     const num = Number(numMatch[1])
     if (s.includes('year')) return num * 12
     return num // assume months
-}
-
-function getStatusFontSize(statusTitle: string): string {
-    const len = statusTitle.length
-    if (len > 20) return '8px'
-    if (len > 14) return '9px'
-    return '11px'
 }
 
 const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRole }) => {
@@ -347,7 +342,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                 <TableBody>
                     {pageItems.map((c, idx) => {
                         const globalIdx = start + idx
-                        const status = statusMeta[c.status] || { title: c.status, color: '#999' }
+                        const status = statusMeta[c.status] || { title: c.status }
                         const percent = Math.round((Number(c.assessmentsCompleted || 0) / 4) * 100)
                         const months = parseMonths(c.totalDuration)
                         const withinTwoYears = typeof months === 'number' ? months <= 24 : undefined
@@ -390,26 +385,19 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
 
                                     <TableCell className="py-3 min-w-0 max-w-[8.5rem] lg:max-w-none">
                                         {(() => {
-                                            const isLongStatus = status.title.length > 14
-                                            const badge = (
-                                                <Badge
-                                                    className={cn(
-                                                        "max-w-full truncate block",
-                                                        isLongStatus ? "px-1.5 py-0.5" : "px-2 py-0.5",
-                                                        canAssignThisCharity && "cursor-pointer hover:opacity-90 hover:ring-2 hover:ring-white/50 transition-all",
-                                                    )}
-                                                    style={{
-                                                        backgroundColor: status.color,
-                                                        color: '#fff',
-                                                        fontSize: getStatusFontSize(status.title),
-                                                    }}
+                                            const statusColor = CHARITY_STATUS_COLORS[c.status] ?? '#8B5CF6'
+                                            const pill = (
+                                                <StatusPill
+                                                    label={status.title}
+                                                    color={statusColor}
                                                     title={canAssignThisCharity ? 'Click to assign a project manager' : status.title}
-                                                >
-                                                    {status.title}
-                                                </Badge>
+                                                    className={cn(
+                                                        canAssignThisCharity && 'cursor-pointer hover:opacity-90 transition-opacity',
+                                                    )}
+                                                />
                                             )
 
-                                            if (!canAssignThisCharity) return badge
+                                            if (!canAssignThisCharity) return pill
 
                                             return (
                                                 <button
@@ -420,7 +408,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                         openAssignRoleModal(c.id, 'project-manager', c.members)
                                                     }}
                                                 >
-                                                    {badge}
+                                                    {pill}
                                                 </button>
                                             )
                                         })()}
@@ -589,6 +577,11 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                 const area = reviews[key]
                                                                 const meta = CORE_AREA_META[key]
                                                                 const statusStyle = getCoreAreaStatusMeta(area.status)
+                                                                const coreAreaBand = key === 'core1'
+                                                                    ? computeCoreArea1RatingBandFromReview(area.score, area.totalScore)
+                                                                    : key === 'core4'
+                                                                        ? area.ratingBand
+                                                                        : null
                                                                 const isPending = area.status === 'pending'
                                                                 const displayScore = getAreaDisplayScore(area, meta.displayMax)
                                                                 const zakatScores = key === 'core3' ? getZakatDisplayScores(area) : null
@@ -658,8 +651,8 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                                     </div>
                                                                                 )}
                                                                                 <div className="flex items-center justify-between gap-2">
-                                                                                    {(key === 'core1' || key === 'core4') && area.ratingBand ? (
-                                                                                        <RatingBandBadge ratingBand={area.ratingBand as RatingBand} className="text-[10px]" />
+                                                                                    {(key === 'core1' || key === 'core4') && coreAreaBand ? (
+                                                                                        <RatingBandBadge ratingBand={coreAreaBand as RatingBand} className="text-[10px]" />
                                                                                     ) : (
                                                                                         <span />
                                                                                     )}

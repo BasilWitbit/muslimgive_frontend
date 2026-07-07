@@ -31,6 +31,21 @@ export function computeCoreArea1Score(answers: Record<string, string | undefined
     return score;
 }
 
+export function computeCoreArea1RatingBand(score: number): Exclude<RatingBand, 'Needs Improvement'> {
+    if (score >= 10) return 'Strong';
+    if (score >= 8) return 'Moderate';
+    return 'Concern';
+}
+
+export function computeCoreArea1RatingBandFromReview(
+    score: number | null,
+    totalScore: number,
+): Exclude<RatingBand, 'Needs Improvement'> | null {
+    if (score === null) return null;
+    const scoreOutOfTen = totalScore > 0 ? normalizeScore(score, totalScore) : score;
+    return computeCoreArea1RatingBand(scoreOutOfTen);
+}
+
 const MEMBERSHIP_SCORES: Record<string, number> = {
     three_or_more_members: 2,
     one_to_two_members: 1,

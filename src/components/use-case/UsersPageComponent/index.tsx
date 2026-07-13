@@ -22,6 +22,7 @@ import { updateUserStatusAction } from '@/app/actions/admin'
 import { deleteUserAction } from '@/app/actions/users'
 import { toast } from 'sonner'
 import { kebabToTitle } from '@/lib/helpers'
+import { usePageNavigationDismiss } from '@/hooks/use-page-navigation'
 
 type PaginationType = {
     show: 10 | 20 | 30
@@ -62,6 +63,7 @@ type IProps = {
 }
 
 const UsersPageComponent: FC<IProps> = ({ usersArr }) => {
+    usePageNavigationDismiss()
     const router = useRouter()
     // pagination
     const [opt, setOpt] = useState<PaginationType>({

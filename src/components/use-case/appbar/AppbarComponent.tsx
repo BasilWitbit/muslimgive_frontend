@@ -8,7 +8,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { AlertCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { io, Socket } from 'socket.io-client';
-import { serverUrl } from '@/app/lib/definitions';
+import { getServerUrl } from '@/app/lib/definitions';
 
 type TitleResolver = {
     match: (segments: string[]) => boolean;
@@ -67,10 +67,11 @@ const AppbarComponent = ({ initialDeepScanCount = 0 }: AppbarProps) => {
     };
 
     useEffect(() => {
-        if (!serverUrl) return
+        const apiBase = getServerUrl()
+        if (!apiBase) return
         let socket: Socket | null = null
         try {
-            socket = io(serverUrl, { transports: ['websocket'] })
+            socket = io(apiBase, { transports: ['websocket'] })
             socket.on('deep-scan-eligible', () => {
                 setHasDeepScanAlert(true)
             })

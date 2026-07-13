@@ -3,10 +3,18 @@ import SingleRadioQuestion from './SingleRadioQuestion'
 import { CORE_AREA_4_FORMS, getOptionValue, getQuestionFieldKey } from '@/lib/assessment-forms/core-area-4';
 import { Question } from '@/lib/assessment-forms/types';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { TypographyComponent } from '@/components/common/TypographyComponent';
 import { computeCoreArea4Score, computeRatingBand, normalizeScore } from '@/lib/audit-scoring';
 import RatingBandBadge from '@/components/common/RatingBandBadge';
+import { cn } from '@/lib/utils';
+import {
+    getAssessmentTargetElementId,
+    useAssessmentContentReveal,
+    useAssessmentNavigationDismiss,
+    useAssessmentScrollDismiss,
+} from '@/hooks/use-assessment-navigation';
+import { useRouteLoader } from '@/components/common/route-loader-provider';
 
 const mapCountry = (country: string): 'united-kingdom' | 'united-states' | 'canada' => {
     const countryMap: Record<string, 'united-kingdom' | 'united-states' | 'canada'> = {
@@ -30,6 +38,10 @@ type CoreArea4Props = {
 
 const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', currentUserRoles = [], status }) => {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const { isNavigating } = useRouteLoader();
+    const questionFromUrl = searchParams.get('question');
+    const appliedDeepLinkRef = React.useRef(false);
 
     const mappedCountry = mapCountry(country);
     const isUk = mappedCountry === 'united-kingdom';
@@ -40,9 +52,28 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
 
     const [formVals, setFormVals] = React.useState<Record<string, string>>({});
     const [isEditable, setIsEditable] = React.useState(true);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [scrollTargetId, setScrollTargetId] = React.useState<string | null>(null);
 
     const isManager = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
     const canEdit = isEditable || isManager;
+    const isReady = !isLoading;
+    const contentVisible = useAssessmentContentReveal(isLoading, isReady);
+
+    useAssessmentScrollDismiss({
+        scrollTargetId,
+        setScrollTargetId,
+        elementIdPrefix: 'question',
+    });
+
+    useAssessmentNavigationDismiss({
+        isNavigating,
+        isLoading,
+        isReady,
+        targetFromUrl: questionFromUrl,
+        deepLinkAppliedRef: appliedDeepLinkRef,
+        scrollTargetId,
+    });
 
     const liveScoring = React.useMemo(
         () => computeCoreArea4Score(formVals, isUk),
@@ -86,28 +117,45 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
                 }
             } catch (error) {
                 console.error("Failed to fetch assessment draft", error);
+            } finally {
+                setIsLoading(false);
             }
         };
 
         fetchAssessment();
     }, [charityId, currentForm]);
 
+    React.useEffect(() => {
+        if (appliedDeepLinkRef.current || isLoading || !questionFromUrl) return;
+
+        const question = currentForm.questions.find(q => q.code === questionFromUrl);
+        if (!question) return;
+
+        appliedDeepLinkRef.current = true;
+        setScrollTargetId(question.code);
+    }, [currentForm, questionFromUrl, isLoading]);
+
     const renderQuestion = (question: Question) => {
         const fieldKey = getQuestionFieldKey(question);
 
         if (question.type === 'radio') {
             return (
-                <SingleRadioQuestion
+                <div
                     key={question.id}
-                    id={fieldKey}
-                    label={question.label}
-                    options={question.options.map(opt => ({
-                        label: opt.label,
-                        value: getOptionValue(opt),
-                    }))}
-                    value={formVals[fieldKey] || ""}
-                    onChange={(newVal) => updateFormData(fieldKey, newVal)}
-                />
+                    id={getAssessmentTargetElementId('question', question.code)}
+                    className="scroll-mt-4"
+                >
+                    <SingleRadioQuestion
+                        id={fieldKey}
+                        label={question.label}
+                        options={question.options.map(opt => ({
+                            label: opt.label,
+                            value: getOptionValue(opt),
+                        }))}
+                        value={formVals[fieldKey] || ""}
+                        onChange={(newVal) => updateFormData(fieldKey, newVal)}
+                    />
+                </div>
             );
         }
         return null;
@@ -149,9 +197,18 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
         .filter(q => q.required)
         .every(q => Boolean(formVals[getQuestionFieldKey(q)]));
 
+    if (isLoading) {
+        return <div className="p-8 text-center text-gray-500">Loading assessment...</div>;
+    }
+
     return (
         <>
-            <div className="flex flex-col gap-4">
+            <div
+                className={cn(
+                    'flex flex-col gap-4 transition-opacity duration-500 ease-out',
+                    contentVisible ? 'opacity-100' : 'opacity-0',
+                )}
+            >
                 {!canEdit && (
                     <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-4 text-sm font-medium">
                         View Only Mode: You are not authorized to edit this core area.

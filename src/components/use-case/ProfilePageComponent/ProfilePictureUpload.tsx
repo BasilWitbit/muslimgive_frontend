@@ -12,9 +12,10 @@ type IProps = {
     lastName: string;
     profilePicture?: string;
     editable?: boolean;
+    sizePx?: number;
 }
 
-const ProfilePictureUpload: FC<IProps> = ({ firstName, lastName, profilePicture, editable = false }) => {
+const ProfilePictureUpload: FC<IProps> = ({ firstName, lastName, profilePicture, editable = false, sizePx = 148 }) => {
     const [isUploading, setIsUploading] = useState(false)
     const [previewSource, setPreviewSource] = useState<string | null>(null)
     const router = useRouter()
@@ -71,14 +72,15 @@ const ProfilePictureUpload: FC<IProps> = ({ firstName, lastName, profilePicture,
                 <AvatarComponent
                     fallback={`${firstName ? firstName[0] : ''}${lastName ? lastName[0] : ''}`}
                     source={previewSource || profilePicture}
+                    sizePx={sizePx}
                 />
 
                 {editable && (
                     <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity pointer-events-none ${isUploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                         {isUploading ? (
-                            <Loader2 className="w-8 h-8 text-white animate-spin" />
+                            <Loader2 className="text-white animate-spin" style={{ width: sizePx * 0.22, height: sizePx * 0.22 }} />
                         ) : (
-                            <Camera className="w-8 h-8 text-white" />
+                            <Camera className="text-white" style={{ width: sizePx * 0.22, height: sizePx * 0.22 }} />
                         )}
                     </div>
                 )}

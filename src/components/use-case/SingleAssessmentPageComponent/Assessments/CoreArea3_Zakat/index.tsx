@@ -1,9 +1,9 @@
 'use client'
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import React, { FC, useState, useEffect } from 'react'
+import React, { FC, useState, useEffect, useRef } from 'react'
 import AssessmentSectionCard from '../../UI/AuditSectionCard';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,12 @@ import {
     getGroupScoreSummary,
 } from './scoring';
 import { cn } from '@/lib/utils';
+import { useRouteLoader } from '@/components/common/route-loader-provider';
+import {
+    useAssessmentContentReveal,
+    useAssessmentNavigationDismiss,
+    useAssessmentScrollDismiss,
+} from '@/hooks/use-assessment-navigation';
 
 const ScoreBadge = ({ earned, max, className }: { earned: number | null; max: number; className?: string }) => (
     <span className={cn('shrink-0 rounded-md bg-[#EEF4FD] px-2 py-0.5 font-mono text-xs font-semibold tabular-nums text-[#266dd3]', className)}>
@@ -106,6 +112,10 @@ const isSectionCompleteForSection = (
 
 const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: string }> = ({ charityId, currentUserRoles = [], status }) => {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const { isNavigating } = useRouteLoader();
+    const criterionFromUrl = searchParams.get('criterion');
+    const appliedDeepLinkRef = useRef(false);
     const [step, setStep] = useState(0);
     const [isEditable, setIsEditable] = useState(true);
     const [rubric, setRubric] = useState<Rubric | null>(null);
@@ -115,6 +125,24 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [openSidebarSections, setOpenSidebarSections] = useState<string[]>([]);
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
+    const isReady = Boolean(rubric?.sections);
+    const contentVisible = useAssessmentContentReveal(isLoading, isReady);
+
+    useAssessmentScrollDismiss({
+        scrollTargetId,
+        setScrollTargetId,
+        elementIdPrefix: 'criterion',
+        step,
+    });
+
+    useAssessmentNavigationDismiss({
+        isNavigating,
+        isLoading,
+        isReady,
+        targetFromUrl: criterionFromUrl,
+        deepLinkAppliedRef: appliedDeepLinkRef,
+        scrollTargetId,
+    });
 
     const isZakatAssessor = currentUserRoles.some(r =>
         ['zakat-assessor', 'zakat-auditor'].includes(r.toLowerCase())
@@ -164,19 +192,28 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
     }, [charityId]);
 
     useEffect(() => {
+        if (appliedDeepLinkRef.current || !rubric || !criterionFromUrl || isLoading) return;
+
+        const criterion = rubric.criteria.find(c => c.id === criterionFromUrl);
+        if (!criterion) return;
+
+        const sectionIdx = rubric.sections.findIndex(s => s.id === criterion.sectionId);
+        if (sectionIdx < 0) return;
+
+        appliedDeepLinkRef.current = true;
+        setStep(sectionIdx);
+        setScrollTargetId(criterionFromUrl);
+        setOpenSidebarSections(prev => {
+            const sectionId = rubric.sections[sectionIdx].id;
+            return prev.includes(sectionId) ? prev : [...prev, sectionId];
+        });
+    }, [rubric, criterionFromUrl, isLoading]);
+
+    useEffect(() => {
         if (!rubric?.sections[step]) return;
         const sectionId = rubric.sections[step].id;
         setOpenSidebarSections(prev => (prev.includes(sectionId) ? prev : [...prev, sectionId]));
     }, [step, rubric]);
-
-    useEffect(() => {
-        if (!scrollTargetId) return;
-        const el = document.getElementById(`criterion-${scrollTargetId}`);
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            setScrollTargetId(null);
-        }
-    }, [step, scrollTargetId]);
 
     const handleSaveDraft = async () => {
         if (!rubric) return false;
@@ -465,7 +502,12 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
         : getGroupScoreSummary(criteriaForSection, answers);
 
     return (
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div
+            className={cn(
+                'flex flex-col gap-6 transition-opacity duration-500 ease-out lg:flex-row lg:items-start',
+                contentVisible ? 'opacity-100' : 'opacity-0',
+            )}
+        >
             <AssessmentSidebar />
 
             <div className="min-w-0 flex-1">

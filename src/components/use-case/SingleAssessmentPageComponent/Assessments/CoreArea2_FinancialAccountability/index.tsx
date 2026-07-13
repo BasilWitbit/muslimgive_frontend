@@ -4,10 +4,18 @@ import AssessmentSectionCard from '../../UI/AuditSectionCard'
 import RadioGroupComponent from '@/components/common/RadioGroupComponent'
 import DatePicker from '@/components/common/ControlledDatePickerComponent'
 import { Button } from '@/components/ui/button'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { CORE_AREA_2_FORMS } from '@/lib/assessment-forms/core-area-2'
 import { Question } from '@/lib/assessment-forms/types'
 import { formatDateToYYYYMMDD } from '@/lib/helpers'
+import { cn } from '@/lib/utils'
+import {
+    getAssessmentTargetElementId,
+    useAssessmentContentReveal,
+    useAssessmentNavigationDismiss,
+    useAssessmentScrollDismiss,
+} from '@/hooks/use-assessment-navigation'
+import { useRouteLoader } from '@/components/common/route-loader-provider'
 
 type IProps = {
     location: 'united-kingdom' | 'united-states' | 'canada' | 'uk' | 'usa' | 'us' | 'ca';
@@ -18,15 +26,19 @@ type IProps = {
 
 const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentUserRoles = [], status }) => {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const { isNavigating } = useRouteLoader();
+    const questionFromUrl = searchParams.get('question');
+    const appliedDeepLinkRef = React.useRef(false);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [isEditable, setIsEditable] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
+    const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
 
     const isFinanceAssessor = currentUserRoles.some(r => 
         ['finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor'].includes(r.toLowerCase())
     );
     const isManager = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
-    
-    const canEdit = isEditable || isFinanceAssessor || isManager;
 
     const formDefinition = useMemo(() => {
         const normalized = location === 'uk' ? 'united-kingdom'
@@ -37,7 +49,25 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
         return CORE_AREA_2_FORMS.find(f => f.countryCode === normalized)
             || CORE_AREA_2_FORMS.find(f => f.countryCode === 'united-states')
     }, [location])
+    
+    const canEdit = isEditable || isFinanceAssessor || isManager;
+    const isReady = Boolean(formDefinition) && !isLoading;
+    const contentVisible = useAssessmentContentReveal(isLoading, isReady);
 
+    useAssessmentScrollDismiss({
+        scrollTargetId,
+        setScrollTargetId,
+        elementIdPrefix: 'question',
+    });
+
+    useAssessmentNavigationDismiss({
+        isNavigating,
+        isLoading,
+        isReady,
+        targetFromUrl: questionFromUrl,
+        deepLinkAppliedRef: appliedDeepLinkRef,
+        scrollTargetId,
+    });
 
     const updateFormData = (field: string, value: any) => {
         setFormData((prev) => ({
@@ -89,13 +119,35 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                 }
             } catch (error) {
                 console.error("Failed to fetch assessment draft", error);
+            } finally {
+                setIsLoading(false);
             }
         };
 
         fetchAssessment();
     }, [charityId, formDefinition]);
 
+    React.useEffect(() => {
+        if (appliedDeepLinkRef.current || isLoading || !questionFromUrl || !formDefinition) return;
+
+        const question = formDefinition.questions.find(q => q.code === questionFromUrl);
+        if (!question) return;
+
+        appliedDeepLinkRef.current = true;
+        setScrollTargetId(question.code);
+    }, [formDefinition, questionFromUrl, isLoading]);
+
     if (!formDefinition) return <div>Form not found for location: {location}</div>
+
+    const wrapQuestion = (question: Question, content: React.ReactNode) => (
+        <div
+            key={question.id}
+            id={getAssessmentTargetElementId('question', question.code)}
+            className="scroll-mt-4"
+        >
+            {content}
+        </div>
+    );
 
     const renderQuestion = (question: Question) => {
         // Basic dependency check based on simplistic scoreLogic parsing or custom logic if needed.
@@ -112,10 +164,9 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
         switch (question.type) {
             case 'text':
             case 'number':
-                return (
+                return wrapQuestion(question,
                     <SingleSectionQuestion
-                        key={question.id}
-                        type="text" // reusing text for number for now as SingleSectionQuestion supports it via props if we adjust, or just text input
+                        type="text"
                         heading={question.label}
                         id={`core_2__${fieldCode}`}
                         required={question.required}
@@ -127,8 +178,8 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                     />
                 )
             case 'radio':
-                return (
-                    <AssessmentSectionCard key={question.id}>
+                return wrapQuestion(question,
+                    <AssessmentSectionCard>
                         <RadioGroupComponent
                             value={formData[fieldCode] || ''}
                             onChange={(newVal) => updateFormData(fieldCode, newVal)}
@@ -138,14 +189,14 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                             required={question.required}
                             options={question.options.map(opt => ({
                                 label: opt.label,
-                                value: opt.label // Using label as value based on options logic often seen, or we should use ID? Usually string value 'Yes'/'No'
+                                value: opt.label
                             }))}
                         />
                     </AssessmentSectionCard>
                 )
             case 'date':
-                return (
-                    <AssessmentSectionCard key={question.id}>
+                return wrapQuestion(question,
+                    <AssessmentSectionCard>
                         <div className="flex flex-col gap-2">
                             <span className='font-semibold text-sm'>
                                 {question.label}{question.required ? <span className="text-red-500">*</span> : ''}
@@ -161,10 +212,9 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                     </AssessmentSectionCard>
                 )
             case 'paragraph':
-            case 'textarea' as any: // Handle if type comes as textarea
-                return (
+            case 'textarea' as any:
+                return wrapQuestion(question,
                     <SingleSectionQuestion
-                        key={question.id}
                         type="textarea"
                         heading={question.label}
                         lines={6}
@@ -237,9 +287,18 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
         }
     }
 
+    if (isLoading) {
+        return <div className="p-8 text-center text-gray-500">Loading assessment...</div>;
+    }
+
     return (
         <>
-            <div className='flex flex-col gap-6'>
+            <div
+                className={cn(
+                    'flex flex-col gap-6 transition-opacity duration-500 ease-out',
+                    contentVisible ? 'opacity-100' : 'opacity-0',
+                )}
+            >
                 {canEdit === false && (
                     <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-4 text-sm font-medium">
                         View Only Mode: You are not authorized to edit this core area.

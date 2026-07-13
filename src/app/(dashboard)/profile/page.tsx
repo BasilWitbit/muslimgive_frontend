@@ -1,16 +1,16 @@
 'use client'
 import React, { useMemo, useState } from 'react'
-import UserData from '@/components/use-case/UsersExpandableTable/UserData'
+import ProfilePageView from '@/components/use-case/ProfilePageComponent/ProfilePageView'
 import UpdatePasswordModal from '@/components/use-case/ProfilePageComponent/UpdatePasswordModal'
 import UpdateEmailModal from '@/components/use-case/ProfilePageComponent/UpdateEmailModal'
 import EditPersonalInfoModal from '@/components/use-case/ProfilePageComponent/EditPersonalInfoModal'
 import EditAddressModal from '@/components/use-case/ProfilePageComponent/EditAddressModal'
 import type { CountriesInKebab } from '@/components/common/CountrySelectComponent/countries.types'
 import type { Data, Role } from '@/components/use-case/UsersExpandableTable'
-import DashboardSkeleton from '@/components/use-case/DashboardSkeleton'
 import { kebabToTitle, formatDateToYYYYMMDD } from '@/lib/helpers'
 import { usePermissions } from '@/components/common/permissions-provider'
 import type { UserProfile } from '@/app/lib/definitions'
+import { usePageNavigationDismiss } from '@/hooks/use-page-navigation'
 import { useRouter } from 'next/navigation'
 
 const mapMeToProfile = (u: UserProfile): Data => ({
@@ -40,6 +40,8 @@ const MyProfile = () => {
     const [profile, setProfile] = useState<Data | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
+    usePageNavigationDismiss(isLoading)
+
     const mappedProfile = useMemo(() => (me ? mapMeToProfile(me) : null), [me])
 
     React.useEffect(() => {
@@ -52,18 +54,17 @@ const MyProfile = () => {
         setIsLoading(false)
     }, [me, mappedProfile, router])
 
-    if (isLoading) return <DashboardSkeleton />
+    if (isLoading) return null
     if (!profile) return <div className="p-6">Profile not found.</div>
 
     return (
-        <div className="flex flex-col h-full">
-            <UserData
+        <div className="flex h-full flex-col">
+            <ProfilePageView
                 {...profile}
                 onEditPersonalInfo={() => setIsPersonalInfoModalOpen(true)}
                 onEditAddress={() => setIsAddressModalOpen(true)}
                 onChangePassword={() => setIsPasswordModalOpen(true)}
                 onChangeEmail={() => setIsEmailModalOpen(true)}
-                showEditButtons={true}
             />
 
             {/* Modals */}

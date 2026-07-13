@@ -3,11 +3,19 @@ import AssessmentSectionCard from '../../UI/AuditSectionCard'
 import RadioGroupComponent from '@/components/common/RadioGroupComponent'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
 import { Button } from '@/components/ui/button'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { CORE_AREA_1_FORMS, getOptionValue, getQuestionFieldKey } from '@/lib/assessment-forms/core-area-1'
 import { Question } from '@/lib/assessment-forms/types'
 import { computeCoreArea1RatingBand, computeCoreArea1Score } from '@/lib/audit-scoring'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
+import { cn } from '@/lib/utils'
+import {
+    getAssessmentTargetElementId,
+    useAssessmentContentReveal,
+    useAssessmentNavigationDismiss,
+    useAssessmentScrollDismiss,
+} from '@/hooks/use-assessment-navigation'
+import { useRouteLoader } from '@/components/common/route-loader-provider'
 
 type FormDataType = Record<string, string>;
 
@@ -33,11 +41,34 @@ type CoreArea1Props = {
 
 const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', currentUserRoles = [], status }) => {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const { isNavigating } = useRouteLoader()
+    const questionFromUrl = searchParams.get('question')
+    const appliedDeepLinkRef = React.useRef(false)
     const [formData, setFormData] = useState<FormDataType>({})
     const [isEditable, setIsEditable] = useState(true)
+    const [isLoading, setIsLoading] = useState(true)
+    const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
 
     const isManager = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
     const canEdit = isEditable || isManager;
+    const isReady = !isLoading
+    const contentVisible = useAssessmentContentReveal(isLoading, isReady)
+
+    useAssessmentScrollDismiss({
+        scrollTargetId,
+        setScrollTargetId,
+        elementIdPrefix: 'question',
+    })
+
+    useAssessmentNavigationDismiss({
+        isNavigating,
+        isLoading,
+        isReady,
+        targetFromUrl: questionFromUrl,
+        deepLinkAppliedRef: appliedDeepLinkRef,
+        scrollTargetId,
+    })
 
     const currentForm = useMemo(() => {
         const mappedCountry = mapCountry(country);
@@ -83,31 +114,49 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
                 }
             } catch (error) {
                 console.error("Failed to fetch assessment draft", error);
+            } finally {
+                setIsLoading(false);
             }
         };
 
         fetchAssessment();
     }, [charityId, currentForm]);
 
+    React.useEffect(() => {
+        if (appliedDeepLinkRef.current || isLoading || !questionFromUrl) return;
+
+        const question = currentForm.questions.find(q => q.code === questionFromUrl);
+        if (!question) return;
+
+        appliedDeepLinkRef.current = true;
+        setScrollTargetId(question.code);
+    }, [currentForm, questionFromUrl, isLoading]);
+
     const renderQuestion = (question: Question) => {
         const fieldKey = getQuestionFieldKey(question);
 
         if (question.type === 'radio') {
             return (
-                <AssessmentSectionCard key={question.id}>
-                    <RadioGroupComponent
-                        value={formData[fieldKey]}
-                        onChange={(newVal) => updateFormData(fieldKey, newVal)}
-                        label={question.label}
-                        labelClassNames='text-sm'
-                        name={`core_1__${fieldKey}`}
-                        required={question.required}
-                        options={question.options.map(opt => ({
-                            label: opt.label,
-                            value: getOptionValue(opt),
-                        }))}
-                    />
-                </AssessmentSectionCard>
+                <div
+                    key={question.id}
+                    id={getAssessmentTargetElementId('question', question.code)}
+                    className="scroll-mt-4"
+                >
+                    <AssessmentSectionCard>
+                        <RadioGroupComponent
+                            value={formData[fieldKey]}
+                            onChange={(newVal) => updateFormData(fieldKey, newVal)}
+                            label={question.label}
+                            labelClassNames='text-sm'
+                            name={`core_1__${fieldKey}`}
+                            required={question.required}
+                            options={question.options.map(opt => ({
+                                label: opt.label,
+                                value: getOptionValue(opt),
+                            }))}
+                        />
+                    </AssessmentSectionCard>
+                </div>
             );
         }
 
@@ -150,9 +199,18 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
         .filter(q => q.required)
         .every(q => Boolean(formData[getQuestionFieldKey(q)]));
 
+    if (isLoading) {
+        return <div className="p-8 text-center text-gray-500">Loading assessment...</div>;
+    }
+
     return (
         <>
-            <div className="flex flex-col gap-4">
+            <div
+                className={cn(
+                    'flex flex-col gap-4 transition-opacity duration-500 ease-out',
+                    contentVisible ? 'opacity-100' : 'opacity-0',
+                )}
+            >
                 {!canEdit && (
                     <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-4 text-sm font-medium">
                         View Only Mode: You are not authorized to edit this core area.

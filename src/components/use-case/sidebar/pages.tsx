@@ -1,17 +1,19 @@
-import Charities from "../../common/IconComponents/pages_icons/Charities"
-import Profile from "../../common/IconComponents/pages_icons/Profile"
-import AccessControl from "../../common/IconComponents/pages_icons/AccessControl"
-import DashboardIcon from "../../common/IconComponents/pages_icons/Dashboard"
-import EmailIcon from "../../common/IconComponents/EmailIcon"
-import EmailIconBlack from "@/components/common/IconComponents/EmailIconBlack"
 import { PERMISSIONS } from "@/lib/permissions-config"
 
 export type PageType = 'menu' | 'admin'
 
+export type SidebarIconName =
+    | 'pm-dashboard'
+    | 'charities'
+    | 'profile'
+    | 'access-control'
+    | 'email-logs'
+    | 'email'
+
 export type Page = {
     path: string,
     heading: string,
-    icon: React.ReactNode,
+    iconName: SidebarIconName,
     name: string,
     type: PageType,
     show: boolean,
@@ -32,7 +34,7 @@ export const PAGES: Page[] = [
         name: 'pm-dashboard',
         path: "/pm-dashboard",
         heading: 'PM Dashboard',
-        icon: <DashboardIcon />,
+        iconName: 'pm-dashboard',
         type: 'menu',
         show: true,
         permissions: {
@@ -43,7 +45,7 @@ export const PAGES: Page[] = [
         name: 'charities',
         path: "/charities",
         heading: 'Charities',
-        icon: <Charities />,
+        iconName: 'charities',
         type: 'menu',
         show: true,
         permissions: { anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.CHARITY_MANAGE] },
@@ -52,7 +54,7 @@ export const PAGES: Page[] = [
         name: 'profile',
         path: "/profile",
         heading: 'Profile',
-        icon: <Profile />,
+        iconName: 'profile',
         type: 'menu',
         show: true,
     },
@@ -60,7 +62,7 @@ export const PAGES: Page[] = [
         name: 'users',
         path: "/users",
         heading: 'Users',
-        icon: <Profile />,
+        iconName: 'profile',
         type: 'admin',
         show: true,
         permissions: { anyOf: [PERMISSIONS.USER_VIEW, PERMISSIONS.USER_MANAGE, PERMISSIONS.VIEW_USERS_MG] },
@@ -69,7 +71,7 @@ export const PAGES: Page[] = [
         name: 'config',
         path: "/config",
         heading: 'Config',
-        icon: <AccessControl />,
+        iconName: 'access-control',
         type: 'admin',
         show: true,
         permissions: {
@@ -81,7 +83,7 @@ export const PAGES: Page[] = [
         name: 'email-logs',
         path: "/email-logs",
         heading: 'Email Logs',
-        icon: <EmailIconBlack />,
+        iconName: 'email-logs',
         type: 'menu',
         show: true,
         permissions: { anyOf: [PERMISSIONS.SEND_EMAIL_CHARITY_OWNER] },
@@ -90,7 +92,7 @@ export const PAGES: Page[] = [
         name: 'create-charity',
         path: '/create-charity',
         heading: 'Create New Charity',
-        icon: <EmailIcon />,
+        iconName: 'email',
         type: 'menu',
         show: false,
         permissions: { anyOf: [PERMISSIONS.CREATE_CHARITY] },

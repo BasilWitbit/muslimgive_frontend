@@ -11,6 +11,7 @@ import { submitAssessmentAction, completeAssessmentAction, getAssessmentAction, 
 import { toast } from 'sonner';
 import { CORE_AREA_4_FORMS, getQuestionFieldKey } from '@/lib/assessment-forms/core-area-4';
 import { CORE_AREA_4_VALUE_LABELS } from '@/lib/audit-scoring';
+import { useAssessmentHistoryNavigation } from '@/hooks/use-assessment-navigation';
 
 export type PreviewPageCommonProps = {
     country: CountryCode;
@@ -45,6 +46,11 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     const [showSubmittedModel, setShowSubmittedModel] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const router = useRouter();
+    const { isNavigating, navigateToTarget, navigateToEditor } = useAssessmentHistoryNavigation({
+        charityId,
+        assessmentSlug: 'core-area-4',
+        country,
+    });
 
     const currentForm = useMemo(() => {
         const mappedCountry = mapCountry(country);
@@ -140,6 +146,11 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
 
     return (
         <div className='flex flex-col gap-4'>
+            {fetchFromAPI && (
+                <p className="text-xs text-[#667085]">
+                    Click any question to edit it directly.
+                </p>
+            )}
             {currentForm.questions.map(question => {
                 const key = getQuestionFieldKey(question);
                 return (
@@ -147,6 +158,10 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                         key={question.id}
                         label={question.label}
                         result={formatValue(assessmentVals[key])}
+                        clickable={fetchFromAPI}
+                        disabled={isNavigating}
+                        onClick={fetchFromAPI ? () => navigateToTarget(question.code) : undefined}
+                        title={fetchFromAPI ? 'Click to edit this question' : undefined}
                     />
                 );
             })}
@@ -164,12 +179,13 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                 <Button
                     className="w-full sm:w-36"
                     variant={'outline'}
+                    disabled={isNavigating}
                     onClick={() => {
                         if (fetchFromAPI) {
-                            router.push(`/charities/${charityId}/assessments/core-area-4?country=${country}`)
-                        } else {
-                            router.push(`/charities/${charityId}/assessments/core-area-4?preview-mode=false&country=${country}`)
+                            navigateToEditor();
+                            return;
                         }
+                        router.push(`/charities/${charityId}/assessments/core-area-4?preview-mode=false&country=${country}`)
                     }}
                 >
                     {fetchFromAPI ? 'Edit' : 'Cancel'}

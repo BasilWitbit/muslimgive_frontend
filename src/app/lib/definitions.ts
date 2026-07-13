@@ -20,6 +20,11 @@ export type ApiResponse<T> = {
 // Use NEXT_PUBLIC_SERVER for client-side access in Next.js; fall back to SERVER if available.
 export const serverUrl = process.env.NEXT_PUBLIC_SERVER || process.env.SERVER || ''
 
+export function getServerUrl(): string {
+    const raw = process.env.NEXT_PUBLIC_SERVER || process.env.SERVER || ''
+    return raw.replace(/\/+$/, '')
+}
+
 export type UserProfile = {
     id: string;
     firstName: string;

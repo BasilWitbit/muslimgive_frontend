@@ -14,7 +14,7 @@ import EmailReplyModal from '@/components/use-case/email-logs/EmailReplyModal'
 import { getEmailsAction } from '@/app/actions/general'
 import { resendInviteAction } from '@/app/actions/admin'
 import { toast } from 'sonner'
-import DashboardSkeleton from '@/components/use-case/DashboardSkeleton'
+import { usePageNavigationDismiss } from '@/hooks/use-page-navigation'
 
 type EmailStatus = 'sent' | 'delivered' | 'failed' | 'pending' | 'received'
 
@@ -41,6 +41,8 @@ const EmailLogsPage: FC = () => {
   const [logs, setLogs] = useState<EmailLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [retryingEmailId, setRetryingEmailId] = useState<string | null>(null)
+
+  usePageNavigationDismiss(isLoading)
 
   useEffect(() => {
     fetchEmails()
@@ -137,11 +139,7 @@ const EmailLogsPage: FC = () => {
   }
 
   if (isLoading) {
-    return (
-      <div className="p-6">
-        <DashboardSkeleton />
-      </div>
-    )
+    return null
   }
 
   return (

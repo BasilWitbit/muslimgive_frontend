@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { CRITERIA_OPTION_TEXT } from './CRITERIA_OPTION_TEXT';
 import { formatScore, getEarnedScoreForCriterion, normalizeRatingKey } from './scoring';
 import { cn } from '@/lib/utils';
+import { useAssessmentHistoryNavigation } from '@/hooks/use-assessment-navigation';
+import { Pencil } from 'lucide-react';
 
 export type PreviewPageCommonProps = {
     country: CountryCode;
@@ -72,7 +74,7 @@ const RatingCell = ({ rating }: { rating?: string | null }) => {
     );
 };
 
-const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
+const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI = false }) => {
     const isEditMode = status === 'submitted' || status === 'completed';
     const [rubric, setRubric] = useState<any>(null);
     const [answers, setAnswers] = useState<Record<string, AnswerItem> | null>(null);
@@ -81,6 +83,12 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
+    const { isNavigating, navigateToTarget, navigateToEditor } = useAssessmentHistoryNavigation({
+        charityId,
+        assessmentSlug: 'core-area-3',
+        country,
+        deepLinkParam: 'criterion',
+    });
 
     useEffect(() => {
         const fetchData = async () => {
@@ -103,6 +111,14 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
 
         fetchData();
     }, [charityId]);
+
+    const handleEditCriterion = (criterionId: string) => {
+        navigateToTarget(criterionId, 'Opening selected metric');
+    };
+
+    const handleOpenEditor = () => {
+        navigateToEditor('Opening assessment editor');
+    };
 
     const handleComplete = async () => {
         setIsSubmitting(true);
@@ -150,6 +166,12 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
 
     return (
         <div className="flex flex-col gap-4">
+            {fetchFromAPI && (
+                <p className="text-xs text-[#667085]">
+                    Click any row to edit that metric directly.
+                </p>
+            )}
+
             {/* Compact scoring strip */}
             {scoring && (
                 <div className="overflow-hidden rounded-lg border border-[#D0D7E2] bg-white shadow-sm">
@@ -263,8 +285,11 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                                         <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[180px]">Mandatory Metric</th>
                                         <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[220px]">Subcriteria</th>
                                         <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[130px]">Outcome</th>
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[220px]">Text to match the outcome</th>
-                                        <th className="border-b border-[#E4E9F0] px-2 py-1.5 text-center w-[72px]">Score</th>
+                                        <th className={cn('border-b border-[#E4E9F0] px-2 py-1.5 text-left min-w-[220px]', fetchFromAPI && 'border-r')}>Text to match the outcome</th>
+                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-center w-[72px]">Score</th>
+                                        {fetchFromAPI && (
+                                            <th className="border-b border-[#E4E9F0] px-1 py-1.5 w-14" aria-hidden />
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -281,8 +306,15 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                                         return (
                                             <tr
                                                 key={c.id}
+                                                onClick={fetchFromAPI ? () => handleEditCriterion(c.id) : undefined}
                                                 className={cn(
-                                                    'group transition-colors hover:bg-[#F0F6FF]',
+                                                    'group relative transition-all duration-200',
+                                                    fetchFromAPI && [
+                                                        'cursor-pointer',
+                                                        'hover:bg-[#F8FBFF]',
+                                                        'hover:shadow-[inset_2px_0_0_0_#266dd3]',
+                                                    ],
+                                                    fetchFromAPI && isNavigating && 'pointer-events-none opacity-70',
                                                     metricIndex % 2 === 1
                                                         ? METRIC_ROW_BACKGROUNDS.odd
                                                         : METRIC_ROW_BACKGROUNDS.even,
@@ -304,9 +336,31 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
                                                         <span className="text-gray-300">—</span>
                                                     )}
                                                 </td>
-                                                <td className={cn('border-b px-2 py-1.5 align-top text-center font-mono tabular-nums text-[11px] text-[#344054]', METRIC_TABLE_CELL_BORDER)}>
+                                                <td className={cn('border-b px-2 py-1.5 align-top text-center font-mono tabular-nums text-[11px] text-[#344054]', fetchFromAPI ? 'border-r' : '', METRIC_TABLE_CELL_BORDER)}>
                                                     {pts}
                                                 </td>
+                                                {fetchFromAPI && (
+                                                    <td className={cn('border-b px-1 py-1.5 align-middle', METRIC_TABLE_CELL_BORDER)}>
+                                                        <div
+                                                            aria-hidden
+                                                            className={cn(
+                                                                'flex justify-center',
+                                                                'opacity-0 transition-opacity duration-200',
+                                                                'group-hover:opacity-100',
+                                                            )}
+                                                        >
+                                                            <span
+                                                                className={cn(
+                                                                    'inline-flex h-6 w-6 items-center justify-center rounded-md',
+                                                                    'border border-[#266dd3]/20 bg-white/92 text-[#266dd3]',
+                                                                    'shadow-[0_2px_8px_rgba(38,109,211,0.12)]',
+                                                                )}
+                                                            >
+                                                                <Pencil className="h-3 w-3 stroke-[2.25]" />
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                )}
                                             </tr>
                                         );
                                     })}
@@ -318,19 +372,22 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId }) => {
             })}
 
             <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
-                <Button
-                    className="w-full sm:w-36 bg-[#266dd3] hover:bg-[#1f5bb5]"
-                    onClick={handleComplete}
-                    loading={isSubmitting}
-                >
-                    {isEditMode ? 'Complete Edit' : 'Complete Assessment'}
-                </Button>
+                {!fetchFromAPI && (
+                    <Button
+                        className="w-full sm:w-36 bg-[#266dd3] hover:bg-[#1f5bb5]"
+                        onClick={handleComplete}
+                        loading={isSubmitting}
+                    >
+                        {isEditMode ? 'Complete Edit' : 'Complete Assessment'}
+                    </Button>
+                )}
                 <Button
                     className="w-full sm:w-36"
                     variant="outline"
-                    onClick={() => router.push(`/charities/${charityId}/assessments/core-area-3`)}
+                    disabled={isNavigating}
+                    onClick={handleOpenEditor}
                 >
-                    Edit
+                    {fetchFromAPI ? 'Edit' : 'Cancel'}
                 </Button>
             </div>
 

@@ -18,6 +18,8 @@ import { PERMISSIONS } from '@/lib/permissions-config'
 import { mapCharityMembersFromAssignments } from '@/lib/assignment-candidates'
 import { listCharitiesAction, listDeletedCharitiesAction, restoreCharityAction } from '@/app/actions/charities'
 import { toast } from 'sonner'
+import { usePageNavigationDismiss } from '@/hooks/use-page-navigation'
+import { useRouteLoader } from '@/components/common/route-loader-provider'
 
 import DashboardSkeleton from '../DashboardSkeleton'
 
@@ -58,6 +60,8 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
     const [charities, setCharities] = useState<SingleCharityType[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isNavigating, setIsNavigating] = useState(false)
+    const { isNavigating: isRouteNavigating } = useRouteLoader()
+    usePageNavigationDismiss(isLoading)
     const [openDeletedModal, setOpenDeletedModal] = useState(false)
     const [deletedCharities, setDeletedCharities] = useState<SingleCharityType[]>([])
     const [isDeletedLoading, setIsDeletedLoading] = useState(false)
@@ -367,16 +371,16 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                 </div>
             </div>
             <div className="">
-                {isLoading ? (
+                {isLoading && !isRouteNavigating ? (
                     <DashboardSkeleton />
-                ) : (
+                ) : !isLoading ? (
                     <>
                         {view === "kanban" ? (
                             <KanbanView charities={searchedRows} onCardNavigate={() => setIsNavigating(true)} projectManagers={assignmentCandidatesByRole?.projectManager ?? []} />
                         ) : null}
                         {view === "tabular" ? <TabularView charities={searchedRows} assignmentCandidatesByRole={assignmentCandidatesByRole} onRefresh={() => fetchCharities(queryInput, { status: statusFilters.length ? statusFilters : undefined, categories: categoryFilters.length ? categoryFilters : undefined, zakat: zakatFilter, islamic: islamicFilter, sortBy, order })} /> : null}
                     </>
-                )}
+                ) : null}
             </div>
             <Can anyOf={[PERMISSIONS.SEND_EMAIL_CHARITY_OWNER]}>
                 <ModelComponentWithExternalControl

@@ -11,6 +11,7 @@ import SubmittedSymbol from '../../Assessments/CoreArea1_CharityStatus/Submitted
 import { submitAssessmentAction, completeAssessmentAction, getAssessmentAction, editAssessmentAction } from '@/app/actions/assessments';
 import { toast } from 'sonner';
 import { CORE_AREA_2_FORMS } from '@/lib/assessment-forms/core-area-2';
+import { useAssessmentHistoryNavigation } from '@/hooks/use-assessment-navigation';
 
 export type PreviewPageCommonProps = {
     country: CountryCode;
@@ -28,6 +29,29 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     const [showSubmittedModel, setShowSubmittedModel] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const router = useRouter();
+    const { isNavigating, navigateToTarget, navigateToEditor } = useAssessmentHistoryNavigation({
+        charityId,
+        assessmentSlug: 'core-area-2',
+        country,
+    });
+
+    const previewRow = (
+        code: string,
+        label: string,
+        result: React.ReactNode,
+        orientation: 'vertical' | 'horizontal' = 'horizontal',
+    ) => (
+        <PreviewValueLayout
+            key={code}
+            label={label}
+            result={result}
+            orientation={orientation}
+            clickable={fetchFromAPI}
+            disabled={isNavigating}
+            onClick={fetchFromAPI ? () => navigateToTarget(code) : undefined}
+            title={fetchFromAPI ? 'Click to edit this question' : undefined}
+        />
+    );
 
     useEffect(() => {
         const fetchData = async () => {
@@ -191,47 +215,50 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
 
     return (
         <div className='flex flex-col gap-4'>
-            <PreviewValueLayout label='Assessmented financial statements available on website' result={`${getValue('F01') || '-'}`} />
-            <PreviewValueLayout label='Previous year assessmented financial statements available on website' result={`${getValue('F02') || '-'}`} />
-            <PreviewValueLayout label='Impact report with financial information available on website' result={`${getValue('F03') || '-'}`} />
+            {fetchFromAPI && (
+                <p className="text-xs text-[#667085]">
+                    Click any question to edit it directly.
+                </p>
+            )}
+            {previewRow('F01', 'Assessmented financial statements available on website', `${getValue('F01') || '-'}`)}
+            {previewRow('F02', 'Previous year assessmented financial statements available on website', `${getValue('F02') || '-'}`)}
+            {previewRow('F03', 'Impact report with financial information available on website', `${getValue('F03') || '-'}`)}
+            {previewRow('F04', '% of Total Revenue spent on Charitable Programs and Qualified Distributions', `${getValue('F04') || '-'}`)}
+            {previewRow('F05', '% of Total Revenue spent on Fundraising', `${getValue('F05') || '-'}`)}
+            {previewRow('F06', '% of Total Revenue spent on Administrative Expenses', `${getValue('F06') || '-'}`)}
+            {previewRow('F07', '% of Revenue Spent / Year Spent Revenue', `${getValue('F07') || '-'}`)}
 
-            <PreviewValueLayout label='% of Total Revenue spent on Charitable Programs and Qualified Distributions' result={`${getValue('F04') || '-'}`} />
-            <PreviewValueLayout label='% of Total Revenue spent on Fundraising' result={`${getValue('F05') || '-'}`} />
-            <PreviewValueLayout label='% of Total Revenue spent on Administrative Expenses' result={`${getValue('F06') || '-'}`} />
-            <PreviewValueLayout label='% of Revenue Spent / Year Spent Revenue' result={`${getValue('F07') || '-'}`} />
-
-            {/* Financials Link (UK/US) */}
-            {getValue('F08') && (
-                <PreviewValueLayout label='Financials Link' result={
-                    <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F08')}>{getValue('F08')}</LinkComponent>
-                } />
+            {getValue('F08') && previewRow(
+                'F08',
+                'Financials Link',
+                <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F08')}>{getValue('F08')}</LinkComponent>,
             )}
 
-            {/* Tax Return Links (Varies by country) */}
-            {getValue('F09') && (
-                <PreviewValueLayout label='Tax Return Link (UK)' result={
-                    <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F09')}>{getValue('F09')}</LinkComponent>
-                } />
+            {getValue('F09') && previewRow(
+                'F09',
+                'Tax Return Link (UK)',
+                <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F09')}>{getValue('F09')}</LinkComponent>,
             )}
-            {getValue('F10') && (
-                <PreviewValueLayout label='IRS Returns Link (US)' result={
-                    <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F10')}>{getValue('F10')}</LinkComponent>
-                } />
+            {getValue('F10') && previewRow(
+                'F10',
+                'IRS Returns Link (US)',
+                <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F10')}>{getValue('F10')}</LinkComponent>,
             )}
-            {getValue('F11') && (
-                <PreviewValueLayout label="CRA's Returns Link (Canada)" result={
-                    <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F11')}>{getValue('F11')}</LinkComponent>
-                } />
-            )}
-
-            <PreviewValueLayout label='End of fiscal year' result={`${getValue('F12') ? new Date(getValue('F12')).toLocaleDateString() : '-'}`} />
-
-            {/* F13 exists in all definitions seen so far */}
-            {getValue('F13') && (
-                <PreviewValueLayout label='Charitable Registration since' result={`${new Date(getValue('F13')).toLocaleDateString()}`} />
+            {getValue('F11') && previewRow(
+                'F11',
+                "CRA's Returns Link (Canada)",
+                <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F11')}>{getValue('F11')}</LinkComponent>,
             )}
 
-            <PreviewValueLayout orientation='vertical' label='Notes' result={getValue('F15') || '-'} />
+            {previewRow('F12', 'End of fiscal year', `${getValue('F12') ? new Date(getValue('F12')).toLocaleDateString() : '-'}`)}
+
+            {getValue('F13') && previewRow(
+                'F13',
+                'Charitable Registration since',
+                `${new Date(getValue('F13')).toLocaleDateString()}`,
+            )}
+
+            {previewRow('F15', 'Notes', getValue('F15') || '-', 'vertical')}
 
             <div className='flex flex-col gap-3 mb-8 sm:flex-row sm:items-center sm:gap-4'>
                 {!fetchFromAPI && (
@@ -246,13 +273,14 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                 <Button
                     className="w-full sm:w-36"
                     variant={'outline'}
+                    disabled={isNavigating}
                     onClick={() => {
                         if (fetchFromAPI) {
-                            router.push(`/charities/${charityId}/assessments/core-area-2?country=${country}`)
-                        } else {
-                            localStorage.removeItem(`assessment-form-data-${charityId}-core-area-2`);
-                            router.push(`/charities/${charityId}/assessments/core-area-2?preview-mode=false&country=${country}`)
+                            navigateToEditor();
+                            return;
                         }
+                        localStorage.removeItem(`assessment-form-data-${charityId}-core-area-2`);
+                        router.push(`/charities/${charityId}/assessments/core-area-2?preview-mode=false&country=${country}`)
                     }}
                 >
                     {fetchFromAPI ? 'Edit' : 'Cancel'}

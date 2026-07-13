@@ -1,8 +1,7 @@
 import React from 'react'
 import SideBarComponent from '../sidebar/SidebarComponent'
-import AppbarComponent from '../appbar/AppbarComponent'
 import SidebarShell from '@/components/common/SidebarShell'
-import { SidebarInset } from '@/components/ui/sidebar'
+import DashboardContentShell from './DashboardContentShell'
 
 type IProps = {
     children: React.ReactNode
@@ -18,12 +17,9 @@ const DashboardLayoutComponent = async ({ children, permissions, roles, isAdmin,
         <SidebarShell>
             <main className='bg-white min-h-screen flex w-full'>
                 <SideBarComponent permissions={permissions} roles={roles} isAdmin={isAdmin} />
-                <SidebarInset className="min-w-0">
-                    <AppbarComponent initialDeepScanCount={pendingCount} />
-                    <div className="px-4 pb-4 sm:pb-6">
-                        {children}
-                    </div>
-                </SidebarInset>
+                <DashboardContentShell initialDeepScanCount={pendingCount}>
+                    {children}
+                </DashboardContentShell>
             </main>
         </SidebarShell>
     )

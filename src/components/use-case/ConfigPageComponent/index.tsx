@@ -1,5 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import PageNavigationReady from '@/components/common/PageNavigationReady'
 import { ManageRoles, type Permission, type Role } from '@/components/use-case/AccessControl'
 import EligibilityRulesSettings from './settings/EligibilityRulesSettings'
 import { listPermissionsAction, listRolesAction } from '@/app/actions/roles'
@@ -47,7 +48,8 @@ const ConfigPageComponent = async () => {
     const initialRules = unwrap<any>(rulesRes)
 
     return (
-        <div className="flex flex-col gap-6">
+        <PageNavigationReady>
+            <div className="flex flex-col gap-6">
             <Card>
                 <CardHeader>
                     <CardTitle>Eligibility Rules</CardTitle>
@@ -68,6 +70,7 @@ const ConfigPageComponent = async () => {
                 </CardContent>
             </Card>
         </div>
+        </PageNavigationReady>
     )
 }
 

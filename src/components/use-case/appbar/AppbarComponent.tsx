@@ -2,13 +2,22 @@
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
 import { PAGES } from '../sidebar/pages';
-import { TypographyComponent } from '@/components/common/TypographyComponent';
 import { AUDIT_DEFINITIONS, isAssessmentSlug } from '@/components/use-case/SingleAssessmentPageComponent/ASSESSMENT_DEFINITIONS';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { AlertCircle } from 'lucide-react';
+import {
+    AlertCircle,
+    Building2,
+    LayoutDashboard,
+    Mail,
+    Settings2,
+    ShieldCheck,
+    UserRound,
+    Users,
+    type LucideIcon,
+} from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { io, Socket } from 'socket.io-client';
 import { getServerUrl } from '@/app/lib/definitions';
+import { cn } from '@/lib/utils';
 
 type TitleResolver = {
     match: (segments: string[]) => boolean;
@@ -52,6 +61,56 @@ const getAppbarTitle = (pathname: string) => {
     return '';
 };
 
+type PageHeaderMeta = {
+    description: string
+    icon: LucideIcon
+    iconClassName: string
+}
+
+const DEFAULT_HEADER_META: PageHeaderMeta = {
+    description: 'Manage your MuslimGive workspace.',
+    icon: ShieldCheck,
+    iconClassName: 'from-[#EEF4FD] to-[#EAFBFF] text-[#266DD3]',
+}
+
+const PAGE_HEADER_META: Record<string, PageHeaderMeta> = {
+    'pm-dashboard': {
+        description: 'Portfolio performance, assignments, and eligibility at a glance.',
+        icon: LayoutDashboard,
+        iconClassName: 'from-[#EEF4FD] to-[#EAFBFF] text-[#266DD3]',
+    },
+    charities: {
+        description: 'Review charities, assessments, progress, and eligibility.',
+        icon: Building2,
+        iconClassName: 'from-[#ECFDF3] to-[#F0FDF4] text-[#12B76A]',
+    },
+    profile: {
+        description: 'Manage your personal details and account preferences.',
+        icon: UserRound,
+        iconClassName: 'from-[#F5F3FF] to-[#FAF5FF] text-[#7C3AED]',
+    },
+    'email-logs': {
+        description: 'Monitor delivery activity, replies, and failed messages.',
+        icon: Mail,
+        iconClassName: 'from-[#ECFEFF] to-[#EAFBFF] text-[#0891B2]',
+    },
+    users: {
+        description: 'Manage members, account status, roles, and access.',
+        icon: Users,
+        iconClassName: 'from-[#FFF7ED] to-[#FFFAEB] text-[#F79009]',
+    },
+    config: {
+        description: 'Configure eligibility rules, roles, and permissions.',
+        icon: Settings2,
+        iconClassName: 'from-[#F5F3FF] to-[#EEF4FD] text-[#7C3AED]',
+    },
+}
+
+const getHeaderMeta = (pathname: string) => {
+    const pageName = pathname.split('/').filter(Boolean)[0] ?? ''
+    return PAGE_HEADER_META[pageName] ?? DEFAULT_HEADER_META
+}
+
 type AppbarProps = {
     initialDeepScanCount?: number;
 }
@@ -60,8 +119,10 @@ const AppbarComponent = ({ initialDeepScanCount = 0 }: AppbarProps) => {
     const pathname = usePathname();
     const router = useRouter();
     const pageTitle = useMemo(() => getAppbarTitle(pathname), [pathname]);
+    const headerMeta = useMemo(() => getHeaderMeta(pathname), [pathname]);
     const [hasDeepScanAlert, setHasDeepScanAlert] = useState(initialDeepScanCount > 0)
-    
+    const HeaderIcon = headerMeta.icon
+
     const handleProfileClick = () => {
         router.push('/profile');
     };
@@ -82,18 +143,28 @@ const AppbarComponent = ({ initialDeepScanCount = 0 }: AppbarProps) => {
             socket?.disconnect()
         }
     }, [])
-    
+
     return (
-        <div className='border-b border-[rgb(178,178,178)/10] border-opacity-10 px-4 py-[14px] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5'>
-            <div className="flex items-center gap-3 w-full">
-                <div>
-                    <SidebarTrigger />
+        <header className="mb-5 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-[#E8EEF5]/90 bg-white px-4 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+                <div className={cn(
+                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br',
+                    headerMeta.iconClassName,
+                )}>
+                    <HeaderIcon className="size-[18px]" strokeWidth={2.1} />
                 </div>
-                <TypographyComponent variant='h1' className='w-full'>
-                    {pageTitle}
-                </TypographyComponent>
+
+                <div className="min-w-0">
+                    <h1 className="truncate text-lg font-semibold leading-tight tracking-[-0.02em] text-[#101928] sm:text-xl">
+                        {pageTitle}
+                    </h1>
+                    <p className="hidden truncate text-xs text-[#667085] md:block">
+                        {headerMeta.description}
+                    </p>
+                </div>
             </div>
-            <div className="flex gap-2 items-center">
+
+            <div className="flex shrink-0 items-center gap-2">
                 {hasDeepScanAlert ? (
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -103,10 +174,11 @@ const AppbarComponent = ({ initialDeepScanCount = 0 }: AppbarProps) => {
                                     setHasDeepScanAlert(false)
                                     router.push('/charities')
                                 }}
-                                className="flex items-center justify-center rounded-full border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100"
+                                className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
                                 aria-label="Deep scan alert"
                             >
-                                <AlertCircle className="h-5 w-5" />
+                                <AlertCircle className="h-4 w-4" />
+                                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-white" />
                             </button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -114,14 +186,17 @@ const AppbarComponent = ({ initialDeepScanCount = 0 }: AppbarProps) => {
                         </TooltipContent>
                     </Tooltip>
                 ) : null}
-                <div 
-                    className="rounded-full bg-gray-300 w-[35px] text-xs h-[35px] text-gray-600 flex justify-center items-center cursor-pointer hover:bg-gray-400 transition-colors"
+
+                <button
+                    type="button"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#266DD3] to-[#3B82E8] text-[10px] font-bold text-white shadow-[0_4px_12px_rgba(38,109,211,0.25)] transition-opacity hover:opacity-90 sm:h-10 sm:w-10"
                     onClick={handleProfileClick}
+                    aria-label="Open profile"
                 >
                     MG
-                </div>
+                </button>
             </div>
-        </div>
+        </header>
     )
 }
 

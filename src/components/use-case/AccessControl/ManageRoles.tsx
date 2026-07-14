@@ -3,7 +3,7 @@ import React, { FC, useState, useEffect } from 'react'
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Edit, Settings, Plus, Trash2 } from 'lucide-react'
+import { Edit, Settings, Plus, Trash2, Shield } from 'lucide-react'
 import AddRoleModal from './AddRoleModal'
 import EditRoleModal from './EditRoleModal'
 import ManagePermissionsModal from './ManagePermissionsModal'
@@ -33,8 +33,6 @@ export type Permission = {
 }
 
 const sampleRoles: Role[] = []
-
-// will be populated from GET /roles/permissions
 const defaultPermissions: Permission[] = []
 
 type ManageRolesProps = {
@@ -63,7 +61,6 @@ const ManageRoles: FC<ManageRolesProps> = ({ initialRoles = [], initialPermissio
       try {
         const r = await listRolesAction()
         if (r.ok && r.payload?.data) {
-          // API shape: payload.data.data -> array
           const apiRoles: any[] = Array.isArray(r.payload.data) ? r.payload.data : (Array.isArray(r.payload.data?.data) ? r.payload.data.data : [])
           const mapped = apiRoles.map((ar: any) => ({
             id: ar.id || ar._id || String(ar._id || ar.id),
@@ -82,7 +79,6 @@ const ManageRoles: FC<ManageRolesProps> = ({ initialRoles = [], initialPermissio
         const p = await listPermissionsAction()
         if (p.ok && p.payload?.data) {
           const permsArr: any[] = Array.isArray(p.payload.data) ? p.payload.data : (Array.isArray(p.payload.data?.data) ? p.payload.data.data : [])
-          // normalize permissions into {id, name, module, enabled}
           const mappedPerms = permsArr.map((pp: any) => ({ id: pp.id || pp.key || pp, name: pp.label || pp.name || pp, module: pp.module, enabled: false }))
           setPermissionsList(mappedPerms)
         }
@@ -106,11 +102,10 @@ const ManageRoles: FC<ManageRolesProps> = ({ initialRoles = [], initialPermissio
       const body = {
         name: data.name,
         description: data.description,
-        permissions: (data.permissions || []).filter(p => p.enabled).map(p => p.id)
+        permissions: (data.permissions || []).filter((permission) => permission.enabled).map((permission) => permission.id)
       }
       const res = await createRoleAction(body)
       if (res.ok) {
-        // refresh roles from server to ensure consistent shape
         const listRes = await listRolesAction()
         if (listRes.ok && listRes.payload?.data) {
           const apiRoles: any[] = Array.isArray(listRes.payload.data) ? listRes.payload.data : (Array.isArray(listRes.payload.data?.data) ? listRes.payload.data.data : [])
@@ -144,7 +139,7 @@ const ManageRoles: FC<ManageRolesProps> = ({ initialRoles = [], initialPermissio
       const body = { name: data.name, description: data.description }
       const res = await updateRoleAction(data.id, body)
       if (res.ok) {
-        setRoles(prev => prev.map(r => r.id === data.id ? { ...r, name: data.name, description: data.description } : r))
+        setRoles((prev) => prev.map((role) => role.id === data.id ? { ...role, name: data.name, description: data.description } : role))
         toast.success('Role updated')
         setIsEditOpen(false)
       } else {
@@ -168,9 +163,9 @@ const ManageRoles: FC<ManageRolesProps> = ({ initialRoles = [], initialPermissio
     setIsSaving(true)
     try {
       const currentIds = editingRole.permissionIds || []
-      const newEnabledIds = (items || []).filter(p => p.enabled).map(p => p.id)
-      const toAdd = newEnabledIds.filter(id => !currentIds.includes(id))
-      const toRemove = currentIds.filter(id => !newEnabledIds.includes(id))
+      const newEnabledIds = (items || []).filter((permission) => permission.enabled).map((permission) => permission.id)
+      const toAdd = newEnabledIds.filter((id) => !currentIds.includes(id))
+      const toRemove = currentIds.filter((id) => !newEnabledIds.includes(id))
 
       if (toAdd.length === 0 && toRemove.length === 0) {
         toast(`No permission changes to save`)
@@ -181,13 +176,10 @@ const ManageRoles: FC<ManageRolesProps> = ({ initialRoles = [], initialPermissio
       const body = { add: toAdd, remove: toRemove }
       const res = await updateRolePermissionsAction(editingRole.id, body)
       if (res.ok && res.payload?.data) {
-        // backend returns updated role in payload.data.role (or similar); try to read it
         const returnedRole = res.payload.data?.role || null
         const updatedPermissionIds = returnedRole ? (returnedRole.permissions || []).map((pp: any) => pp.permissionId || pp.id || pp) : newEnabledIds
-        // update local role permission ids so UI reflects saved state
-        setRoles(prev => prev.map(r => r.id === editingRole.id ? { ...r, permissionIds: updatedPermissionIds } : r))
-        // update editingRole in case modal remains open or reused
-        setEditingRole(prev => prev ? { ...prev, permissionIds: updatedPermissionIds } : prev)
+        setRoles((prev) => prev.map((role) => role.id === editingRole.id ? { ...role, permissionIds: updatedPermissionIds } : role))
+        setEditingRole((prev) => prev ? { ...prev, permissionIds: updatedPermissionIds } : prev)
         toast.success('Permissions updated')
         setIsManagePermOpen(false)
       } else {
@@ -207,14 +199,14 @@ const ManageRoles: FC<ManageRolesProps> = ({ initialRoles = [], initialPermissio
     try {
       const res = await deleteRoleAction(role.id)
       if (res.ok) {
-        setRoles(prev => prev.filter(r => r.id !== role.id))
-        toast.success("Role deleted successfully")
+        setRoles((prev) => prev.filter((item) => item.id !== role.id))
+        toast.success('Role deleted successfully')
       } else {
-        toast.error(res.message || "Failed to delete role")
+        toast.error(res.message || 'Failed to delete role')
       }
     } catch (error) {
-      console.error("Failed to delete role", error)
-      toast.error("An unexpected error occurred")
+      console.error('Failed to delete role', error)
+      toast.error('An unexpected error occurred')
     }
   }
 
@@ -223,109 +215,130 @@ const ManageRoles: FC<ManageRolesProps> = ({ initialRoles = [], initialPermissio
   const defineColor = (rolePolicy: RolePolicy) => {
     switch (rolePolicy) {
       case 'custom':
-        return 'bg-blue-100 text-blue-800'
+        return 'border-blue-200 bg-blue-50 text-blue-700'
       case 'managed':
-        return 'bg-green-100 text-green-800'
+        return 'border-emerald-200 bg-emerald-50 text-emerald-700'
       case 'system':
-        return 'bg-gray-100 text-gray-800'
+        return 'border-slate-200 bg-slate-50 text-slate-700'
     }
   }
 
   return (
-    <div className="p-4 bg-white rounded-lg border">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Manage Roles</h3>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-sm font-semibold text-[#101928]">{roles.length} roles configured</div>
+          <div className="text-xs text-[#667085]">Manage role metadata, permissions, and lifecycle actions.</div>
+        </div>
         <Can anyOf={[PERMISSIONS.ROLE_CREATE, PERMISSIONS.ROLE_MANAGE]}>
-          <Button variant="primary" onClick={() => setIsAddOpen(true)}>
+          <Button
+            variant="primary"
+            className="h-11 rounded-xl bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-5 text-white shadow-[0_10px_24px_rgba(38,109,211,0.24)]"
+            onClick={() => setIsAddOpen(true)}
+          >
             <Plus className="h-4 w-4" />
             Create New Role
           </Button>
         </Can>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Role Name</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead className="w-[160px] text-center">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {roles.map(r => (
-            <TableRow key={r.id}>
-              <TableCell className="py-4">
-                <div className="flex items-center gap-3">
-                  <div className="font-medium">{r.name}</div>
-                </div>
-              </TableCell>
-              <TableCell className="py-4">
-                <Badge variant="outline" className="px-3 py-1 bg-gray-50">{r.description}</Badge>
-              </TableCell>
-              <TableCell className="py-4">
-                <Badge variant="outline" className={cn("px-3 py-1 bg-gray-50", defineColor(r.rolePolicy as RolePolicy))}>{capitalizeWords(r.rolePolicy) || '-'}</Badge>
-              </TableCell>
-              <TableCell className="py-4 w-[160px]">
-                <div className="flex items-center gap-2 justify-center">
-                  {r.rolePolicy !== 'system' && (
-                    <Can anyOf={[PERMISSIONS.ROLE_UPDATE, PERMISSIONS.ROLE_MANAGE]}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(r)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Edit Role
-                        </TooltipContent>
-                      </Tooltip>
-                    </Can>
-                  )}
-
-                  {r.canUpdatePermissions !== false && (
-                    <Can anyOf={[PERMISSIONS.ROLE_PERMISSIONS_UPDATE, PERMISSIONS.ROLE_MANAGE]}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenManagePerm(r)}>
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Manage Permissions
-                        </TooltipContent>
-                      </Tooltip>
-                    </Can>
-                  )}
-
-                  {r.canEditDelete !== false && (
-                    <Can anyOf={[PERMISSIONS.ROLE_DELETE, PERMISSIONS.ROLE_MANAGE]}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(r)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Delete Role
-                        </TooltipContent>
-                      </Tooltip>
-                    </Can>
-                  )}
-                </div>
-              </TableCell>
+      <div className="overflow-hidden rounded-2xl border border-[#E8EEF5]">
+        <Table className="table-fixed w-full">
+          <TableHeader>
+            <TableRow className="border-[#E8EEF5] bg-[#F8FAFC] hover:bg-[#F8FAFC]">
+              <TableHead className="w-[210px] text-xs font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Role Name</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Description</TableHead>
+              <TableHead className="w-[120px] text-xs font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Category</TableHead>
+              <TableHead className="w-[180px] text-center text-xs font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {roles.map((role) => (
+              <TableRow key={role.id} className="border-[#EEF2F6] hover:bg-[#FBFCFE]">
+                <TableCell className="w-[210px] py-4 align-top">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#EEF4FD] to-[#EAFBFF] text-[#266DD3]">
+                      <Shield className="size-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-[#101928]">{role.name}</div>
+                      <div className="text-xs text-[#667085]">{role.permissionIds?.length ?? 0} permissions</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="py-4 whitespace-normal align-top">
+                  <p className="line-clamp-4 max-w-[42rem] text-left text-sm leading-7 text-[#667085]">
+                    {role.description || 'No description'}
+                  </p>
+                </TableCell>
+                <TableCell className="py-4">
+                  <Badge variant="outline" className={cn('rounded-full px-3 py-1 font-semibold', defineColor(role.rolePolicy as RolePolicy))}>
+                    {capitalizeWords(role.rolePolicy) || '-'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="py-4">
+                  <div className="flex items-center justify-center gap-1">
+                    {role.rolePolicy !== 'system' && (
+                      <Can anyOf={[PERMISSIONS.ROLE_UPDATE, PERMISSIONS.ROLE_MANAGE]}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-xl hover:bg-[#EEF4FD]" onClick={() => handleOpenEdit(role)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit Role</TooltipContent>
+                        </Tooltip>
+                      </Can>
+                    )}
+
+                    {role.canUpdatePermissions !== false && (
+                      <Can anyOf={[PERMISSIONS.ROLE_PERMISSIONS_UPDATE, PERMISSIONS.ROLE_MANAGE]}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-xl hover:bg-[#EEF4FD]" onClick={() => handleOpenManagePerm(role)}>
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Manage Permissions</TooltipContent>
+                        </Tooltip>
+                      </Can>
+                    )}
+
+                    {role.canEditDelete !== false && (
+                      <Can anyOf={[PERMISSIONS.ROLE_DELETE, PERMISSIONS.ROLE_MANAGE]}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600" onClick={() => handleDelete(role)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete Role</TooltipContent>
+                        </Tooltip>
+                      </Can>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       <AddRoleModal open={isAddOpen} onOpenChange={setIsAddOpen} onSave={handleAdd} permissions={permissionsList} isLoading={isAdding} />
-      {editingRole && <EditRoleModal open={isEditOpen} onOpenChange={setIsEditOpen} role={{ ...editingRole, description: editingRole.description || '' }} onSave={handleEditSave} permissions={permissionsList} isLoading={isEditing} />}
-      {/* Pass permissions with enabled flags for the selected role so toggles reflect current state */}
+      {editingRole ? (
+        <EditRoleModal
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          role={{ ...editingRole, description: editingRole.description || '' }}
+          onSave={handleEditSave}
+          permissions={permissionsList}
+          isLoading={isEditing}
+        />
+      ) : null}
       <ManagePermissionsModal
         open={isManagePermOpen}
         onOpenChange={setIsManagePermOpen}
-        permissions={editingRole ? permissionsList.map(p => ({ ...p, enabled: !!editingRole.permissionIds?.includes(p.id) })) : permissionsList}
+        permissions={editingRole ? permissionsList.map((permission) => ({ ...permission, enabled: !!editingRole.permissionIds?.includes(permission.id) })) : permissionsList}
         onSave={handleSavePermissions}
         isLoading={isSaving}
       />

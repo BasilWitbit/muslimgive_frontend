@@ -35,20 +35,22 @@ const CharityTeamPopover: FC<Props> = ({
         <Popover>
             <PopoverTrigger asChild>
                 <button
-                    className="flex items-center gap-1 px-2 py-1 rounded-md border border-[#E7EEF8] bg-[#F9FAFB] hover:bg-[#EEF2F8] transition-colors text-[10px] text-[#344054] font-medium whitespace-nowrap"
+                    className="flex max-w-full items-center gap-1 overflow-hidden whitespace-nowrap rounded-full border border-[#DDE7F3] bg-white px-2 py-0.5 text-[9px] font-semibold text-[#344054] shadow-sm transition-colors hover:border-[#BFD7F8] hover:bg-[#F8FBFF]"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <Users className="h-3.5 w-3.5 text-[#667085]" />
-                    {memberCount > 0
-                        ? `${memberCount} member${memberCount !== 1 ? 's' : ''}`
-                        : canAssignAny
-                            ? 'Assign team'
-                            : 'No members'}
+                    <Users className="h-3 w-3 shrink-0 text-[#266DD3]" />
+                    <span className="truncate">
+                        {memberCount > 0
+                            ? `${memberCount} member${memberCount !== 1 ? 's' : ''}`
+                            : canAssignAny
+                                ? 'Assign'
+                                : 'None'}
+                    </span>
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-72 p-0" align="start" onClick={(e) => e.stopPropagation()}>
-                <div className="px-3 py-2 border-b border-[#E7EEF8]">
-                    <span className="text-xs font-semibold text-[#344054]">Team Members</span>
+            <PopoverContent className="w-72 overflow-hidden rounded-2xl border-[#E8EEF5] p-0 shadow-[0_18px_50px_rgba(15,23,42,0.12)]" align="start" onClick={(e) => e.stopPropagation()}>
+                <div className="border-b border-[#E8EEF5] bg-gradient-to-br from-[#F8FBFF] to-white px-3 py-2.5">
+                    <span className="text-xs font-semibold text-[#101928]">Team Members</span>
                 </div>
 
                 {memberCount > 0 ? (

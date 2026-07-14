@@ -5,7 +5,6 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Mail, ExternalLink, ChevronLeft, ChevronRight, Trash2, ChevronDown, Loader2, History } from 'lucide-react'
-import Link from 'next/link'
 import {
     Select,
     SelectTrigger,
@@ -38,6 +37,7 @@ import {
 } from '@/lib/audit-score-display'
 import CharityTeamPopover from './CharityTeamPopover'
 import { getMembersForRole } from '@/lib/assignment-candidates'
+import { useCharityNavigation } from '@/hooks/use-charity-navigation'
 import { cn } from '@/lib/utils'
 
 type AssignRoleState = {
@@ -200,6 +200,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     const [sendingEmailId, setSendingEmailId] = React.useState<string | null>(null)
 
     const router = useRouter()
+    const { navigateToCharity, navigateToAssessments } = useCharityNavigation()
     const { isAllowed, me } = usePermissions()
     const currentUserRoles = me?.roles?.map((r: any) => r.slug || r) || []
     const canDeleteCharity = isAllowed({ anyOf: [PERMISSIONS.DELETE_CHARITY] }) || currentUserRoles.includes('operation-manager')
@@ -316,27 +317,26 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     const pageItems = charities.slice(start, end)
 
     const colCount = 12 // number of table columns
+    const headCell = 'px-2 py-2 text-[10px] font-semibold uppercase leading-tight text-[#98A2B3]'
+    const bodyCell = 'px-2 py-2 align-middle'
 
     return (
-        <div className="bg-white rounded-lg border p-2 overflow-hidden">
-            <Table className="w-full min-w-[32rem] text-xs xl:table-fixed xl:min-w-0 [&_th]:px-2 [&_td]:px-2 [&_th]:align-middle [&_td]:align-middle">
+        <div className="overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.045)]">
+            <Table className="w-full table-fixed text-[11px] [&_th]:align-middle [&_td]:align-middle">
                 <TableHeader>
-                    <TableRow>
-                        <TableHead className="min-w-[8.5rem] xl:w-[13%]">Charity Name</TableHead>
-                        <TableHead className="min-w-[6.5rem] xl:w-[10%]">Status</TableHead>
-                        <TableHead className="hidden lg:table-cell lg:min-w-[6.5rem] xl:w-[10%]">Submitted By</TableHead>
-                        <TableHead className="hidden xl:table-cell xl:w-[9%]">Team</TableHead>
-                        <TableHead className="w-[4.5rem] shrink-0 xl:w-[7%] text-center">
-                            <span className="lg:hidden">Assess.</span>
-                            <span className="hidden lg:inline">Assessments</span>
-                        </TableHead>
-                        <TableHead className="w-[4.5rem] shrink-0 xl:w-[8%] text-center">Progress</TableHead>
-                        <TableHead className="hidden xl:table-cell xl:w-[6%] text-center">Within 2y</TableHead>
-                        <TableHead className="hidden xl:table-cell xl:w-[8%]">Email Sent</TableHead>
-                        <TableHead className="hidden xl:table-cell xl:w-[7%]">Email Status</TableHead>
-                        <TableHead className="hidden xl:table-cell xl:w-[7%]">Audit Start</TableHead>
-                        <TableHead className="hidden lg:table-cell lg:min-w-[5.5rem] xl:w-[7%]">Audit Done</TableHead>
-                        <TableHead className="w-[5.5rem] shrink-0 xl:w-[8%] text-center">Actions</TableHead>
+                    <TableRow className="border-b border-[#E8EEF5] bg-gradient-to-r from-[#FAFBFC] to-[#F8FBFF] hover:bg-gradient-to-r hover:from-[#FAFBFC] hover:to-[#F8FBFF]">
+                        <TableHead className={cn(headCell, 'w-[14%]')}>Charity</TableHead>
+                        <TableHead className={cn(headCell, 'w-[9%]')}>Status</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[8%] lg:table-cell')}>Submitted</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Team</TableHead>
+                        <TableHead className={cn(headCell, 'w-[4%] text-center')}>Assess</TableHead>
+                        <TableHead className={cn(headCell, 'w-[6%] text-center')}>Progress</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[4%] text-center xl:table-cell')}>2y</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Email</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>E.Status</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Start</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>Done</TableHead>
+                        <TableHead className={cn(headCell, 'w-[8%] text-center')}>Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -367,23 +367,24 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                             <React.Fragment key={`${c.id}-${globalIdx}`}>
                                 {/* Main row – clickable to expand */}
                                 <TableRow
-                                    className="cursor-pointer hover:bg-[#F9FAFB] transition-colors"
+                                    className="cursor-pointer border-b border-[#EEF2F6] transition-colors hover:bg-[#F8FBFF]"
                                     onClick={(e) => {
                                         const target = e.target as HTMLElement | null
                                         if (target && target.closest("button,input,textarea,select,a")) return
                                         handleRowClick(c.id)
                                     }}
                                 >
-                                    <TableCell className="py-3 min-w-0 max-w-[10rem] lg:max-w-none">
-                                        <div className="flex items-center gap-2 min-w-0">
+                                    <TableCell className={cn(bodyCell, 'max-w-0')}>
+                                        <div className="flex min-w-0 items-center gap-1.5">
                                             <ChevronDown
-                                                className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                                className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                                             />
-                                            <div className="font-medium truncate min-w-0" title={c.charityTitle}>{c.charityTitle}</div>
+                                            <div className="min-w-0 truncate font-semibold text-[#101928]" title={c.charityTitle}>{c.charityTitle}</div>
                                         </div>
                                     </TableCell>
 
-                                    <TableCell className="py-3 min-w-0 max-w-[8.5rem] lg:max-w-none">
+                                    <TableCell className={cn(bodyCell, 'max-w-0')}>
+                                        <div className="max-w-full overflow-hidden">
                                         {(() => {
                                             const statusColor = CHARITY_STATUS_COLORS[c.status] ?? '#8B5CF6'
                                             const pill = (
@@ -412,11 +413,14 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                 </button>
                                             )
                                         })()}
+                                        </div>
                                     </TableCell>
 
-                                    <TableCell className="hidden lg:table-cell py-3 min-w-0 max-w-[7rem] xl:max-w-none truncate" title={c.charityOwnerName}>{c.charityOwnerName}</TableCell>
+                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 lg:table-cell')}>
+                                        <span className="block truncate text-[#344054]" title={c.charityOwnerName}>{c.charityOwnerName}</span>
+                                    </TableCell>
 
-                                    <TableCell className="hidden xl:table-cell py-3">
+                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
                                         <CharityTeamPopover
                                             charityId={c.id}
                                             members={c.members}
@@ -426,18 +430,18 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         />
                                     </TableCell>
 
-                                    <TableCell className="py-3 text-center whitespace-nowrap">{`${c.assessmentsCompleted}/4`}</TableCell>
+                                    <TableCell className={cn(bodyCell, 'text-center font-medium text-[#344054]')}>{`${c.assessmentsCompleted}/4`}</TableCell>
 
-                                    <TableCell className="py-3 min-w-0">
-                                        <div className="mx-auto w-full max-w-[4.5rem]">
-                                            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                <div className="h-full bg-blue-500" style={{ width: `${percent}%` }} />
+                                    <TableCell className={cn(bodyCell, 'max-w-0')}>
+                                        <div className="mx-auto w-full min-w-0">
+                                            <div className="h-2 w-full overflow-hidden rounded-full bg-[#EEF2F6]">
+                                                <div className="h-full rounded-full bg-gradient-to-r from-[#266DD3] to-[#5CD9F2] transition-all duration-300" style={{ width: `${percent}%` }} />
                                             </div>
-                                            <div className="text-[10px] text-muted-foreground mt-1 text-center whitespace-nowrap">{percent}%</div>
+                                            <div className="mt-0.5 text-center text-[9px] font-semibold text-[#667085]">{percent}%</div>
                                         </div>
                                     </TableCell>
 
-                                    <TableCell className="hidden xl:table-cell py-3 text-center">
+                                    <TableCell className={cn(bodyCell, 'hidden text-center xl:table-cell')}>
                                         {withinTwoYears === undefined ? (
                                             <span className="text-muted-foreground">-</span>
                                         ) : withinTwoYears ? (
@@ -448,7 +452,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                     </TableCell>
 
                                     {/* Email Sent Date */}
-                                    <TableCell className="hidden xl:table-cell py-3">
+                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
                                         {comm?.lastEmailSentAt ? (
                                             <span className="block truncate text-[11px] text-[#344054]" title={formatDate(comm?.lastEmailSentAt)}>
                                                 {formatDate(comm?.lastEmailSentAt)}
@@ -459,10 +463,10 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                     </TableCell>
 
                                     {/* Email Status */}
-                                    <TableCell className="hidden xl:table-cell py-3">
+                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
                                         {emailMeta ? (
                                             <Badge
-                                                className="max-w-full truncate text-[10px] px-1.5 py-0.5"
+                                                className="max-w-full truncate px-1 py-0 text-[9px]"
                                                 title={emailMeta.label}
                                                 style={{ backgroundColor: emailMeta.color, color: '#fff', border: 'none' }}
                                             >
@@ -474,7 +478,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                     </TableCell>
 
                                     {/* Audit Start Date */}
-                                    <TableCell className="hidden xl:table-cell py-3">
+                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
                                         {timeline?.startedAt ? (
                                             <span className="block truncate text-[11px] text-[#344054]" title={formatDate(timeline.startedAt)}>
                                                 {formatDate(timeline.startedAt)}
@@ -485,7 +489,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                     </TableCell>
 
                                     {/* Audit Completion Date */}
-                                    <TableCell className="hidden lg:table-cell py-3 min-w-0">
+                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 lg:table-cell')}>
                                         {timeline?.completedAt ? (
                                             <span className="block truncate text-[11px] text-[#344054]" title={formatDate(timeline.completedAt)}>
                                                 {formatDate(timeline.completedAt)}
@@ -493,7 +497,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         ) : (
                                             <Badge
                                                 variant="secondary"
-                                                className="max-w-full truncate text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 border-amber-200"
+                                                className="max-w-full truncate px-1 py-0 text-[9px] bg-amber-50 text-amber-700 border-amber-200"
                                                 title="In Progress"
                                             >
                                                 In Progress
@@ -501,37 +505,44 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         )}
                                     </TableCell>
 
-                                    <TableCell className="py-3 whitespace-nowrap shrink-0">
-                                        <div className="flex flex-nowrap items-center justify-center gap-0.5">
+                                    <TableCell className={cn(bodyCell, 'max-w-0')}>
+                                        <div className="flex items-center justify-center gap-0.5">
                                             <Can anyOf={[PERMISSIONS.SEND_EMAIL_CHARITY_OWNER]}>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-7 w-7 p-0"
+                                                    className="h-7 w-7 shrink-0 rounded-md p-0 text-[#667085] hover:bg-[#EEF4FD] hover:text-[#266DD3]"
                                                     disabled={isSendingThis}
                                                     onClick={() => handleSendEmail(c.id)}
                                                     title="Send report email"
                                                 >
                                                     {isSendingThis ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                     ) : (
-                                                        <Mail className="h-4 w-4" />
+                                                        <Mail className="h-3.5 w-3.5" />
                                                     )}
                                                 </Button>
                                             </Can>
-                                            <Link href={`/charities/${c.id}`} className="inline-block">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 p-0">
-                                                    <ExternalLink className="h-4 w-4" />
-                                                </Button>
-                                            </Link>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 shrink-0 rounded-md p-0 text-[#667085] hover:bg-[#EEF4FD] hover:text-[#266DD3]"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    navigateToCharity(c.id, c.charityTitle)
+                                                }}
+                                                title="Open charity"
+                                            >
+                                                <ExternalLink className="h-3.5 w-3.5" />
+                                            </Button>
                                             {canDeleteCharity && (
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                    className="h-7 w-7 shrink-0 rounded-md p-0 text-red-500 hover:bg-red-50 hover:text-red-700"
                                                     onClick={() => setShowDeleteModal(c.id)}
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
+                                                    <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
                                             )}
                                         </div>
@@ -540,39 +551,43 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
 
                                 {/* Expanded audit scores row */}
                                 {isExpanded && (
-                                    <TableRow className="bg-[#F9FAFB] hover:bg-[#F9FAFB]">
-                                        <TableCell colSpan={colCount} className="p-0 max-w-0">
-                                            <div className="px-6 py-4 border-t border-[#E7EEF8] min-w-0 overflow-hidden">
+                                    <TableRow className="bg-gradient-to-br from-[#F8FBFF] to-[#FAFBFC] hover:bg-gradient-to-br hover:from-[#F8FBFF] hover:to-[#FAFBFC]">
+                                        <TableCell colSpan={colCount} className="max-w-0 p-0">
+                                            <div className="relative overflow-hidden border-t border-[#E8EEF5] bg-gradient-to-br from-[#F8FBFF] via-white to-[#F4FBFD] px-5 py-5">
+                                                <div className="pointer-events-none absolute -right-12 top-0 h-28 w-28 rounded-full bg-[#266DD3]/8 blur-2xl" />
+                                                <div className="pointer-events-none absolute bottom-0 left-8 h-24 w-24 rounded-full bg-[#5CD9F2]/10 blur-2xl" />
+
                                                 {isLoading ? (
-                                                    <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    <div className="relative flex items-center justify-center gap-2 rounded-2xl border border-[#E8EEF5] bg-white/80 py-8 text-sm text-[#667085]">
+                                                        <Loader2 className="h-4 w-4 animate-spin text-[#266DD3]" />
                                                         Loading audit scores…
                                                     </div>
                                                 ) : reviews ? (
-                                                    <div className="space-y-3">
-                                                        {/* Header */}
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs font-semibold uppercase text-[#667085] tracking-wide">
+                                                    <div className="relative space-y-4">
+                                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">
                                                                     Audit Scores
                                                                 </span>
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className="text-[11px] font-medium px-2.5 py-0.5 bg-[#EEF2FF] text-[#3730A3] border-[#C7D2FE] leading-none"
-                                                                >
+                                                                <span className="inline-flex items-center rounded-full border border-[#D9E8FB] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#266DD3] shadow-sm">
                                                                     {reviews.summary.completed} of {reviews.summary.total} completed
-                                                                </Badge>
+                                                                </span>
                                                             </div>
-                                                            <Link href={`/charities/${c.id}/assessments`}>
-                                                                <Button variant="outline" size="sm" className="gap-2 text-xs">
-                                                                    <History className="h-3.5 w-3.5" />
-                                                                    View Assessment History
-                                                                </Button>
-                                                            </Link>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-9 gap-2 rounded-xl border-[#DDE7F3] bg-white text-xs font-semibold text-[#344054] shadow-sm hover:bg-[#F8FBFF]"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    navigateToAssessments(c.id, c.charityTitle)
+                                                                }}
+                                                            >
+                                                                <History className="h-3.5 w-3.5 text-[#266DD3]" />
+                                                                View Assessment History
+                                                            </Button>
                                                         </div>
 
-                                                        {/* 4 core area cards */}
-                                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+                                                        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                                             {(['core1', 'core2', 'core3', 'core4'] as const).map((key) => {
                                                                 const area = reviews[key]
                                                                 const meta = CORE_AREA_META[key]
@@ -589,75 +604,83 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                 return (
                                                                     <div
                                                                         key={key}
-                                                                        className="rounded-lg border border-[#E7EEF8] p-3 bg-white min-w-0 overflow-hidden"
+                                                                        className="relative min-w-0 overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white p-4 shadow-[0_4px_18px_rgba(15,23,42,0.04)]"
                                                                     >
-                                                                        {/* Area header */}
-                                                                        <div className="mb-2 flex flex-col gap-1.5 min-w-0">
-                                                                            <div className="flex w-full min-w-0 items-start gap-1.5">
+                                                                        <div
+                                                                            className="absolute inset-x-0 top-0 h-1"
+                                                                            style={{ backgroundColor: meta.color }}
+                                                                        />
+                                                                        <div className="mb-3 flex items-start justify-between gap-2">
+                                                                            <div className="flex min-w-0 items-start gap-2">
                                                                                 <div
-                                                                                    className="w-2 h-2 rounded-full shrink-0 mt-1"
+                                                                                    className="mt-1 h-2 w-2 shrink-0 rounded-full"
                                                                                     style={{ backgroundColor: meta.color }}
                                                                                 />
-                                                                                <span className="min-w-0 flex-1 text-[11px] font-medium text-[#344054] leading-snug break-words">
+                                                                                <span className="min-w-0 text-xs font-semibold leading-snug text-[#101928]">
                                                                                     {meta.label}
                                                                                 </span>
                                                                             </div>
-                                                                            <div>
-                                                                                <Badge
-                                                                                    variant="outline"
-                                                                                    className="w-fit text-[10px] font-semibold px-2 py-0.5 leading-tight tracking-wide"
-                                                                                    title={statusStyle.label}
-                                                                                    style={{
-                                                                                        backgroundColor: statusStyle.bg,
-                                                                                        color: statusStyle.text,
-                                                                                        borderColor: statusStyle.border,
-                                                                                    }}
-                                                                                >
-                                                                                    {statusStyle.label}
-                                                                                </Badge>
-                                                                            </div>
+                                                                            <Badge
+                                                                                variant="outline"
+                                                                                className="shrink-0 px-2 py-0 text-[9px] font-semibold leading-tight"
+                                                                                title={statusStyle.label}
+                                                                                style={{
+                                                                                    backgroundColor: statusStyle.bg,
+                                                                                    color: statusStyle.text,
+                                                                                    borderColor: statusStyle.border,
+                                                                                }}
+                                                                            >
+                                                                                {statusStyle.label}
+                                                                            </Badge>
                                                                         </div>
 
                                                                         {isPending ? (
-                                                                            <div className="text-xs text-muted-foreground italic">
+                                                                            <div className="rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-3 py-5 text-center text-xs italic text-[#667085]">
                                                                                 Not yet assessed
                                                                             </div>
                                                                         ) : (
-                                                                            <div className="space-y-2">
+                                                                            <div className="space-y-3">
                                                                                 {key === 'core3' && zakatScores ? (
-                                                                                    <>
+                                                                                    <div className="space-y-2">
                                                                                         <div>
                                                                                             <div
-                                                                                                className="text-xl font-bold font-mono tabular-nums"
+                                                                                                className="font-mono text-xl font-bold tabular-nums"
                                                                                                 style={{ color: meta.color }}
                                                                                             >
                                                                                                 {formatAuditScore(zakatScores.assessmentScore)}/{AUDIT_DISPLAY_MAX.core3Assessment}
                                                                                             </div>
-                                                                                            <div className="text-[10px] text-[#667085]">Assessment score</div>
+                                                                                            <div className="text-[10px] font-medium text-[#667085]">Assessment score</div>
                                                                                         </div>
                                                                                         <div>
-                                                                                            <div className="text-base font-semibold font-mono tabular-nums text-[#344054]">
+                                                                                            <div className="font-mono text-base font-semibold tabular-nums text-[#344054]">
                                                                                                 {formatAuditScore(zakatScores.weightageScore)}/{AUDIT_DISPLAY_MAX.core3Weightage}
                                                                                             </div>
-                                                                                            <div className="text-[10px] text-[#667085]">Overall weightage</div>
+                                                                                            <div className="text-[10px] font-medium text-[#667085]">Overall weightage</div>
                                                                                         </div>
-                                                                                    </>
+                                                                                    </div>
                                                                                 ) : (
                                                                                     <div
-                                                                                        className="text-xl font-bold font-mono tabular-nums"
+                                                                                        className="font-mono text-2xl font-bold tabular-nums"
                                                                                         style={{ color: meta.color }}
                                                                                     >
                                                                                         {formatAuditScore(displayScore)}/{meta.displayMax}
                                                                                     </div>
                                                                                 )}
-                                                                                <div className="flex items-center justify-between gap-2">
+                                                                                <div className="flex items-center justify-between gap-2 border-t border-[#EEF2F6] pt-2">
                                                                                     {(key === 'core1' || key === 'core4') && coreAreaBand ? (
                                                                                         <RatingBandBadge ratingBand={coreAreaBand as RatingBand} className="text-[10px]" />
                                                                                     ) : (
                                                                                         <span />
                                                                                     )}
                                                                                     {area.result ? (
-                                                                                        <span className={`text-[10px] font-semibold ${area.result === 'pass' ? 'text-green-600' : 'text-red-600'}`}>
+                                                                                        <span
+                                                                                            className={cn(
+                                                                                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                                                                                area.result === 'pass'
+                                                                                                    ? 'bg-green-50 text-green-700'
+                                                                                                    : 'bg-red-50 text-red-700',
+                                                                                            )}
+                                                                                        >
                                                                                             {area.result === 'pass' ? '✓ Pass' : '✕ Fail'}
                                                                                         </span>
                                                                                     ) : null}
@@ -675,24 +698,32 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                             if (overallScore === null && !overallResult) return null
 
                                                             return (
-                                                                <div className="rounded-lg border border-[#E7EEF8] bg-white p-4">
-                                                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                                <div className="relative overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white p-4 shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
+                                                                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#266DD3] via-[#3B82E8] to-[#5CD9F2]" />
+                                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                                                         <div>
-                                                                            <div className="text-xs font-semibold uppercase tracking-wide text-[#667085]">
+                                                                            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">
                                                                                 Overall Score
                                                                             </div>
-                                                                            <div className="text-2xl font-bold font-mono tabular-nums text-[#101928]">
+                                                                            <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-[#101928]">
                                                                                 {overallScore !== null
                                                                                     ? `${formatAuditScore(overallScore)}/${AUDIT_DISPLAY_MAX.overall}`
                                                                                     : '—'}
                                                                             </div>
                                                                         </div>
                                                                         {overallResult ? (
-                                                                            <div className="text-right">
-                                                                                <div className="text-xs font-semibold uppercase tracking-wide text-[#667085]">
+                                                                            <div className="text-left sm:text-right">
+                                                                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">
                                                                                     Outcome
                                                                                 </div>
-                                                                                <div className={`text-lg font-semibold ${overallResult === 'pass' ? 'text-green-600' : 'text-red-600'}`}>
+                                                                                <div
+                                                                                    className={cn(
+                                                                                        'mt-1 inline-flex rounded-full px-3 py-1 text-sm font-semibold',
+                                                                                        overallResult === 'pass'
+                                                                                            ? 'bg-green-50 text-green-700'
+                                                                                            : 'bg-red-50 text-red-700',
+                                                                                    )}
+                                                                                >
                                                                                     {overallResult === 'pass' ? 'Pass' : 'Fail'}
                                                                                 </div>
                                                                             </div>
@@ -703,16 +734,22 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                         })()}
                                                     </div>
                                                 ) : (
-                                                    <div className="flex items-center justify-between py-3">
-                                                        <span className="text-xs text-muted-foreground">
+                                                    <div className="relative flex flex-col gap-3 rounded-2xl border border-dashed border-[#E4E7EC] bg-white/80 px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
+                                                        <span className="text-sm text-[#667085]">
                                                             No audit score data available for this charity.
                                                         </span>
-                                                        <Link href={`/charities/${c.id}/assessments`}>
-                                                            <Button variant="outline" size="sm" className="gap-2 text-xs">
-                                                                <History className="h-3.5 w-3.5" />
-                                                                View Assessment History
-                                                            </Button>
-                                                        </Link>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-9 gap-2 rounded-xl border-[#DDE7F3] bg-white text-xs font-semibold shadow-sm"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                navigateToAssessments(c.id, c.charityTitle)
+                                                            }}
+                                                        >
+                                                            <History className="h-3.5 w-3.5 text-[#266DD3]" />
+                                                            View Assessment History
+                                                        </Button>
                                                     </div>
                                                 )}
                                             </div>
@@ -725,11 +762,11 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                 </TableBody>
             </Table>
 
-            <div className="flex flex-wrap items-center justify-end gap-3 mt-3 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E8EEF5] bg-[#FAFBFC] px-4 py-3 text-sm text-[#667085]">
                 <div className="flex items-center gap-2">
-                    <span>Rows per page:</span>
+                    <span className="font-medium">Rows per page:</span>
                     <Select value={String(rowsPerPage)} onValueChange={(v) => { setRowsPerPage(Number(v)); setPage(1) }}>
-                        <SelectTrigger size="sm">
+                        <SelectTrigger size="sm" className="h-9 rounded-xl border-[#DDE7F3] bg-white">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -741,13 +778,13 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                     </Select>
                 </div>
 
-                <div className="text-muted-foreground">{`${start + 1}-${end} of ${total}`}</div>
+                <div className="font-medium text-[#344054]">{`${start + 1}-${end} of ${total}`}</div>
 
                 <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>
+                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl border-[#DDE7F3] bg-white" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl border-[#DDE7F3] bg-white" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
                         <ChevronRight className="h-4 w-4" />
                     </Button>
                 </div>

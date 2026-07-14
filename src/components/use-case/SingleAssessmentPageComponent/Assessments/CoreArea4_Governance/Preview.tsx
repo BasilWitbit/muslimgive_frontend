@@ -3,6 +3,7 @@ import { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[asses
 import { AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS';
 import React, { FC, useEffect, useState, useMemo } from 'react'
 import PreviewValueLayout from '../../UI/PreviewValueLayout';
+import { AssessmentHistoryPreviewFrame, AssessmentPreviewLoading } from '../../UI/AssessmentHistoryPreviewFrame';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import ModelComponentWithExternalControl from '@/components/common/ModelComponent/ModelComponentWithExternalControl';
@@ -39,6 +40,8 @@ const formatValue = (value: string | undefined) => {
     if (!value) return '-';
     return CORE_AREA_4_VALUE_LABELS[value] ?? value;
 };
+
+const CORE_AREA_4_ACCENT = '#F59E0B';
 
 const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI = false }) => {
     const isEditMode = status === 'submitted' || status === 'completed';
@@ -141,56 +144,70 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     }
 
     if (!assessmentVals) {
-        return <div>Loading preview...</div>
+        return (
+            <AssessmentPreviewLoading
+                accentColor={CORE_AREA_4_ACCENT}
+                historyMode={fetchFromAPI}
+            />
+        )
     }
+
+    const questionRows = currentForm.questions.map((question, questionIndex) => {
+        const key = getQuestionFieldKey(question);
+        return (
+            <PreviewValueLayout
+                key={question.id}
+                label={question.label}
+                result={formatValue(assessmentVals[key])}
+                clickable={fetchFromAPI}
+                disabled={isNavigating}
+                onClick={fetchFromAPI ? () => navigateToTarget(question.code) : undefined}
+                title={fetchFromAPI ? 'Click to edit this question' : undefined}
+                historyMode={fetchFromAPI}
+                index={questionIndex + 1}
+                accentColor={CORE_AREA_4_ACCENT}
+            />
+        );
+    });
 
     return (
         <div className='flex flex-col gap-4'>
-            {fetchFromAPI && (
-                <p className="text-xs text-[#667085]">
-                    Click any question to edit it directly.
-                </p>
+            {fetchFromAPI ? (
+                <AssessmentHistoryPreviewFrame
+                    accentColor={CORE_AREA_4_ACCENT}
+                    title="Governance & leadership responses"
+                    onEdit={navigateToEditor}
+                    editDisabled={isNavigating}
+                >
+                    {questionRows}
+                </AssessmentHistoryPreviewFrame>
+            ) : (
+                <>
+                    {questionRows}
+                </>
             )}
-            {currentForm.questions.map(question => {
-                const key = getQuestionFieldKey(question);
-                return (
-                    <PreviewValueLayout
-                        key={question.id}
-                        label={question.label}
-                        result={formatValue(assessmentVals[key])}
-                        clickable={fetchFromAPI}
-                        disabled={isNavigating}
-                        onClick={fetchFromAPI ? () => navigateToTarget(question.code) : undefined}
-                        title={fetchFromAPI ? 'Click to edit this question' : undefined}
-                    />
-                );
-            })}
 
+            {!fetchFromAPI ? (
             <div className='flex flex-col gap-3 mb-8 sm:flex-row sm:items-center sm:gap-4'>
-                {!fetchFromAPI && (
-                    <Button
-                        className="w-full sm:w-36 bg-[#266dd3] hover:bg-[#1f5bb5]"
-                        onClick={handleSubmit}
-                        loading={isSubmitting}
-                    >
-                        {isEditMode ? 'Submit Edit' : 'Submit Assessment'}
-                    </Button>
-                )}
+                <Button
+                    className="w-full sm:w-36 bg-[#266dd3] hover:bg-[#1f5bb5]"
+                    onClick={handleSubmit}
+                    loading={isSubmitting}
+                >
+                    {isEditMode ? 'Submit Edit' : 'Submit Assessment'}
+                </Button>
                 <Button
                     className="w-full sm:w-36"
                     variant={'outline'}
                     disabled={isNavigating}
                     onClick={() => {
-                        if (fetchFromAPI) {
-                            navigateToEditor();
-                            return;
-                        }
                         router.push(`/charities/${charityId}/assessments/core-area-4?preview-mode=false&country=${country}`)
                     }}
                 >
-                    {fetchFromAPI ? 'Edit' : 'Cancel'}
+                    Cancel
                 </Button>
             </div>
+            ) : null}
 
             <ModelComponentWithExternalControl open={showSubmittedModel} title='' onOpenChange={(openState) => setShowSubmittedModel(openState)}>
                 <div className="flex flex-col gap-2 items-center">

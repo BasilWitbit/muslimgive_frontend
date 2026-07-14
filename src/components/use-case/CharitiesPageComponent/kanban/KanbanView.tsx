@@ -174,11 +174,10 @@ export type SingleCharityType = {
 
 type IProps = {
     charities: SingleCharityType[]
-    onCardNavigate?: () => void
     projectManagers?: AssignmentCandidate[]
 }
 
-const KanbanView: FC<IProps> = ({ charities, onCardNavigate, projectManagers = [] }) => {
+const KanbanView: FC<IProps> = ({ charities, projectManagers = [] }) => {
     charities.forEach(({ country }) => {
         if (!country) return
         const countryName = CountryEnum[country as keyof typeof CountryEnum]
@@ -232,7 +231,6 @@ const KanbanView: FC<IProps> = ({ charities, onCardNavigate, projectManagers = [
                             color={eachCol.color}
                             title={eachCol.title}
                             cards={charitiesAgainstStatus}
-                            onCardNavigate={onCardNavigate}
                             projectManagers={projectManagers}
                         />
                     )

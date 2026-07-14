@@ -12,7 +12,8 @@ import { CRITERIA_OPTION_TEXT } from './CRITERIA_OPTION_TEXT';
 import { formatScore, getEarnedScoreForCriterion, normalizeRatingKey } from './scoring';
 import { cn } from '@/lib/utils';
 import { useAssessmentHistoryNavigation } from '@/hooks/use-assessment-navigation';
-import { Pencil } from 'lucide-react';
+import { AssessmentPreviewLoading, AssessmentHistoryEditButton } from '../../UI/AssessmentHistoryPreviewFrame';
+import { MousePointerClick, Pencil } from 'lucide-react';
 
 export type PreviewPageCommonProps = {
     country: CountryCode;
@@ -30,12 +31,6 @@ type AnswerItem = {
     note?: string;
 };
 
-const METRIC_ROW_BACKGROUNDS = {
-    even: 'bg-white',
-    odd: 'bg-[#F2F4F7]',
-} as const;
-
-const METRIC_TABLE_CELL_BORDER = 'border-[#D4DAE3]';
 
 const getMetricIndexById = (criteria: Array<{ metricId: string }>) => {
     const metricIndexById = new Map<string, number>();
@@ -73,6 +68,8 @@ const RatingCell = ({ rating }: { rating?: string | null }) => {
         </span>
     );
 };
+
+const CORE_AREA_3_ACCENT = '#10B981';
 
 const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI = false }) => {
     const isEditMode = status === 'submitted' || status === 'completed';
@@ -144,7 +141,13 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
     }
 
     if (isLoading) {
-        return <div className="py-6 text-center text-sm text-gray-500">Loading preview…</div>
+        return (
+            <AssessmentPreviewLoading
+                accentColor={CORE_AREA_3_ACCENT}
+                historyMode={fetchFromAPI}
+                rows={5}
+            />
+        )
     }
 
     if (!rubric || !answers) {
@@ -164,23 +167,41 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
         return `${formatScore(score)}/${max}`;
     };
 
-    return (
-        <div className="flex flex-col gap-4">
-            {fetchFromAPI && (
-                <p className="text-xs text-[#667085]">
-                    Click any row to edit that metric directly.
-                </p>
-            )}
+    const premiumShellClass = fetchFromAPI
+        ? 'relative overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]'
+        : ''
 
-            {/* Compact scoring strip */}
+    return (
+        <div className={cn('flex flex-col gap-4', fetchFromAPI && premiumShellClass)}>
+            {fetchFromAPI ? (
+                <>
+                    <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: CORE_AREA_3_ACCENT }} />
+                    <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F6] bg-gradient-to-r from-[#FAFBFC] to-white px-4 py-3.5">
+                        <div className="min-w-0 flex-1 pr-2">
+                            <p className="text-sm font-semibold text-[#101928]">Zakat assessment responses</p>
+                            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-[#667085]">
+                                <MousePointerClick className="h-3.5 w-3.5 shrink-0 text-[#10B981]" />
+                                Click any row to edit that metric directly.
+                            </p>
+                        </div>
+                        <AssessmentHistoryEditButton
+                            accentColor={CORE_AREA_3_ACCENT}
+                            onClick={handleOpenEditor}
+                            disabled={isNavigating}
+                        />
+                    </div>
+                </>
+            ) : null}
+
+            <div className={cn('flex flex-col gap-4', fetchFromAPI && 'p-4')}>
             {scoring && (
-                <div className="overflow-hidden rounded-lg border border-[#D0D7E2] bg-white shadow-sm">
+                <div className="overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
                     {(scoring.auto_concern || scoring.caution_flag) && (
                         <div className={cn(
-                            'border-b px-3 py-2 text-[11px] leading-snug',
+                            'border-b px-4 py-3 text-xs leading-snug',
                             scoring.auto_concern
-                                ? 'border-rose-200 bg-rose-50 text-rose-800'
-                                : 'border-amber-200 bg-amber-50 text-amber-800',
+                                ? 'border-rose-200 bg-gradient-to-r from-rose-50 to-white text-rose-800'
+                                : 'border-amber-200 bg-gradient-to-r from-amber-50 to-white text-amber-800',
                         )}>
                             {scoring.auto_concern ? (
                                 <>
@@ -198,46 +219,54 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                         </div>
                     )}
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[640px] border-collapse text-xs">
-                            <thead>
-                                <tr className="bg-[#F4F6F9] text-[10px] font-semibold uppercase tracking-wide text-[#5C6B7A]">
-                                    <th className="border-b border-r border-[#D0D7E2] px-3 py-2 text-left">Mandatory</th>
-                                    <th className="border-b border-r border-[#D0D7E2] px-3 py-2 text-left">Grand Total</th>
-                                    <th className="border-b border-r border-[#D0D7E2] px-3 py-2 text-left">Final Rating</th>
-                                    {scoring.section_scores?.map((sec: any, idx: number) => (
-                                        <th key={idx} className="border-b border-r border-[#D0D7E2] px-3 py-2 text-left last:border-r-0">
-                                            <span className="block truncate max-w-[120px]" title={sec.section_title || sec.sectionId}>
-                                                {sec.section_title || sec.sectionId}
-                                            </span>
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr className="bg-white">
-                                    <td className={cn(
-                                        'border-b border-r border-[#E4E9F0] px-3 py-2.5 font-mono font-semibold tabular-nums',
-                                        scoring.auto_concern ? 'text-rose-700' : scoring.caution_flag ? 'text-amber-700' : 'text-emerald-700',
-                                    )}>
-                                        {scoring.mandatory_score ?? '—'}/{scoring.mandatory_max ?? 28}
-                                    </td>
-                                    <td className="border-b border-r border-[#E4E9F0] px-3 py-2.5 font-mono font-semibold tabular-nums text-[#101928]">
-                                        {scoring.grand_total}/{scoring.grand_max}
-                                    </td>
-                                    <td className="border-b border-r border-[#E4E9F0] px-3 py-2.5">
-                                        <RatingCell rating={scoring.final_rating} />
-                                    </td>
-                                    {scoring.section_scores?.map((sec: any, idx: number) => (
-                                        <td key={idx} className="border-b border-r border-[#E4E9F0] px-3 py-2.5 font-mono tabular-nums text-[#344054] last:border-r-0">
-                                            {sec.score}/{sec.max}
-                                        </td>
-                                    ))}
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-4">
+                        <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Mandatory</p>
+                            <p className={cn(
+                                'mt-1 font-mono text-xl font-bold tabular-nums',
+                                scoring.auto_concern ? 'text-rose-700' : scoring.caution_flag ? 'text-amber-700' : 'text-emerald-700',
+                            )}>
+                                {scoring.mandatory_score ?? '—'}/{scoring.mandatory_max ?? 28}
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Grand Total</p>
+                            <p className="mt-1 font-mono text-xl font-bold tabular-nums text-[#101928]">
+                                {scoring.grand_total}/{scoring.grand_max}
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Final Rating</p>
+                            <div className="mt-1.5">
+                                <RatingCell rating={scoring.final_rating} />
+                            </div>
+                        </div>
+                        {scoring.section_scores?.slice(0, 1).map((sec: any, idx: number) => (
+                            <div key={idx} className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
+                                <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]" title={sec.section_title || sec.sectionId}>
+                                    {sec.section_title || sec.sectionId}
+                                </p>
+                                <p className="mt-1 font-mono text-xl font-bold tabular-nums text-[#266DD3]">
+                                    {sec.score}/{sec.max}
+                                </p>
+                            </div>
+                        ))}
                     </div>
-                    <div className="border-t border-[#E4E9F0] bg-[#FAFBFC] px-3 py-1.5 text-[10px] text-[#8B95A5]">
+
+                    {scoring.section_scores && scoring.section_scores.length > 1 ? (
+                        <div className="grid grid-cols-2 gap-2 border-t border-[#EEF2F6] bg-[#FAFBFC] px-4 py-3 sm:grid-cols-3 lg:grid-cols-4">
+                            {scoring.section_scores.slice(1).map((sec: any, idx: number) => (
+                                <div key={idx} className="rounded-lg border border-[#E8EEF5] bg-white px-3 py-2">
+                                    <p className="truncate text-[10px] font-medium text-[#667085]" title={sec.section_title || sec.sectionId}>
+                                        {sec.section_title || sec.sectionId}
+                                    </p>
+                                    <p className="font-mono text-sm font-semibold tabular-nums text-[#344054]">{sec.score}/{sec.max}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
+
+                    <div className="border-t border-[#EEF2F6] bg-white px-4 py-2 text-[10px] text-[#8B95A5]">
                         Bands: Strong 66–76 · Moderate 51–65 · Needs Improvement 36–50 · Concern 0–35
                         {scoring.auto_concern ? ' · Mandatory gate override applies' : ''}
                     </div>
@@ -251,10 +280,10 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
 
                 if (section.optional && scoring?.optional_skipped) {
                     return (
-                        <div key={section.id} className="overflow-hidden rounded-lg border border-[#D0D7E2] bg-[#FAFBFC]">
-                            <div className="flex items-center justify-between border-b border-[#D0D7E2] bg-[#F4F6F9] px-3 py-2">
-                                <span className="text-xs font-semibold text-[#344054]">{sectionIndex === 0 ? section.title : 'Metric'}</span>
-                                <span className="text-[10px] italic text-[#8B95A5]">Skipped (optional)</span>
+                        <div key={section.id} className="overflow-hidden rounded-2xl border border-[#E8EEF5] bg-[#FAFBFC] shadow-[0_4px_18px_rgba(15,23,42,0.03)]">
+                            <div className="flex items-center justify-between border-b border-[#EEF2F6] bg-gradient-to-r from-[#FAFBFC] to-white px-4 py-3">
+                                <span className="text-sm font-semibold text-[#344054]">{sectionIndex === 0 ? section.title : 'Metric'}</span>
+                                <span className="rounded-full border border-[#E8EEF5] bg-white px-2.5 py-0.5 text-[10px] font-medium italic text-[#667085]">Skipped (optional)</span>
                             </div>
                         </div>
                     );
@@ -265,13 +294,16 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                 const metricIndexById = getMetricIndexById(sectionCriteria);
 
                 return (
-                    <div key={section.id} className="overflow-hidden rounded-lg border border-[#D0D7E2] bg-white shadow-sm">
-                        <div className="flex items-center justify-between gap-3 border-b border-[#D0D7E2] bg-[#F4F6F9] px-3 py-2">
-                            <span className="text-xs font-semibold text-[#101928]">{sectionIndex === 0 ? section.title : 'Metric'}</span>
-                            <div className="flex items-center gap-3 text-[10px] text-[#5C6B7A] shrink-0">
-                                <span>{answeredCount}/{sectionCriteria.length} rated</span>
+                    <div key={section.id} className="relative overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
+                        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#10B981] to-[#34D399]" />
+                        <div className="flex items-center justify-between gap-3 border-b border-[#EEF2F6] bg-gradient-to-r from-[#FAFBFC] to-white px-4 py-3">
+                            <span className="text-sm font-semibold text-[#101928]">{sectionIndex === 0 ? section.title : 'Metric'}</span>
+                            <div className="flex items-center gap-3 text-[11px] text-[#667085] shrink-0">
+                                <span className="rounded-full border border-[#E8EEF5] bg-white px-2.5 py-0.5 font-medium">
+                                    {answeredCount}/{sectionCriteria.length} rated
+                                </span>
                                 {sectionScore && (
-                                    <span className="font-mono font-semibold tabular-nums text-[#266dd3]">
+                                    <span className="font-mono text-sm font-bold tabular-nums text-[#10B981]">
                                         {sectionScore.score}/{sectionScore.max}
                                     </span>
                                 )}
@@ -279,16 +311,16 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[720px] border-collapse text-xs">
+                            <table className="w-full min-w-0 border-collapse text-xs">
                                 <thead>
-                                    <tr className="bg-[#FAFBFC] text-[10px] font-semibold uppercase tracking-wide text-[#8B95A5]">
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[180px]">Mandatory Metric</th>
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left min-w-[220px]">Subcriteria</th>
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-left w-[130px]">Outcome</th>
-                                        <th className={cn('border-b border-[#E4E9F0] px-2 py-1.5 text-left min-w-[220px]', fetchFromAPI && 'border-r')}>Text to match the outcome</th>
-                                        <th className="border-b border-r border-[#E4E9F0] px-2 py-1.5 text-center w-[72px]">Score</th>
+                                    <tr className="bg-[#FAFBFC] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">
+                                        <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left">Mandatory Metric</th>
+                                        <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left">Subcriteria</th>
+                                        <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left w-[120px]">Outcome</th>
+                                        <th className={cn('border-b border-[#EEF2F6] px-3 py-2.5 text-left', fetchFromAPI && 'border-r')}>Descriptor</th>
+                                        <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-center w-[72px]">Score</th>
                                         {fetchFromAPI && (
-                                            <th className="border-b border-[#E4E9F0] px-1 py-1.5 w-14" aria-hidden />
+                                            <th className="border-b border-[#EEF2F6] px-2 py-2.5 w-12" aria-hidden />
                                         )}
                                     </tr>
                                 </thead>
@@ -312,35 +344,33 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                                     fetchFromAPI && [
                                                         'cursor-pointer',
                                                         'hover:bg-[#F8FBFF]',
-                                                        'hover:shadow-[inset_2px_0_0_0_#266dd3]',
+                                                        'hover:shadow-[inset_3px_0_0_0_#10B981]',
                                                     ],
                                                     fetchFromAPI && isNavigating && 'pointer-events-none opacity-70',
-                                                    metricIndex % 2 === 1
-                                                        ? METRIC_ROW_BACKGROUNDS.odd
-                                                        : METRIC_ROW_BACKGROUNDS.even,
+                                                    metricIndex % 2 === 1 ? 'bg-[#FAFBFC]' : 'bg-white',
                                                 )}
                                             >
-                                                <td className={cn('border-b border-r px-2 py-1.5 align-top text-[11px] leading-snug text-[#344054]', METRIC_TABLE_CELL_BORDER)}>
-                                                    <span className="line-clamp-2" title={c.metricTitle}>{c.metricTitle}</span>
+                                                <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[11px] leading-snug text-[#344054]">
+                                                    <span className="line-clamp-2 font-medium" title={c.metricTitle}>{c.metricTitle}</span>
                                                 </td>
-                                                <td className={cn('border-b border-r px-2 py-1.5 align-top text-[11px] leading-snug text-[#344054]', METRIC_TABLE_CELL_BORDER)}>
+                                                <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[11px] leading-snug text-[#667085]">
                                                     <span className="line-clamp-3" title={c.label}>{c.label}</span>
                                                 </td>
-                                                <td className={cn('border-b border-r px-2 py-1.5 align-top', METRIC_TABLE_CELL_BORDER)}>
+                                                <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top">
                                                     <RatingCell rating={ans.rating} />
                                                 </td>
-                                                <td className={cn('border-b border-r px-2 py-1.5 align-top text-[10px] leading-snug text-[#5C6B7A]', METRIC_TABLE_CELL_BORDER)}>
+                                                <td className={cn('border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[10px] leading-snug text-[#667085]', fetchFromAPI && 'border-r')}>
                                                     {descriptor ? (
                                                         <span className="line-clamp-2" title={descriptor}>{descriptor}</span>
                                                     ) : (
-                                                        <span className="text-gray-300">—</span>
+                                                        <span className="text-[#C4CDD8]">—</span>
                                                     )}
                                                 </td>
-                                                <td className={cn('border-b px-2 py-1.5 align-top text-center font-mono tabular-nums text-[11px] text-[#344054]', fetchFromAPI ? 'border-r' : '', METRIC_TABLE_CELL_BORDER)}>
+                                                <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-center font-mono text-[11px] font-semibold tabular-nums text-[#101928]">
                                                     {pts}
                                                 </td>
                                                 {fetchFromAPI && (
-                                                    <td className={cn('border-b px-1 py-1.5 align-middle', METRIC_TABLE_CELL_BORDER)}>
+                                                    <td className="border-b border-[#EEF2F6] px-2 py-2.5 align-middle">
                                                         <div
                                                             aria-hidden
                                                             className={cn(
@@ -371,25 +401,27 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                 );
             })}
 
+            </div>
+
+            {!fetchFromAPI ? (
             <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
-                {!fetchFromAPI && (
-                    <Button
-                        className="w-full sm:w-36 bg-[#266dd3] hover:bg-[#1f5bb5]"
-                        onClick={handleComplete}
-                        loading={isSubmitting}
-                    >
-                        {isEditMode ? 'Complete Edit' : 'Complete Assessment'}
-                    </Button>
-                )}
+                <Button
+                    className="w-full sm:w-36 bg-[#266dd3] hover:bg-[#1f5bb5]"
+                    onClick={handleComplete}
+                    loading={isSubmitting}
+                >
+                    {isEditMode ? 'Complete Edit' : 'Complete Assessment'}
+                </Button>
                 <Button
                     className="w-full sm:w-36"
                     variant="outline"
                     disabled={isNavigating}
                     onClick={handleOpenEditor}
                 >
-                    {fetchFromAPI ? 'Edit' : 'Cancel'}
+                    Cancel
                 </Button>
             </div>
+            ) : null}
 
             <ModelComponentWithExternalControl open={showSubmittedModel} title="" onOpenChange={setShowSubmittedModel}>
                 <div className="flex flex-col items-center gap-2">

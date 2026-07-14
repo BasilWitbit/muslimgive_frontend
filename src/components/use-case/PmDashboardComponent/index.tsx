@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { TypographyComponent } from '@/components/common/TypographyComponent'
 import { usePageNavigationDismiss } from '@/hooks/use-page-navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -228,15 +227,6 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics }) 
 
     return (
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 pb-10">
-            <div className="space-y-1">
-                <TypographyComponent variant="h4" className="text-[#101928] font-bold">
-                    Project Management Dashboard
-                </TypographyComponent>
-                <p className="text-sm text-[#667085]">
-                    Overview of charity assignments, progress, and eligibility across your portfolio.
-                </p>
-            </div>
-
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                     title="Total Charities"

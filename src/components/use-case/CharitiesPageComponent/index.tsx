@@ -2,7 +2,7 @@
 import AddIcon from '@/components/common/IconComponents/AddIcon'
 import ControlledSearchBarComponent from '@/components/common/SearchBarComponent/ControlledSearchBarComponent'
 import { Button } from '@/components/ui/button'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import LinkComponent from '@/components/common/LinkComponent'
 import KanbanTabularToggle, { ViewsType } from '../KanbanTabularToggle'
 import EmailIcon from '@/components/common/IconComponents/EmailIcon'
@@ -21,13 +21,12 @@ import { toast } from 'sonner'
 import { usePageNavigationDismiss } from '@/hooks/use-page-navigation'
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 
-import DashboardSkeleton from '../DashboardSkeleton'
+import CharitiesPageLoader from './CharitiesPageLoader'
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import FilterIcon from '@/components/common/IconComponents/FilterIcon'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { LoaderCircle } from 'lucide-react'
 
 const STATUS_KEYS = [
     { id: 'unassigned', label: 'Unassigned' },
@@ -59,7 +58,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
     const [openBulkEmailModal, setOpenBulkEmailModal] = useState(false)
     const [charities, setCharities] = useState<SingleCharityType[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [isNavigating, setIsNavigating] = useState(false)
+    const hasLoadedOnceRef = useRef(false)
     const { isNavigating: isRouteNavigating } = useRouteLoader()
     usePageNavigationDismiss(isLoading)
     const [openDeletedModal, setOpenDeletedModal] = useState(false)
@@ -213,16 +212,22 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
     }
 
     useEffect(() => {
-        const handler = setTimeout(() => {
-            fetchCharities(queryInput, {
-                status: statusFilters,
-                categories: categoryFilters,
-                zakat: zakatFilter,
-                islamic: islamicFilter,
-                sortBy,
-                order
-            })
-        }, 800)
+        const loadCharities = () => fetchCharities(queryInput, {
+            status: statusFilters,
+            categories: categoryFilters,
+            zakat: zakatFilter,
+            islamic: islamicFilter,
+            sortBy,
+            order
+        })
+
+        if (!hasLoadedOnceRef.current) {
+            hasLoadedOnceRef.current = true
+            loadCharities()
+            return
+        }
+
+        const handler = setTimeout(loadCharities, 800)
         return () => clearTimeout(handler)
     }, [queryInput, statusFilters, categoryFilters, zakatFilter, islamicFilter, sortBy, order])
 
@@ -231,47 +236,45 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
 
 
     return (
-        <div className='flex flex-col gap-5'>
-            {isNavigating ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/75 backdrop-blur-sm">
-                    <div className="flex items-center gap-2 text-sm text-[#666E76]">
-                        <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                        <span>Loading charity...</span>
-                    </div>
-                </div>
-            ) : null}
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="w-full flex flex-col gap-4 md:flex-row">
-                    <Popover open={openFilterPopover} onOpenChange={setOpenFilterPopover}>
-                        <PopoverTrigger asChild>
-                            <Button size="icon" variant="secondary">
-                                <FilterIcon />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent align="start" className="w-[90vw] sm:w-[320px] p-4 max-h-[80vh] overflow-y-auto">
-                            <div className="flex flex-col gap-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold">Filters</span>
-                                    <Button variant="ghost" size="sm" className="h-auto p-0 text-blue-600" onClick={() => {
-                                        setStatusFilters([])
-                                        setCategoryFilters([])
-                                        setZakatFilter(undefined)
-                                        setIslamicFilter(undefined)
-                                    }}>Clear all</Button>
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <span className="text-[10px] text-[#666E76] uppercase font-bold">Eligibility</span>
+        <div className="space-y-5 pb-6">
+            <section className="overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.045)]">
+                <div className="flex flex-col gap-4 border-b border-[#E8EEF5] bg-gradient-to-br from-[#F8FBFF] via-white to-[#F4FBFD] p-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex w-full flex-col gap-3 md:flex-row md:items-center">
+                        <Popover open={openFilterPopover} onOpenChange={setOpenFilterPopover}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-11 w-11 shrink-0 rounded-xl border-[#DDE7F3] bg-white text-[#344054] shadow-sm hover:bg-[#F3F6FB]"
+                                >
+                                    <FilterIcon />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-[90vw] rounded-2xl border-[#E8EEF5] p-0 shadow-[0_18px_50px_rgba(15,23,42,0.12)] sm:w-[320px] max-h-[80vh] overflow-y-auto">
+                                <div className="border-b border-[#E8EEF5] bg-gradient-to-br from-[#F8FBFF] to-white px-4 py-3">
                                     <div className="flex items-center justify-between">
-                                        <Label htmlFor="islamic-filter" className="text-sm">Is Islamic Charity</Label>
+                                        <span className="text-sm font-semibold text-[#101928]">Filters</span>
+                                        <Button variant="ghost" size="sm" className="h-auto p-0 text-[#266DD3] hover:text-[#1D5BB8]" onClick={() => {
+                                            setStatusFilters([])
+                                            setCategoryFilters([])
+                                            setZakatFilter(undefined)
+                                            setIslamicFilter(undefined)
+                                        }}>Clear all</Button>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-4 p-4">
+                                <div className="flex flex-col gap-2">
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Eligibility</span>
+                                    <div className="flex items-center justify-between rounded-xl border border-[#EEF2F6] bg-[#FBFCFE] px-3 py-2">
+                                        <Label htmlFor="islamic-filter" className="text-sm font-medium text-[#344054]">Is Islamic Charity</Label>
                                         <Switch
                                             id="islamic-filter"
                                             checked={islamicFilter === true}
                                             onCheckedChange={(checked) => setIslamicFilter(checked ? true : undefined)}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor="zakat-filter" className="text-sm">Gives Zakat</Label>
+                                    <div className="flex items-center justify-between rounded-xl border border-[#EEF2F6] bg-[#FBFCFE] px-3 py-2">
+                                        <Label htmlFor="zakat-filter" className="text-sm font-medium text-[#344054]">Gives Zakat</Label>
                                         <Switch
                                             id="zakat-filter"
                                             checked={zakatFilter === true}
@@ -281,10 +284,10 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <span className="text-[10px] text-[#666E76] uppercase font-bold">Status</span>
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Status</span>
                                     {STATUS_KEYS.map((s) => (
-                                        <div key={s.id} className="flex items-center justify-between">
-                                            <Label htmlFor={`status-${s.id}`} className="text-sm">{s.label}</Label>
+                                        <div key={s.id} className="flex items-center justify-between rounded-xl border border-[#EEF2F6] bg-[#FBFCFE] px-3 py-2">
+                                            <Label htmlFor={`status-${s.id}`} className="text-sm font-medium text-[#344054]">{s.label}</Label>
                                             <Switch
                                                 id={`status-${s.id}`}
                                                 checked={statusFilters.includes(s.id)}
@@ -297,10 +300,10 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <span className="text-[10px] text-[#666E76] uppercase font-bold">Category</span>
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Category</span>
                                     {CATEGORY_KEYS.map((c) => (
-                                        <div key={c.id} className="flex items-center justify-between">
-                                            <Label htmlFor={`cat-${c.id}`} className="text-sm">{c.label}</Label>
+                                        <div key={c.id} className="flex items-center justify-between rounded-xl border border-[#EEF2F6] bg-[#FBFCFE] px-3 py-2">
+                                            <Label htmlFor={`cat-${c.id}`} className="text-sm font-medium text-[#344054]">{c.label}</Label>
                                             <Switch
                                                 id={`cat-${c.id}`}
                                                 checked={categoryFilters.includes(c.id)}
@@ -311,54 +314,61 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                    <ControlledSearchBarComponent setQuery={(query: string) => {
-                        setQueryInput(query)
-                    }}
-                        query={queryInput}
-                        placeholder="Search Charities by Title or Submitted By"
-                    />
-                    <div className="flex  gap-2 items-center md:ml-auto">
-                        <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-                            <SelectTrigger className="w-[140px] h-9">
-                                <SelectValue placeholder="Sort By" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="createdAt">Created At</SelectItem>
-                                <SelectItem value="name">Name</SelectItem>
-                                <SelectItem value="updatedAt">Updated At</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-9 w-9"
-                            onClick={() => setOrder(order === 'ASC' ? 'DESC' : 'ASC')}
-                        >
-                            {order === 'ASC' ? "↑" : "↓"}
-                        </Button>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                        <ControlledSearchBarComponent setQuery={(query: string) => {
+                            setQueryInput(query)
+                        }}
+                            query={queryInput}
+                            placeholder="Search Charities by Title or Submitted By"
+                            className="h-11 rounded-xl border-[#DDE7F3] bg-[#F8FAFC]"
+                        />
+                        <div className="flex items-center gap-2 md:ml-auto">
+                            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+                                <SelectTrigger className="h-11 w-[140px] rounded-xl border-[#DDE7F3] bg-white">
+                                    <SelectValue placeholder="Sort By" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="createdAt">Created At</SelectItem>
+                                    <SelectItem value="name">Name</SelectItem>
+                                    <SelectItem value="updatedAt">Updated At</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-11 w-11 rounded-xl border-[#DDE7F3] bg-white"
+                                onClick={() => setOrder(order === 'ASC' ? 'DESC' : 'ASC')}
+                            >
+                                {order === 'ASC' ? "↑" : "↓"}
+                            </Button>
+                        </div>
                     </div>
                 </div>
-                <div className="flex  gap-3 items-center">
+                <div className="flex flex-wrap items-center gap-3 p-4">
                     <Can anyOf={[PERMISSIONS.CREATE_CHARITY]}>
                         <LinkComponent to="/create-charity">
-                            <Button variant={"primary"} className="flex items-center gap-2">
+                            <Button variant={"primary"} className="flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-5 shadow-[0_10px_24px_rgba(38,109,211,0.24)]">
                                 <AddIcon />
                                 Create New Charity
                             </Button>
                         </LinkComponent>
                     </Can>
                     <Can anyOf={[PERMISSIONS.SEND_EMAIL_CHARITY_OWNER]}>
-                        <Button variant={"primary"} onClick={() => setOpenBulkEmailModal(true)}>
+                        <Button
+                            variant={"primary"}
+                            className="h-11 rounded-xl bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-5 shadow-[0_10px_24px_rgba(38,109,211,0.24)]"
+                            onClick={() => setOpenBulkEmailModal(true)}
+                        >
                             <EmailIcon />
                             Send Bulk Email
                         </Button>
                     </Can>
                     <Can anyOf={[PERMISSIONS.DELETE_CHARITY]}>
                         <Button
-                            variant="secondary"
+                            variant="outline"
+                            className="h-11 rounded-xl border-[#DDE7F3] bg-white text-[#344054] hover:bg-[#F3F6FB]"
                             onClick={() => {
                                 setOpenDeletedModal(true)
                                 fetchDeletedCharities()
@@ -367,16 +377,18 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                             Deleted Charities
                         </Button>
                     </Can>
-                    <KanbanTabularToggle view={view} setView={setView} />
+                    <div className="ml-auto">
+                        <KanbanTabularToggle view={view} setView={setView} />
+                    </div>
                 </div>
-            </div>
-            <div className="">
+            </section>
+            <div>
                 {isLoading && !isRouteNavigating ? (
-                    <DashboardSkeleton />
+                    <CharitiesPageLoader />
                 ) : !isLoading ? (
                     <>
                         {view === "kanban" ? (
-                            <KanbanView charities={searchedRows} onCardNavigate={() => setIsNavigating(true)} projectManagers={assignmentCandidatesByRole?.projectManager ?? []} />
+                            <KanbanView charities={searchedRows} projectManagers={assignmentCandidatesByRole?.projectManager ?? []} />
                         ) : null}
                         {view === "tabular" ? <TabularView charities={searchedRows} assignmentCandidatesByRole={assignmentCandidatesByRole} onRefresh={() => fetchCharities(queryInput, { status: statusFilters.length ? statusFilters : undefined, categories: categoryFilters.length ? categoryFilters : undefined, zakat: zakatFilter, islamic: islamicFilter, sortBy, order })} /> : null}
                     </>

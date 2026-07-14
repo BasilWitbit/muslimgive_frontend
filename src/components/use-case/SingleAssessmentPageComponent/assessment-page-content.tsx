@@ -13,6 +13,7 @@ import CoreArea3 from './Assessments/CoreArea3_Zakat'
 import CoreArea4 from './Assessments/CoreArea4_Governance'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
 import { computeCoreArea1RatingBandFromReview, RatingBand } from '@/lib/audit-scoring'
+import { useCharityAssessmentNavigationDismiss } from '@/hooks/use-page-navigation'
 
 
 type AssessmentPageContentProps = {
@@ -35,6 +36,7 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
     currentUserRoles = []
 }) => {
     const router = useRouter()
+    useCharityAssessmentNavigationDismiss()
 
     const [score, setScore] = React.useState<number | null>(null);
     const [totalScore, setTotalScore] = React.useState<number | null>(null);

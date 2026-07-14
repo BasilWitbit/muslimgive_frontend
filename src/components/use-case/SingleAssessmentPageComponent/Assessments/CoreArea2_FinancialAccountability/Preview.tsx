@@ -3,6 +3,7 @@ import { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[asses
 import { AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS';
 import React, { FC, useEffect, useState } from 'react'
 import PreviewValueLayout from '../../UI/PreviewValueLayout';
+import { AssessmentHistoryPreviewFrame, AssessmentPreviewLoading } from '../../UI/AssessmentHistoryPreviewFrame';
 import LinkComponent from '@/components/common/LinkComponent';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -23,6 +24,8 @@ export type PreviewPageCommonProps = {
 type IProps = PreviewPageCommonProps;
 
 
+const CORE_AREA_2_ACCENT = '#8B5CF6';
+
 const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI = false }) => {
     const isEditMode = status === 'submitted' || status === 'completed';
     const [assessmentVals, setAssessmentVals] = useState<any>(null);
@@ -36,6 +39,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     });
 
     const previewRow = (
+        index: number,
         code: string,
         label: string,
         result: React.ReactNode,
@@ -50,6 +54,9 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
             disabled={isNavigating}
             onClick={fetchFromAPI ? () => navigateToTarget(code) : undefined}
             title={fetchFromAPI ? 'Click to edit this question' : undefined}
+            historyMode={fetchFromAPI}
+            index={index}
+            accentColor={CORE_AREA_2_ACCENT}
         />
     );
 
@@ -192,100 +199,73 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     }
 
     if (!assessmentVals) {
-        return <div>Loading preview...</div>
+        return (
+            <AssessmentPreviewLoading
+                accentColor={CORE_AREA_2_ACCENT}
+                historyMode={fetchFromAPI}
+                rows={6}
+            />
+        )
     }
 
     const getValue = (code: string) => assessmentVals[code];
 
-    // Correct Codes based on core-area-2.ts:
-    // F01: Assessmented financial statements available on website?
-    // F02: Previous year assessmented financial statements available on website?
-    // F03: Impact report with financial information available on website?
-    // F04: % of Total Revenue spent on Charitable Programs...
-    // F05: % of Total Revenue spent on Fundraising...
-    // F06: % of Total Revenue spent on Administrative Expenses...
-    // F07: % of Revenue Spent / Year Spent Revenue
-    // F08: Financials (Link) - UK/US
-    // F09: Tax Return (Link) - UK
-    // F10: IRS Returns (Link) - US
-    // F11: CRA's Returns (Link) - Canada
-    // F12: End of fiscal year
-    // F13: Charitable Registration since (Canada/UK/US?) - Checked ts, it's in all.
-    // F15: Notes
+    const questionRows = [
+        previewRow(1, 'F01', 'Assessmented financial statements available on website', `${getValue('F01') || '-'}`),
+        previewRow(2, 'F02', 'Previous year assessmented financial statements available on website', `${getValue('F02') || '-'}`),
+        previewRow(3, 'F03', 'Impact report with financial information available on website', `${getValue('F03') || '-'}`),
+        previewRow(4, 'F04', '% of Total Revenue spent on Charitable Programs and Qualified Distributions', `${getValue('F04') || '-'}`),
+        previewRow(5, 'F05', '% of Total Revenue spent on Fundraising', `${getValue('F05') || '-'}`),
+        previewRow(6, 'F06', '% of Total Revenue spent on Administrative Expenses', `${getValue('F06') || '-'}`),
+        previewRow(7, 'F07', '% of Revenue Spent / Year Spent Revenue', `${getValue('F07') || '-'}`),
+        ...(getValue('F08') ? [previewRow(8, 'F08', 'Financials Link', <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F08')}>{getValue('F08')}</LinkComponent>)] : []),
+        ...(getValue('F09') ? [previewRow(9, 'F09', 'Tax Return Link (UK)', <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F09')}>{getValue('F09')}</LinkComponent>)] : []),
+        ...(getValue('F10') ? [previewRow(10, 'F10', 'IRS Returns Link (US)', <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F10')}>{getValue('F10')}</LinkComponent>)] : []),
+        ...(getValue('F11') ? [previewRow(11, 'F11', "CRA's Returns Link (Canada)", <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F11')}>{getValue('F11')}</LinkComponent>)] : []),
+        previewRow(12, 'F12', 'End of fiscal year', `${getValue('F12') ? new Date(getValue('F12')).toLocaleDateString() : '-'}`),
+        ...(getValue('F13') ? [previewRow(13, 'F13', 'Charitable Registration since', `${new Date(getValue('F13')).toLocaleDateString()}`)] : []),
+        previewRow(14, 'F15', 'Notes', getValue('F15') || '-', 'vertical'),
+    ];
 
     return (
         <div className='flex flex-col gap-4'>
-            {fetchFromAPI && (
-                <p className="text-xs text-[#667085]">
-                    Click any question to edit it directly.
-                </p>
-            )}
-            {previewRow('F01', 'Assessmented financial statements available on website', `${getValue('F01') || '-'}`)}
-            {previewRow('F02', 'Previous year assessmented financial statements available on website', `${getValue('F02') || '-'}`)}
-            {previewRow('F03', 'Impact report with financial information available on website', `${getValue('F03') || '-'}`)}
-            {previewRow('F04', '% of Total Revenue spent on Charitable Programs and Qualified Distributions', `${getValue('F04') || '-'}`)}
-            {previewRow('F05', '% of Total Revenue spent on Fundraising', `${getValue('F05') || '-'}`)}
-            {previewRow('F06', '% of Total Revenue spent on Administrative Expenses', `${getValue('F06') || '-'}`)}
-            {previewRow('F07', '% of Revenue Spent / Year Spent Revenue', `${getValue('F07') || '-'}`)}
-
-            {getValue('F08') && previewRow(
-                'F08',
-                'Financials Link',
-                <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F08')}>{getValue('F08')}</LinkComponent>,
+            {fetchFromAPI ? (
+                <AssessmentHistoryPreviewFrame
+                    accentColor={CORE_AREA_2_ACCENT}
+                    title="Financial accountability responses"
+                    onEdit={navigateToEditor}
+                    editDisabled={isNavigating}
+                >
+                    {questionRows}
+                </AssessmentHistoryPreviewFrame>
+            ) : (
+                <>
+                    {questionRows}
+                </>
             )}
 
-            {getValue('F09') && previewRow(
-                'F09',
-                'Tax Return Link (UK)',
-                <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F09')}>{getValue('F09')}</LinkComponent>,
-            )}
-            {getValue('F10') && previewRow(
-                'F10',
-                'IRS Returns Link (US)',
-                <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F10')}>{getValue('F10')}</LinkComponent>,
-            )}
-            {getValue('F11') && previewRow(
-                'F11',
-                "CRA's Returns Link (Canada)",
-                <LinkComponent openInNewTab className='hover:underline text-primary' to={getValue('F11')}>{getValue('F11')}</LinkComponent>,
-            )}
-
-            {previewRow('F12', 'End of fiscal year', `${getValue('F12') ? new Date(getValue('F12')).toLocaleDateString() : '-'}`)}
-
-            {getValue('F13') && previewRow(
-                'F13',
-                'Charitable Registration since',
-                `${new Date(getValue('F13')).toLocaleDateString()}`,
-            )}
-
-            {previewRow('F15', 'Notes', getValue('F15') || '-', 'vertical')}
-
+            {!fetchFromAPI ? (
             <div className='flex flex-col gap-3 mb-8 sm:flex-row sm:items-center sm:gap-4'>
-                {!fetchFromAPI && (
-                    <Button
-                        className="w-full sm:w-36 bg-[#266dd3] hover:bg-[#1f5bb5]"
-                        onClick={handleSubmit}
-                        loading={isSubmitting}
-                    >
-                        {isEditMode ? 'Submit Edit' : 'Submit Assessment'}
-                    </Button>
-                )}
+                <Button
+                    className="w-full sm:w-36 bg-[#266dd3] hover:bg-[#1f5bb5]"
+                    onClick={handleSubmit}
+                    loading={isSubmitting}
+                >
+                    {isEditMode ? 'Submit Edit' : 'Submit Assessment'}
+                </Button>
                 <Button
                     className="w-full sm:w-36"
                     variant={'outline'}
                     disabled={isNavigating}
                     onClick={() => {
-                        if (fetchFromAPI) {
-                            navigateToEditor();
-                            return;
-                        }
                         localStorage.removeItem(`assessment-form-data-${charityId}-core-area-2`);
                         router.push(`/charities/${charityId}/assessments/core-area-2?preview-mode=false&country=${country}`)
                     }}
                 >
-                    {fetchFromAPI ? 'Edit' : 'Cancel'}
+                    Cancel
                 </Button>
             </div>
+            ) : null}
 
             <ModelComponentWithExternalControl open={showSubmittedModel} title='' onOpenChange={(openState) => setShowSubmittedModel(openState)}>
                 <div className="flex flex-col gap-2 items-center">

@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation'
 import { isAllowed, toPermissionSet } from '@/lib/permissions'
 import SidebarLogoLink from './SidebarLogoLink'
 import SidebarAmbient from './SidebarAmbient'
+import SidebarMenuToggle from './SidebarMenuToggle'
 
 type MenuItemType = {
     title: string
@@ -67,8 +68,9 @@ const SideBarComponent = async ({ permissions, roles, isAdmin }: SideBarComponen
                 <SidebarAmbient />
 
                 <div className="relative z-10 flex min-h-full flex-col">
-                    <div className="border-b border-[#E8EEF5]/90 px-2 pb-3.5 pt-5 group-data-[collapsible=icon]:px-1.5 group-data-[collapsible=icon]:pb-2.5">
-                        <div className="rounded-xl px-1 py-1 transition-colors duration-300 group-data-[collapsible=icon]:px-0">
+                    <div className="flex h-16 shrink-0 items-center gap-2 border-b border-[#E8EEF5]/90 px-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1.5">
+                        <SidebarMenuToggle />
+                        <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                             <SidebarLogoLink />
                         </div>
                     </div>

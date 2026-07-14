@@ -18,8 +18,8 @@ import { assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCha
 import LinkComponent from '@/components/common/LinkComponent'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
 import { Trash2 } from 'lucide-react'
+import { useCharityNavigation } from '@/hooks/use-charity-navigation'
 type IProps = Omit<SingleCharityType, 'category'> & {
-    onNavigate?: () => void
     projectManagers?: AssignmentCandidate[]
 }
 
@@ -34,7 +34,6 @@ const SingleCharityCard: FC<IProps> = ({
     status,
     pendingEligibilitySource,
     pendingEligibilityReason,
-    onNavigate,
     projectManagers = []
 }) => {
     const [assignPMModelOpen, setAssignPMModelOpen] = React.useState<null | string>(null)
@@ -49,6 +48,7 @@ const SingleCharityCard: FC<IProps> = ({
         setAssignPMModelOpen(null)
     }
     const router = useRouter()
+    const { navigateToCharity } = useCharityNavigation()
     const { isAllowed, me } = usePermissions()
     const currentUserRoles = me?.roles?.map((r: any) => r.slug || r) || []
     const canDeleteCharity = isAllowed({ anyOf: [PERMISSIONS.DELETE_CHARITY] }) || currentUserRoles.includes('operation-manager')
@@ -84,9 +84,12 @@ const SingleCharityCard: FC<IProps> = ({
             <LinkComponent
                 to={`/charities/${id}`}
                 className="block w-full text-left"
-                onClick={() => onNavigate?.()}
+                onClick={(e) => {
+                    e.preventDefault()
+                    navigateToCharity(id, charityTitle)
+                }}
             >
-                <Card className='relative p-3 flex flex-col gap-1.5 shadow-none bg-white'>
+                <Card className='relative flex flex-col gap-1.5 rounded-2xl border border-[#E8EEF5] bg-white p-3 shadow-[0_4px_18px_rgba(15,23,42,0.03)] transition-shadow duration-200 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'>
                     <div className="flex flex-col gap-1">
                         <div className="flex justify-between items-start gap-2">
                             <TypographyComponent variant='h6' className="flex-1 overflow-hidden truncate">

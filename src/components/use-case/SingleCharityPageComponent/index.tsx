@@ -1,14 +1,13 @@
 'use client'
-import ArrowIcon from '@/components/common/IconComponents/ArrowIcon'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import React, { FC, useEffect, useState, useTransition } from 'react'
+import { useCharityDetailNavigationDismiss } from '@/hooks/use-page-navigation'
+import { useCharityNavigation } from '@/hooks/use-charity-navigation'
 import { SingleCharityType } from '../CharitiesPageComponent/kanban/KanbanView'
 import ThreeDotIcon from '@/components/common/IconComponents/ThreeDotIcon'
 import IconDropdownMenuComponent from '@/components/common/IconDropdownMenuComponent'
-import EmailIcon from '@/components/common/IconComponents/EmailIcon'
-import CardComponent from '@/components/common/CardComponent'
 import { TaskIds } from '@/types/assessments'
 import {
     AUDIT_DISPLAY_MAX,
@@ -34,7 +33,7 @@ import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
 import { addCharityCommentAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
-import { Trash2 } from 'lucide-react'
+import { CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2 } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
 import ConfigureRoleModal from './models/ConfigureRoleModal'
 import { usePermissions } from '@/components/common/permissions-provider'
@@ -44,8 +43,17 @@ import EligibilityTest from './models/EligibilityTest'
 import TabsComponent from '@/components/common/TabsComponent'
 import { Progress } from '@/components/ui/progress'
 import { AUDIT_DEFINITIONS } from '../SingleAssessmentPageComponent/ASSESSMENT_DEFINITIONS'
-import { BadgeCheck, CalendarDays, CheckCircle2, CircleDashed, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, XCircle } from 'lucide-react'
 import EditCharityDetailsModal from './models/EditCharityDetailsModal'
+import StatusPill from '@/components/common/StatusPill'
+import { getCharityStatusColor } from '@/lib/chip-styles'
+import {
+    AssessmentItemCard,
+    CHARITY_STATUS_LABELS,
+    HeroStatTile,
+    PremiumInfoRow,
+    PremiumProgressStepRow,
+    PremiumSectionCard,
+} from './CharityDetailPremium'
 
 type Member = SingleCharityType['members'][0]
 type IProps = SingleCharityType & {
@@ -57,57 +65,7 @@ type ModelControl = {
 }
 type AssignmentMode = 'assign' | 'reassign'
 
-const InfoRow: FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => {
-    return (
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-            <TypographyComponent variant='body2' className="w-full sm:w-[180px] text-[#666E76] sm:flex-none">
-                {label}
-            </TypographyComponent>
-            <div className="flex-1">
-                {typeof value === 'string' || typeof value === 'number' ? (
-                    <TypographyComponent variant='body2' className="text-[#101928] font-medium">
-                        {value}
-                    </TypographyComponent>
-                ) : (
-                    value
-                )}
-            </div>
-        </div>
-    )
-}
-
-const ProgressStepRow: FC<{
-    title: string
-    done: boolean
-    pendingText?: string
-    successText?: string
-    meta?: string
-}> = ({ title, done, pendingText = 'Pending', successText = 'Done', meta }) => {
-    return (
-        <div className="flex items-start justify-between gap-3 rounded-lg border border-[#EEF2F6] bg-white p-3">
-            <div className="flex items-start gap-2">
-                {done ? (
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-green-600" />
-                ) : (
-                    <CircleDashed className="mt-0.5 h-4 w-4 text-[#98A2B3]" />
-                )}
-                <div className="flex flex-col">
-                    <TypographyComponent variant='body2' className="font-medium text-[#101928]">
-                        {title}
-                    </TypographyComponent>
-                    {meta ? (
-                        <TypographyComponent variant='caption' className="text-[#667085]">
-                            {meta}
-                        </TypographyComponent>
-                    ) : null}
-                </div>
-            </div>
-            <TypographyComponent variant='caption' className={done ? 'text-green-600 font-medium' : 'text-[#667085]'}>
-                {done ? successText : pendingText}
-            </TypographyComponent>
-        </div>
-    )
-}
+const InfoRow = PremiumInfoRow
 
 const SingleCharityPageComponent: FC<IProps> = ({
     charityDesc,
@@ -145,8 +103,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
     currentUserRoles = [],
 }) => {
     const router = useRouter();
+    const { navigateToAssessments, navigateToAssessment } = useCharityNavigation()
     const [modelState, setModelState] = useState<ModelControl>({ nameOfModel: null });
     const { startNavigation } = useRouteLoader()
+    useCharityDetailNavigationDismiss()
     const [isBackPending, startBackTransition] = useTransition()
     const [isTaskPending, startTaskTransition] = useTransition()
     const [pendingTaskId, setPendingTaskId] = useState<TaskIds | null>(null)
@@ -228,8 +188,14 @@ const SingleCharityPageComponent: FC<IProps> = ({
             return
         }
         setPendingTaskId(taskId)
-        startNavigation()
-        startTaskTransition(() => router.push(`/charities/${charityId}/assessments/${taskId}?country=${resolvedCountry}`))
+        startTaskTransition(() => {
+            navigateToAssessment(
+                charityId,
+                taskId,
+                resolvedCountry,
+                AUDIT_DEFINITIONS[taskId as keyof typeof AUDIT_DEFINITIONS].title,
+            )
+        })
     }
 
     const hasGlobalManageAccess = isAllowed({ anyOf: [PERMISSIONS.CHARITY_MANAGE] })
@@ -584,8 +550,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
             ? {
                 value: 'edit-charity-details',
                 label: (
-                    <div className='flex gap-1 items-center'>
-                        <Pencil className="h-4 w-4 text-[#666E76]" />
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F8FBFF] text-[#266DD3]">
+                            <Pencil className="h-4 w-4" />
+                        </span>
                         <span>Edit Charity Details</span>
                     </div>
                 )
@@ -595,8 +563,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
             ? {
                 value: 'assign-read-only',
                 label: (
-                    <div className='flex gap-1 items-center'>
-                        <UserCheck className="h-4 w-4 text-[#666E76]" />
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ECFDF3] text-[#12B76A]">
+                            <UserCheck className="h-4 w-4" />
+                        </span>
                         <span>Assign User</span>
                     </div>
                 )
@@ -605,199 +575,210 @@ const SingleCharityPageComponent: FC<IProps> = ({
         canViewEmailLogs
             ? {
                 value: 'view-email-logs',
-                label: <div className='flex gap-1 items-center'><EmailIcon color='#666E76' /><span>View Email Logs</span></div>
+                label: (
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EEF4FD] text-[#266DD3]">
+                            <Mail className="h-4 w-4" />
+                        </span>
+                        <span>View Email Logs</span>
+                    </div>
+                )
             }
             : null,
         canDeleteCharity
             ? {
                 value: 'delete-charity',
-                label: <div className='flex gap-1 items-center text-red-600'>
-                    <Trash2 className="h-4 w-4" /><span>Delete Charity</span>
-                </div>
+                label: (
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600">
+                            <Trash2 className="h-4 w-4" />
+                        </span>
+                        <span>Delete Charity</span>
+                    </div>
+                )
             }
             : null,
     ].filter(Boolean) as { value: string; label: React.ReactNode }[];
 
     return (
-        <div className="flex flex-col gap-5">
-            <div>
-                <Button
-                    onClick={() => {
-                        startNavigation()
-                        startBackTransition(() => router.push('/charities'))
-                    }}
-                    variant="secondary"
-                    className="border-0 text-primary"
-                    loading={isBackPending}
-                >
-                    <ArrowIcon />
-                    Back to All Charities
-                </Button>
-            </div>
-            <div className="flex flex-col gap-6">
-                <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                    <CardComponent className="w-full border-[#D9E4F2] bg-gradient-to-b from-[#F8FCFF] to-white">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 flex-1">
-                                {logoUrl ? (
-                                    <div className="flex-shrink-0 w-16 h-16 border rounded-md overflow-hidden bg-white">
-                                        <img
-                                            src={logoUrl}
-                                            alt={`${charityTitle} logo`}
-                                            className="w-full h-full object-contain"
-                                        />
-                                    </div>
-                                ) : null}
-                                <div className="flex flex-col gap-1">
-                                    <TypographyComponent variant='h1'>{charityTitle}</TypographyComponent>
-                                    <TypographyComponent variant='body2' className="text-[#5A6472]">
-                                        Submitted by {charityOwnerName}
-                                    </TypographyComponent>
-                                </div>
+        <div className="space-y-6 pb-6">
+            <Button
+                onClick={() => {
+                    startNavigation()
+                    startBackTransition(() => router.push('/charities'))
+                }}
+                variant="ghost"
+                className="h-10 rounded-xl border border-[#E8EEF5] bg-white px-4 text-[#344054] shadow-sm hover:bg-[#F8FBFF] hover:text-[#266DD3]"
+                loading={isBackPending}
+            >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to All Charities
+            </Button>
+
+            <section className="relative overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
+                <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#266DD3]/10 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-20 left-10 h-56 w-56 rounded-full bg-[#5CD9F2]/12 blur-3xl" />
+
+                <div className="relative border-b border-[#E8EEF5]/90 bg-gradient-to-br from-[#F8FBFF] via-white to-[#F4FBFD] p-5 lg:p-7">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center rounded-full border border-[#D9E8FB] bg-white/80 px-3 py-1 text-xs font-semibold text-[#266DD3] shadow-sm">
+                                    Charity Profile
+                                </span>
+                                <StatusPill
+                                    label={CHARITY_STATUS_LABELS[status] ?? kebabToTitle(status)}
+                                    color={getCharityStatusColor(status)}
+                                />
                             </div>
-                            <IconDropdownMenuComponent
-                                className='rounded-full border-[#E6E6E6] shadow-none border bg-white'
-                                icon={<ThreeDotIcon />}
-                                options={dropdownOptions}
-                                onSelect={handleDropdownSelect}
-                            />
+                            <h1 className="text-2xl font-semibold tracking-[-0.03em] text-[#101928] sm:text-3xl">
+                                {charityTitle}
+                            </h1>
+                            <p className="mt-1.5 text-sm text-[#667085]">
+                                Submitted by <span className="font-medium text-[#344054]">{charityOwnerName}</span>
+                            </p>
                         </div>
-                        <div className="mt-5 grid gap-4 md:grid-cols-2">
-                            <div className="rounded-lg border border-[#E7EEF8] bg-white p-3">
-                                <div className="mb-1 flex items-center gap-2 text-[#5A6472]">
-                                    <MapPin className="h-4 w-4" />
-                                    <TypographyComponent variant='caption'>Registered Country</TypographyComponent>
-                                </div>
-                                <TypographyComponent variant='body2' className="font-semibold text-[#101928]">
-                                    {country ? kebabToTitle(country) : '-'}
-                                </TypographyComponent>
-                            </div>
-                            <div className="rounded-lg border border-[#E7EEF8] bg-white p-3">
-                                <div className="mb-1 flex items-center gap-2 text-[#5A6472]">
-                                    <UserCheck className="h-4 w-4" />
-                                    <TypographyComponent variant='caption'>Project Manager</TypographyComponent>
-                                </div>
-                                <TypographyComponent variant='body2' className="font-semibold text-[#101928]">
-                                    {projectManagerName}
-                                </TypographyComponent>
-                            </div>
-                            <div className="rounded-lg border border-[#E7EEF8] bg-white p-3">
-                                <div className="mb-1 flex items-center gap-2 text-[#5A6472]">
-                                    <UserCircle2 className="h-4 w-4" />
-                                    <TypographyComponent variant='caption'>CEO</TypographyComponent>
-                                </div>
-                                <TypographyComponent variant='body2' className="font-semibold text-[#101928]">
-                                    {ceoName || '-'}
-                                </TypographyComponent>
-                            </div>
-                            <div className="rounded-lg border border-[#E7EEF8] bg-white p-3">
-                                <div className="mb-1 flex items-center gap-2 text-[#5A6472]">
-                                    <CalendarDays className="h-4 w-4" />
-                                    <TypographyComponent variant='caption'>Total Duration</TypographyComponent>
-                                </div>
-                                <TypographyComponent variant='body2' className="font-semibold text-[#101928]">
-                                    {totalDuration || '-'}
-                                </TypographyComponent>
-                            </div>
-                        </div>
-                        <div className="mt-4 flex flex-col gap-2">
+                        <IconDropdownMenuComponent
+                            variant="premium"
+                            destructiveValues={['delete-charity']}
+                            icon={<ThreeDotIcon />}
+                            options={dropdownOptions}
+                            onSelect={handleDropdownSelect}
+                        />
+                    </div>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <HeroStatTile
+                            icon={<MapPin className="h-5 w-5" />}
+                            label="Registered Country"
+                            value={country ? kebabToTitle(country) : '-'}
+                        />
+                        <HeroStatTile
+                            icon={<UserCheck className="h-5 w-5" />}
+                            label="Project Manager"
+                            value={projectManagerName}
+                            tone="text-[#12B76A]"
+                            iconBg="from-[#ECFDF3] to-[#F0FDF4]"
+                        />
+                        <HeroStatTile
+                            icon={<UserCircle2 className="h-5 w-5" />}
+                            label="CEO"
+                            value={ceoName || '-'}
+                            tone="text-[#7C3AED]"
+                            iconBg="from-[#F5F3FF] to-[#FAF5FF]"
+                        />
+                        <HeroStatTile
+                            icon={<CalendarDays className="h-5 w-5" />}
+                            label="Total Duration"
+                            value={totalDuration || '-'}
+                            tone="text-[#F79009]"
+                            iconBg="from-[#FFFAEB] to-[#FFF8ED]"
+                        />
+                    </div>
+
+                    {(submittedByEmail || website) ? (
+                        <div className="mt-5 flex flex-wrap gap-3">
                             {submittedByEmail ? (
-                                <div className="flex items-center gap-2">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-[#E8EEF5] bg-white/80 px-3 py-1.5 text-sm text-[#344054]">
                                     <Mail className="h-4 w-4 text-[#667085]" />
-                                    <TypographyComponent variant='body2' className="text-[#101928]">
-                                        {submittedByEmail}
-                                    </TypographyComponent>
+                                    {submittedByEmail}
                                 </div>
                             ) : null}
                             {website ? (
-                                <div className="flex items-center gap-2">
-                                    <Globe className="h-4 w-4 text-[#667085]" />
-                                    <a href={website.startsWith('http') ? website : `https://${website}`} target='_blank' className='text-blue-600 underline text-sm font-medium'>
-                                        website address
-                                    </a>
-                                </div>
+                                <a
+                                    href={website.startsWith('http') ? website : `https://${website}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 rounded-full border border-[#D9E8FB] bg-[#F8FBFF] px-3 py-1.5 text-sm font-medium text-[#266DD3] transition-colors hover:bg-[#EEF4FD]"
+                                >
+                                    <Globe className="h-4 w-4" />
+                                    Visit website
+                                </a>
                             ) : null}
                         </div>
-                        {charityDesc ? (
-                            <TypographyComponent className="mt-4 text-[#475467]">{charityDesc}</TypographyComponent>
-                        ) : null}
-                    </CardComponent>
-                    {!shouldHideAssessmentAndProgress ? (
-                        <CardComponent heading="Progress Overview" className="border-[#D9E4F2] bg-gradient-to-b from-[#F8FCFF] to-white">
-                            <div className="flex flex-col gap-3">
-                                <div className="flex items-center justify-between">
-                                    <TypographyComponent variant='body2' className="font-medium text-[#101928]">
-                                        Perform Assessments
-                                    </TypographyComponent>
-                                    <TypographyComponent variant='body2' className="font-semibold text-[#101928]">
-                                        {assessmentsCompleted}/{assessmentsTotal}
-                                    </TypographyComponent>
-                                </div>
-                                <Progress value={assessmentProgress} className="h-2.5" />
-                                <div className="mt-1 flex flex-col gap-2">
-                                    <ProgressStepRow
-                                        title="Perform Eligibility"
-                                        done={isEligibilityDone}
-                                        successText={eligibilityLabel}
-                                        pendingText="Pending"
-                                    />
-                                    <ProgressStepRow
-                                        title="Assigned to PM"
-                                        done={projectManagerAssigned}
-                                        successText="Assigned"
-                                        pendingText="Unassigned"
-                                        meta={projectManagerAssigned ? projectManagerName : undefined}
-                                    />
-                                    <ProgressStepRow
-                                        title="Perform Assessments"
-                                        done={assessmentsCompleted === assessmentsTotal}
-                                        successText="Completed"
-                                        pendingText="In Progress"
-                                        meta={`${assessmentsCompleted}/${assessmentsTotal}`}
-                                    />
-                                    <ProgressStepRow
-                                        title="Reviewed by Admin"
-                                        done={isAdminReviewed}
-                                        successText="Reviewed"
-                                        pendingText="Pending"
-                                        meta={overallScoreLabel ? `Score: ${overallScoreLabel}` : undefined}
-                                    />
-                                    <div className="flex items-center justify-between rounded-lg border border-[#EEF2F6] bg-white p-3">
-                                        <div className="flex items-center gap-2">
-                                            {passFailValue === 'Pass' ? (
-                                                <BadgeCheck className="h-4 w-4 text-green-600" />
-                                            ) : passFailValue === 'Fail' ? (
-                                                <XCircle className="h-4 w-4 text-red-600" />
-                                            ) : (
-                                                <CircleDashed className="h-4 w-4 text-[#98A2B3]" />
-                                            )}
-                                            <TypographyComponent variant='body2' className="font-medium text-[#101928]">
-                                                Pass / Fail
-                                            </TypographyComponent>
-                                        </div>
-                                        <TypographyComponent variant='caption' className={isPassFailDone ? 'font-medium text-[#101928]' : 'text-[#667085]'}>
-                                            {passFailValue}
-                                        </TypographyComponent>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardComponent>
+                    ) : null}
+
+                    {charityDesc ? (
+                        <p className="mt-5 max-w-4xl text-sm leading-6 text-[#475467]">{charityDesc}</p>
                     ) : null}
                 </div>
-                <div className="grid gap-6 xl:grid-cols-2">
+            </section>
+
+            {!shouldHideAssessmentAndProgress ? (
+                <PremiumSectionCard
+                    heading="Progress Overview"
+                    description="Track eligibility, assignments, assessments, and final review status."
+                    accent="from-[#12B76A] via-[#266DD3] to-[#5CD9F2]"
+                >
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between rounded-2xl border border-[#E8EEF5] bg-gradient-to-r from-[#F8FBFF] to-white px-4 py-3">
+                            <div>
+                                <div className="text-sm font-semibold text-[#101928]">Perform Assessments</div>
+                                <div className="text-xs text-[#667085]">Overall completion across all audit areas</div>
+                            </div>
+                            <div className="text-2xl font-bold tracking-tight text-[#266DD3]">
+                                {assessmentsCompleted}<span className="text-lg font-semibold text-[#98A2B3]">/{assessmentsTotal}</span>
+                            </div>
+                        </div>
+                        <Progress value={assessmentProgress} className="h-3 rounded-full bg-[#EEF2F6]" />
+                        <div className="flex flex-col gap-3 pt-1">
+                            <PremiumProgressStepRow
+                                title="Perform Eligibility"
+                                done={isEligibilityDone}
+                                successText={eligibilityLabel}
+                                pendingText="Pending"
+                            />
+                            <PremiumProgressStepRow
+                                title="Assigned to PM"
+                                done={projectManagerAssigned}
+                                successText="Assigned"
+                                pendingText="Unassigned"
+                                meta={projectManagerAssigned ? projectManagerName : undefined}
+                            />
+                            <PremiumProgressStepRow
+                                title="Perform Assessments"
+                                done={assessmentsCompleted === assessmentsTotal}
+                                successText="Completed"
+                                pendingText="In Progress"
+                                meta={`${assessmentsCompleted}/${assessmentsTotal}`}
+                            />
+                            <PremiumProgressStepRow
+                                title="Reviewed by Admin"
+                                done={isAdminReviewed}
+                                successText="Reviewed"
+                                pendingText="Pending"
+                                meta={overallScoreLabel ? `Score: ${overallScoreLabel}` : undefined}
+                            />
+                            <PremiumProgressStepRow
+                                title="Pass / Fail"
+                                done={isPassFailDone}
+                                variant="pass-fail"
+                                passFailValue={passFailValue}
+                                isLast
+                            />
+                        </div>
+                    </div>
+                </PremiumSectionCard>
+            ) : null}
+
+            <div className="grid gap-6 xl:grid-cols-2">
                     {status === 'pending-admin-review' ? (
-                        <CardComponent heading="Admin Review">
+                        <PremiumSectionCard
+                            heading="Admin Review"
+                            description="Final scoring, reporting, and reassessment actions."
+                            accent="from-[#7C3AED] via-[#266DD3] to-[#5CD9F2]"
+                        >
                             <div className="flex flex-col gap-3">
                                 <InfoRow label="Overall Score:" value={overallScoreLabel ?? '-'} />
                                 <InfoRow label="Pass / Fail:" value={passFailValue} />
                                 <div className="flex flex-col gap-2">
                                     <LinkComponent to={`/reports/${charityId}`} openInNewTab>
-                                        <Button variant="outline" className="w-full">View Report</Button>
+                                        <Button variant="outline" className="w-full rounded-xl">View Report</Button>
                                     </LinkComponent>
                                     {canManageCharity ? (
                                         <Button
                                             variant="outline"
-                                            className="w-full"
+                                            className="w-full rounded-xl"
                                             onClick={handleSendReportEmail}
                                             disabled={isSendingReportEmail}
                                         >
@@ -805,21 +786,25 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                         </Button>
                                     ) : null}
                                     {canManageCharity ? (
-                                        <Button variant="outline" className="w-full" onClick={() => setShowReassessModal(true)}>
+                                        <Button variant="outline" className="w-full rounded-xl" onClick={() => setShowReassessModal(true)}>
                                             Re-Assess
                                         </Button>
                                     ) : null}
                                 </div>
                             </div>
-                        </CardComponent>
+                        </PremiumSectionCard>
                     ) : null}
-                    <CardComponent heading="Eligibility Details">
+                    <PremiumSectionCard
+                        heading="Eligibility Details"
+                        description="Category, revenue, and charity classification."
+                        accent="from-[#F79009] via-[#F59E0B] to-[#FCD34D]"
+                    >
                         <div className="flex flex-col gap-3">
                             {status === 'pending-eligibility' && canManageCharity ? (
                                 <Button
                                     variant="outline"
                                     type="button"
-                                    className="w-full"
+                                    className="w-full rounded-xl border-[#D9E8FB] bg-[#F8FBFF] text-[#266DD3] hover:bg-[#EEF4FD]"
                                     onClick={() => handleOpenModel('eligibility-test')}
                                 >
                                     Perform Eligibility
@@ -829,7 +814,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 <Button
                                     variant="outline"
                                     type="button"
-                                    className="w-full"
+                                    className="w-full rounded-xl"
                                     onClick={() => handleOpenModel('eligibility-override')}
                                 >
                                     Override Eligibility
@@ -843,8 +828,12 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             <InfoRow label="Muslim Charity:" value={isThisMuslimCharity ? 'Yes' : 'No'} />
                             <InfoRow label="Pays Zakat:" value={doTheyPayZakat ? 'Yes' : 'No'} />
                         </div>
-                    </CardComponent>
-                    <CardComponent heading="Registration">
+                    </PremiumSectionCard>
+                    <PremiumSectionCard
+                        heading="Registration"
+                        description="Official registration numbers and commission links."
+                        accent="from-[#266DD3] via-[#3B82E8] to-[#5CD9F2]"
+                    >
                         <div className="flex flex-col gap-3">
                             <InfoRow
                                 label="Registration Status:"
@@ -896,10 +885,15 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 </>
                             ) : null}
                         </div>
-                    </CardComponent>
+                    </PremiumSectionCard>
                 </div>
                 {!shouldHideAssessmentAndProgress ? (
-                    <CardComponent heading="Assessment Summary">
+                    <PremiumSectionCard
+                        heading="Assessment Summary"
+                        description="Completed and pending audit areas for this charity."
+                        accent="from-[#12B76A] via-[#10B981] to-[#5CD9F2]"
+                        bodyClassName="pt-2"
+                    >
                         <TabsComponent
                             value={assessmentTab}
                             onValueChange={(value) => setAssessmentTab(value as 'completed' | 'pending')}
@@ -921,7 +915,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                     const assignedNames = getAssignedNamesForAssessment(item.id)
                                                     const isAssigned = assignedNames !== 'Unassigned'
                                                     return (
-                                                        <div key={item.id} className="flex flex-col gap-2 rounded-md border border-[#EFF2F6] p-3 sm:flex-row sm:items-center sm:justify-between">
+                                                        <AssessmentItemCard key={item.id}>
                                                             <div className="flex flex-col gap-1">
                                                                 <TypographyComponent variant="body2" className="font-medium text-[#101928]">
                                                                     {AUDIT_DEFINITIONS[item.id].title}
@@ -950,9 +944,13 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                 ) : null}
                                                             </div>
                                                             <div className="flex gap-2">
-                                                                <LinkComponent to={`/charities/${charityId}/assessments`}>
-                                                                    <Button variant="outline">View</Button>
-                                                                </LinkComponent>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    className="rounded-xl"
+                                                                    onClick={() => navigateToAssessments(charityId, charityTitle)}
+                                                                >
+                                                                    View
+                                                                </Button>
                                                                 {(() => {
                                                                     const hasManagerRole = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase())) || (me?.roles || []).some(r => typeof r === 'string' && ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
                                                                     const isCore2Or3Assessor = (item.id === 'core-area-2' || item.id === 'core-area-3') && isCurrentUserAssignedToRole(roleByAssessment[item.id]);
@@ -967,7 +965,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                     return null;
                                                                 })()}
                                                             </div>
-                                                        </div>
+                                                        </AssessmentItemCard>
                                                     )
                                                 })
                                             )}
@@ -1025,7 +1023,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                 }
                                                                 : null
                                                     return (
-                                                        <div key={item.id} className="flex flex-col gap-2 rounded-md border border-[#EFF2F6] p-3 sm:flex-row sm:items-center sm:justify-between">
+                                                        <AssessmentItemCard key={item.id}>
                                                             <div className="flex flex-col gap-1">
                                                                 <TypographyComponent variant="body2" className="font-medium text-[#101928]">
                                                                     {AUDIT_DEFINITIONS[item.id].title}
@@ -1069,7 +1067,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                     </Button>
                                                                 )}
                                                             </div>
-                                                        </div>
+                                                        </AssessmentItemCard>
                                                     )
                                                 })
                                             )}
@@ -1078,49 +1076,60 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 }
                             ]}
                         />
-                    </CardComponent>
+                    </PremiumSectionCard>
                 ) : null}
-            </div>
-            <CardComponent heading="Comments">
+            <PremiumSectionCard
+                heading="Comments"
+                description="Team notes and discussion for this charity."
+                accent="from-[#266DD3] via-[#6366F1] to-[#8B5CF6]"
+            >
                 <div className="flex flex-col gap-3">
                     {isCommentsLoading ? (
                         <TypographyComponent variant="body2" className="text-[#667085]">Loading comments...</TypographyComponent>
                     ) : comments.length === 0 ? (
-                        <TypographyComponent variant="body2" className="text-[#667085]">No comments yet.</TypographyComponent>
+                        <div className="rounded-2xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-4 py-8 text-center">
+                            <MessageSquare className="mx-auto mb-2 h-8 w-8 text-[#D0D5DD]" />
+                            <TypographyComponent variant="body2" className="text-[#667085]">No comments yet.</TypographyComponent>
+                        </div>
                     ) : (
                         comments.map((comment) => (
-                            <div key={comment.id} className="rounded-md border border-[#EEF2F6] bg-white p-3">
-                                <div className="flex items-center justify-between">
-                                    <TypographyComponent variant="body2" className="font-medium text-[#101928]">
+                            <div key={comment.id} className="rounded-2xl border border-[#E8EEF5] bg-gradient-to-br from-white to-[#FAFBFC] p-4 shadow-[0_4px_16px_rgba(15,23,42,0.03)]">
+                                <div className="flex items-center justify-between gap-3">
+                                    <TypographyComponent variant="body2" className="font-semibold text-[#101928]">
                                         {formatCommentAuthor(comment)}
                                     </TypographyComponent>
                                     <TypographyComponent variant="caption" className="text-[#667085]">
                                         {formatStableDate(comment.createdAt)}
                                     </TypographyComponent>
                                 </div>
-                                <TypographyComponent variant="body2" className="mt-2 text-[#344054]">
+                                <TypographyComponent variant="body2" className="mt-2 leading-6 text-[#344054]">
                                     {comment.message}
                                 </TypographyComponent>
                             </div>
                         ))
                     )}
                     {canPostComment && (
-                        <div className="flex flex-col gap-2">
+                        <div className="mt-2 flex flex-col gap-3 rounded-2xl border border-[#E8EEF5] bg-[#FAFBFC] p-4">
                             <textarea
-                                className="min-h-[90px] w-full rounded-md border border-[#E4E7EC] px-3 py-2 text-sm outline-none focus:border-[#84ADFF]"
+                                className="min-h-[100px] w-full resize-none rounded-xl border border-[#E4E7EC] bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#84ADFF] focus:ring-2 focus:ring-[#84ADFF]/20"
                                 placeholder="Add a comment..."
                                 value={commentInput}
                                 onChange={(event) => setCommentInput(event.target.value)}
                             />
                             <div className="flex justify-end">
-                                <Button variant="primary" onClick={handleSubmitComment} disabled={isSubmittingComment}>
+                                <Button
+                                    variant="primary"
+                                    className="rounded-xl bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-5 shadow-[0_8px_20px_rgba(38,109,211,0.2)]"
+                                    onClick={handleSubmitComment}
+                                    disabled={isSubmittingComment}
+                                >
                                     {isSubmittingComment ? 'Posting...' : 'Post Comment'}
                                 </Button>
                             </div>
                         </div>
                     )}
                 </div>
-            </CardComponent>
+            </PremiumSectionCard>
             <ModelComponentWithExternalControl title="Assign Project Manager"
                 onOpenChange={handleCloseModel}
                 open={modelState.nameOfModel === 'assign-project-manager'}

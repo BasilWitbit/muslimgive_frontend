@@ -1,4 +1,3 @@
-import CardComponent from '@/components/common/CardComponent'
 import React, { FC } from 'react'
 
 type IProps = {
@@ -9,20 +8,18 @@ type IProps = {
 
 const UserCardLayout: FC<IProps> = ({ headingText, action, children }) => {
     return (
-        <CardComponent withShadow={false} extraRounded>
-            <div className="flex flex-col gap-2 w-full">
-                <div className="font-semibold w-full flex items-center">
-                    <span className="w-full">
+        <div className="rounded-2xl border border-[#E8EEF5] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+            <div className="flex w-full flex-col gap-2">
+                <div className="flex w-full items-center">
+                    <span className="w-full text-sm font-semibold text-[#101928]">
                         {headingText}
                     </span>
-                    {action ? action : null}
+                    {action ?? null}
                 </div>
-                <div className="h-[1px] w-full bg-[rgba(0,0,0,0.1)]">&nbsp;</div>
-                <div>
-                    {children}
-                </div>
+                <div className="h-px w-full bg-[#EEF2F6]" />
+                <div>{children}</div>
             </div>
-        </CardComponent>
+        </div>
     )
 }
 

@@ -39,18 +39,18 @@ const UserData: FC<IProps> = ({
 }) => {
     const country = location || '-'
     return (
-        <div className='p-4 flex flex-col gap-6 lg:flex-row'>
-            <div className="w-full lg:min-w-[342px] flex flex-col gap-4">
+        <div className='flex flex-col gap-6 p-4 lg:flex-row'>
+            <div className="flex w-full flex-col gap-4 rounded-2xl border border-[#E8EEF5] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] lg:min-w-[342px]">
                 <ProfilePictureUpload
                     firstName={firstName}
                     lastName={lastName}
                     profilePicture={profilePicture}
                     editable={showEditButtons}
                 />
-                <span className='text-2xl font-semibold'>{capitalizeWords(firstName)} {capitalizeWords(lastName)}</span>
-                <span className='text-[#666E76] '>{email}</span>
+                <span className='text-2xl font-semibold tracking-[-0.02em] text-[#101928]'>{capitalizeWords(firstName)} {capitalizeWords(lastName)}</span>
+                <span className='text-sm text-[#667085]'>{email}</span>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div className={cn("w-full bg-[rgba(187,201,222,0.2)] border border-[rgba(0,0,0,0.1)] rounded-lg py-1 px-2 text-sm ", kanit.className)}>
+                    <div className={cn("w-full rounded-xl border border-[#DDE7F3] bg-[#F8FAFC] px-3 py-2 text-sm", kanit.className)}>
                         <span>
                             User ID:
                         </span>{" "}
@@ -59,7 +59,7 @@ const UserData: FC<IProps> = ({
                         </span>
                     </div>
                     <button
-                        className='bg-[rgba(187,201,222,0.2)] border border-[rgba(0,0,0,0.1)] rounded-2xl h-full px-4'
+                        className='h-full rounded-xl border border-[#DDE7F3] bg-white px-4 text-sm font-medium text-[#344054] transition-colors hover:bg-[#F3F6FB]'
                         onClick={() => navigator.clipboard.writeText(id)}
                     >
                         Copy

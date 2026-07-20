@@ -332,16 +332,28 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
         }, {} as Record<string, { title: string; items: RubricCriterion[] }>);
     };
 
+    const isEditMode = status === 'submitted' || status === 'completed';
+
+    const handleNext = () => {
+        if (step < sections.length - 1) {
+            goToStep(step + 1);
+        }
+    };
+
+    const handlePreview = async () => {
+        const success = await handleSaveDraft();
+        if (success) {
+            router.push(`/charities/${charityId}/assessments/core-area-3?preview-mode=true`);
+        }
+    };
+
     const handleNextOrPreview = async () => {
         if (step < sections.length - 1) {
             goToStep(step + 1);
             return;
         }
 
-        const success = await handleSaveDraft();
-        if (success) {
-            router.push(`/charities/${charityId}/assessments/core-area-3?preview-mode=true`);
-        }
+        await handlePreview();
     };
 
     const isNextDisabled = isSubmitting;
@@ -707,10 +719,31 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
 
             <div className="flex flex-col gap-3 mb-8">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                    {!canEdit ? null : (
+                    {!canEdit ? null : isEditMode ? (
+                        <>
+                            <Button
+                                className="w-full sm:w-36"
+                                variant="primary"
+                                disabled={isSubmitting || isNextDisabled}
+                                onClick={handlePreview}
+                            >
+                                {isSubmitting ? 'Saving...' : 'Preview'}
+                            </Button>
+                            {step < sections.length - 1 ? (
+                                <Button
+                                    className="w-full sm:w-36"
+                                    variant="secondary"
+                                    disabled={isSubmitting}
+                                    onClick={handleNext}
+                                >
+                                    Next
+                                </Button>
+                            ) : null}
+                        </>
+                    ) : (
                         <Button
                             className="w-full sm:w-36"
-                            variant='primary'
+                            variant="primary"
                             disabled={isSubmitting || isNextDisabled}
                             onClick={handleNextOrPreview}
                         >

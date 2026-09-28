@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -104,6 +104,14 @@ type ListMeta = {
 }
 
 type ProgressFilter = DashboardAssessmentsParams['progress']
+
+const PROGRESS_LABELS: Record<string, string> = {
+    all: 'All Assessment Charities',
+    assigned: 'Assigned Charities',
+    in_progress: 'In Progress Charities',
+    completed: 'Completed Charities',
+    not_started: 'Not Started Charities',
+}
 
 type PmDashboardComponentProps = {
     metrics: DashboardMetrics | null
@@ -300,6 +308,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const listSectionRef = useRef<HTMLElement | null>(null)
 
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(initialMetrics)
     const [rows, setRows] = useState<AssessmentRow[]>([])
@@ -310,7 +319,8 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
 
     usePageNavigationDismiss(!metrics)
 
-    const progress = (searchParams.get('progress') as ProgressFilter) || 'all'
+    const progressFromUrl = (searchParams.get('progress') as ProgressFilter) || 'all'
+    const [progress, setProgress] = useState<ProgressFilter>(progressFromUrl)
     const countryCode = searchParams.get('country') || 'all'
     const sortBy = (searchParams.get('sortBy') as DashboardAssessmentsParams['sortBy']) || 'updatedAt'
     const topRated = searchParams.get('topRated') === 'true'
@@ -324,6 +334,10 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     const period = (searchParams.get('period') as 'current' | 'previous-month') || 'current'
     const search = searchParams.get('search') || ''
 
+    useEffect(() => {
+        setProgress(progressFromUrl)
+    }, [progressFromUrl])
+
     const updateParams = useCallback(
         (patch: Record<string, string | null | undefined>, options?: { resetPage?: boolean }) => {
             const next = new URLSearchParams(searchParams.toString())
@@ -335,9 +349,22 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                 next.delete('page')
             }
             const qs = next.toString()
-            router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+            router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
         },
         [pathname, router, searchParams],
+    )
+
+    const applyProgressFilter = useCallback(
+        (next: ProgressFilter) => {
+            setProgress(next)
+            setIsLoadingList(true)
+            updateParams({ progress: !next || next === 'all' ? null : next })
+            // Let the DOM settle, then bring the filtered list into view
+            window.setTimeout(() => {
+                listSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }, 50)
+        },
+        [updateParams],
     )
 
     const activeCardProgress = progress === 'all' ? 'total' : progress
@@ -594,7 +621,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         icon={FileText}
                         tone={STAT_TONES.total}
                         active={activeCardProgress === 'total'}
-                        onClick={() => updateParams({ progress: null })}
+                        onClick={() => applyProgressFilter('all')}
                     />
                     <StatCard
                         title="Assigned"
@@ -603,7 +630,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         icon={Users}
                         tone={STAT_TONES.assigned}
                         active={activeCardProgress === 'assigned'}
-                        onClick={() => updateParams({ progress: 'assigned' })}
+                        onClick={() => applyProgressFilter('assigned')}
                     />
                     <StatCard
                         title="In Progress"
@@ -612,7 +639,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         icon={Clock}
                         tone={STAT_TONES.inProgress}
                         active={activeCardProgress === 'in_progress'}
-                        onClick={() => updateParams({ progress: 'in_progress' })}
+                        onClick={() => applyProgressFilter('in_progress')}
                     />
                     <StatCard
                         title="Completed"
@@ -621,7 +648,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         icon={CheckCircle}
                         tone={STAT_TONES.completed}
                         active={activeCardProgress === 'completed'}
-                        onClick={() => updateParams({ progress: 'completed' })}
+                        onClick={() => applyProgressFilter('completed')}
                     />
                 </div>
 
@@ -690,19 +717,21 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                     </div>
                 </section>
 
-                <section className={cn(shellClass, 'overflow-hidden')}>
+                <section ref={listSectionRef} className={cn(shellClass, 'scroll-mt-6 overflow-hidden')}>
                     <div className="space-y-4 border-b border-[#EEF2F6] px-5 py-5">
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                             <div>
                                 <h2 className="text-base font-semibold text-[#101928]">
-                                    All Assessment Charities
+                                    {PROGRESS_LABELS[progress || 'all'] || 'All Assessment Charities'}
                                 </h2>
                                 <p className="mt-0.5 text-sm text-[#667085]">
-                                    Status, scores, and next assessment due. Combine filters as needed.
+                                    {progress && progress !== 'all'
+                                        ? `Showing charities matching the “${PROGRESS_LABELS[progress]?.replace(' Charities', '') || progress}” metric.`
+                                        : 'Status, scores, and next assessment due. Combine filters as needed.'}
                                 </p>
                             </div>
                             <span className="inline-flex w-fit items-center rounded-full border border-[#E8EEF5] bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-semibold text-[#667085]">
-                                {meta ? `${meta.total} charities` : '—'}
+                                {isLoadingList ? 'Loading…' : meta ? `${meta.total} charities` : '—'}
                             </span>
                         </div>
 
@@ -726,7 +755,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                 <Select
                                     value={progress ?? 'all'}
                                     onValueChange={(value) =>
-                                        updateParams({ progress: value === 'all' ? null : value })
+                                        applyProgressFilter((value === 'all' ? 'all' : value) as ProgressFilter)
                                     }
                                 >
                                     <SelectTrigger className={filterControlClass}>
@@ -851,7 +880,9 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                         className="h-10 rounded-xl text-[#667085] hover:bg-white hover:text-[#101928]"
                                         onClick={() => {
                                             setSearchInput('')
-                                            router.replace(pathname, { scroll: false })
+                                            setProgress('all')
+                                            setIsLoadingList(true)
+                                            router.push(pathname, { scroll: false })
                                         }}
                                     >
                                         Clear filters

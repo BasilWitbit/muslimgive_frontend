@@ -18,6 +18,12 @@ import {
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import { useCharityNavigation } from '@/hooks/use-charity-navigation'
 import AssessmentResetButton from '../../UI/AssessmentResetButton'
+import { METRIC_OPTION_TEXT } from './METRIC_OPTION_TEXT'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+
+const REGULATORY_CONCERN_DETAIL_KEY = 'regulatory_concern_detail'
+const REGULATORY_CONCERN_VALUE = 'suspended_revoked_under_investigation'
 
 type FormDataType = Record<string, string>;
 
@@ -87,10 +93,19 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
     );
 
     const updateFormData = (field: string, value: string) => {
-        setFormData((prev) => ({
-            ...prev,
-            [field]: value,
-        }))
+        setFormData((prev) => {
+            const next: FormDataType = {
+                ...prev,
+                [field]: value,
+            }
+            if (
+                field === 'regulatory_status' &&
+                value !== REGULATORY_CONCERN_VALUE
+            ) {
+                delete next[REGULATORY_CONCERN_DETAIL_KEY]
+            }
+            return next
+        })
     }
 
     React.useEffect(() => {
@@ -112,6 +127,11 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
                             newFormData[key] = String(ans);
                         }
                     });
+
+                    const concernDetail = answers[REGULATORY_CONCERN_DETAIL_KEY];
+                    if (concernDetail !== undefined && concernDetail !== null && concernDetail !== '') {
+                        newFormData[REGULATORY_CONCERN_DETAIL_KEY] = String(concernDetail);
+                    }
 
                     if (Object.keys(newFormData).length > 0) {
                         setFormData(newFormData);
@@ -141,6 +161,10 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
         const fieldKey = getQuestionFieldKey(question);
 
         if (question.type === 'radio') {
+            const showRegulatoryDetail =
+                fieldKey === 'regulatory_status' &&
+                formData[fieldKey] === REGULATORY_CONCERN_VALUE;
+
             return (
                 <div
                     key={question.id}
@@ -155,11 +179,33 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
                             labelClassNames='text-sm'
                             name={`core_1__${fieldKey}`}
                             required={question.required}
-                            options={question.options.map(opt => ({
-                                label: opt.label,
-                                value: getOptionValue(opt),
-                            }))}
+                            options={question.options.map(opt => {
+                                const optionValue = getOptionValue(opt);
+                                return {
+                                    label: opt.label,
+                                    value: optionValue,
+                                    description: METRIC_OPTION_TEXT[fieldKey]?.[optionValue],
+                                };
+                            })}
                         />
+                        {showRegulatoryDetail ? (
+                            <div className="mt-4 flex flex-col gap-1.5 rounded-md border border-amber-200 bg-amber-50 p-3">
+                                <Label htmlFor="regulatory-concern-detail" className="text-sm font-medium text-amber-900">
+                                    Type of regulatory concern identified
+                                </Label>
+                                <p className="text-xs text-amber-700">
+                                    Describe the concern (e.g. suspended, revoked, under investigation). This appears in the preview descriptor.
+                                </p>
+                                <Textarea
+                                    id="regulatory-concern-detail"
+                                    value={formData[REGULATORY_CONCERN_DETAIL_KEY] ?? ''}
+                                    onChange={(e) => updateFormData(REGULATORY_CONCERN_DETAIL_KEY, e.target.value)}
+                                    placeholder="e.g. Suspended by regulator pending investigation"
+                                    className="min-h-[72px] bg-white"
+                                    disabled={!canEdit}
+                                />
+                            </div>
+                        ) : null}
                     </AssessmentSectionCard>
                 </div>
             );
@@ -177,6 +223,17 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
                 answers[key] = val;
             }
         });
+
+        const concernDetail = formData[REGULATORY_CONCERN_DETAIL_KEY];
+        if (answers.regulatory_status === REGULATORY_CONCERN_VALUE) {
+            if (concernDetail !== undefined && concernDetail !== null && concernDetail.trim() !== '') {
+                answers[REGULATORY_CONCERN_DETAIL_KEY] = concernDetail.trim();
+            }
+        } else if (answers.regulatory_status) {
+            // Explicitly clear stored detail when concern is no longer selected
+            answers[REGULATORY_CONCERN_DETAIL_KEY] = '';
+        }
+
         return answers;
     };
 

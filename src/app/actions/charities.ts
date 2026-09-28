@@ -48,7 +48,10 @@ export type CreateCharityPayload = {
     ceoName: string;
     submittedByName?: string | null;
     submittedByEmail?: string | null;
-    annualRevenue: number;
+    annualRevenue?: number | null;
+    revenueThresholdBand?: 'above' | 'below' | 'unknown' | null;
+    eligibilityRevenueOverride?: boolean;
+    eligibilityRevenueOverrideReason?: string | null;
     isEligible: boolean;
 }
 
@@ -260,6 +263,7 @@ export const reassignRoleToCharityAction = async (charityId: string, payload: Re
  */
 export type UpdateEligibilityPayload = {
     isEligible: boolean;
+    overrideReason?: string;
 }
 
 export const updateCharityEligibilityAction = async (charityId: string, payload: UpdateEligibilityPayload): Promise<ResponseType> => {
@@ -319,6 +323,55 @@ export const sendBulkEmailReportAction = async (payload: SendBulkEmailPayload): 
  * GET /admin/charities/dashboard-metrics
  * Fetches aggregated KPI metrics for the PM dashboard.
  */
-export const getDashboardMetricsAction = async (): Promise<ResponseType> => {
-    return await _get('/admin/charities/dashboard-metrics');
+export const getDashboardMetricsAction = async (
+    period: 'current' | 'previous-month' = 'current',
+): Promise<ResponseType> => {
+    const query = new URLSearchParams();
+    if (period) query.append('period', period);
+    return await _get(`/admin/charities/dashboard-metrics?${query.toString()}`);
 }
+
+/**
+ * GET /admin/charities/dashboard-assessments
+ * PM dashboard assessment charities list with scores and filters.
+ */
+export type DashboardAssessmentsParams = {
+    page?: number;
+    limit?: number;
+    search?: string;
+    progress?: 'all' | 'assigned' | 'in_progress' | 'completed' | 'not_started';
+    countryCode?: string;
+    completedFrom?: string;
+    completedTo?: string;
+    minOverall?: number;
+    minCore1?: number;
+    minCore2?: number;
+    minCore3?: number;
+    minCore4?: number;
+    sortBy?: 'createdAt' | 'updatedAt' | 'overallScorePercent' | 'completedAt' | 'name';
+    order?: 'ASC' | 'DESC';
+    topRated?: boolean;
+}
+
+export const getDashboardAssessmentsAction = async (
+    params: DashboardAssessmentsParams = {},
+): Promise<ResponseType> => {
+    const query = new URLSearchParams();
+    if (params.page) query.append('page', String(params.page));
+    if (params.limit) query.append('limit', String(params.limit));
+    if (params.search) query.append('search', params.search);
+    if (params.progress) query.append('progress', params.progress);
+    if (params.countryCode) query.append('countryCode', params.countryCode);
+    if (params.completedFrom) query.append('completedFrom', params.completedFrom);
+    if (params.completedTo) query.append('completedTo', params.completedTo);
+    if (params.minOverall != null) query.append('minOverall', String(params.minOverall));
+    if (params.minCore1 != null) query.append('minCore1', String(params.minCore1));
+    if (params.minCore2 != null) query.append('minCore2', String(params.minCore2));
+    if (params.minCore3 != null) query.append('minCore3', String(params.minCore3));
+    if (params.minCore4 != null) query.append('minCore4', String(params.minCore4));
+    if (params.sortBy) query.append('sortBy', params.sortBy);
+    if (params.order) query.append('order', params.order);
+    if (params.topRated != null) query.append('topRated', String(params.topRated));
+    return await _get(`/admin/charities/dashboard-assessments?${query.toString()}`);
+}
+

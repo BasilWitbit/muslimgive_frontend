@@ -65,16 +65,18 @@ const SingleCharityDetails: FC<IProps> = ({
             {typeof annualRevenue === 'number' ? <KeyValue label='Annual Revenue:' value={`${getCurrencySymbol(country)}${annualRevenue.toLocaleString()}`} /> : null}
             {website ? <KeyValue label='Website:' value={<a href={website.startsWith('http') ? website : `https://${website}`} target='_blank' className='text-blue-600 underline text-sm font-medium'>Click here to visit Website</a>} /> : null}
             <KeyValue label='Is this a Muslim charity?' value={isThisMuslimCharity ? <YesIcon /> : <NoIcon />} />
-            <KeyValue label='Do they pay Zakat?' value={doTheyPayZakat ? <YesIcon /> : <NoIcon />} />
-            <KeyValue label='Members:' value={<div className="">
-                {members && members.length > 0 ? <AvatarGroupComponent images={members.map(eachMember => {
-                    return {
-                        source: eachMember.profilePicture,
-                        id: eachMember.id,
-                        fallback: ""
-                    }
-                })} /> : <>&#45;</>}
-            </div>} />
+            <KeyValue label='Collects Zakah?' value={doTheyPayZakat ? <YesIcon /> : <NoIcon />} />
+            {members && members.length > 0 ? (
+                <KeyValue label='Members:' value={<div className="">
+                    <AvatarGroupComponent images={members.map(eachMember => {
+                        return {
+                            source: eachMember.profilePicture,
+                            id: eachMember.id,
+                            fallback: ""
+                        }
+                    })} />
+                </div>} />
+            ) : null}
         </div>
     )
 }

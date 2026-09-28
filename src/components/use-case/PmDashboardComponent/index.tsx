@@ -1,72 +1,192 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import React, { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePageNavigationDismiss } from '@/hooks/use-page-navigation'
 import { cn } from '@/lib/utils'
 import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Cell,
-    Legend,
-    Pie,
-    PieChart,
-    ResponsiveContainer,
-    Tooltip as RechartsTooltip,
-    XAxis,
-    YAxis,
-} from 'recharts'
-import { Users, FileText, CheckCircle, Clock, type LucideIcon } from 'lucide-react'
+    getDashboardAssessmentsAction,
+    getDashboardMetricsAction,
+    type DashboardAssessmentsParams,
+} from '@/app/actions/charities'
+import {
+    AUDIT_AREA_LABELS,
+    AUDIT_DISPLAY_MAX,
+    formatAuditScore,
+    getAreaDisplayScore,
+    getOverallDisplayScore,
+    getZakatDisplayScores,
+    type AuditCoreAreaKey,
+} from '@/lib/audit-score-display'
+import {
+    ArrowUpRight,
+    CheckCircle,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    FileText,
+    Loader2,
+    Search,
+    Sparkles,
+    Users,
+    type LucideIcon,
+} from 'lucide-react'
+
+type ActivitySnapshot = {
+    avgCompletionDays: number | null
+    assessmentsCompletedThisWeek: number
+    assessmentsCompletedThisMonth: number
+    period: 'current' | 'previous-month'
+    monthLabel: string
+}
+
+type DashboardMetrics = {
+    totalCharities: number
+    assignmentMetrics: { assigned: number; unassigned: number }
+    progressMetrics: { completed: number; inProgress: number; notStarted: number }
+    activitySnapshot?: ActivitySnapshot
+}
+
+type CoreReview = {
+    status: string
+    score: number | null
+    totalScore: number
+    result: 'pass' | 'fail' | null
+}
+
+type AssessmentRow = {
+    id: string
+    name: string
+    countryCode: string
+    status: string
+    createdAt: string
+    updatedAt: string
+    overallScorePercent: number | null
+    overallScoreResult: 'pass' | 'fail' | null
+    auditsCompleted: number
+    auditsTotal: number
+    assessmentStatus: 'assigned' | 'in_progress' | 'completed' | 'not_started'
+    auditTimeline: {
+        startedAt: string | null
+        completedAt: string | null
+        auditsCompleted: number
+        auditsTotal: number
+    }
+    nextAssessmentDueAt: string | null
+    reviews: {
+        eligibility: string
+        core1: CoreReview
+        core2: CoreReview
+        core3: CoreReview
+        core4: CoreReview
+        summary: { completed: number; total: number }
+    }
+}
+
+type ListMeta = {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+}
+
+type ProgressFilter = DashboardAssessmentsParams['progress']
 
 type PmDashboardComponentProps = {
-    metrics: any
+    metrics: DashboardMetrics | null
 }
 
-const CHART_COLORS = ['#266DD3', '#5CD9F2', '#3B82E8', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#112133']
+const shellClass =
+    'rounded-2xl border border-[#E8EEF5]/80 bg-white/90 shadow-[0_10px_40px_rgba(15,23,42,0.05)] backdrop-blur-sm'
 
-const premiumCardClass = 'overflow-hidden border-[#E8EEF5]/90 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition-shadow duration-300 hover:shadow-[0_12px_40px_rgba(15,23,42,0.07)]'
+const filterControlClass =
+    'h-10 w-full rounded-xl border-[#E4E7EC] bg-[#F8FAFC] text-sm shadow-none transition-colors hover:bg-white focus:bg-white'
 
-type PremiumTooltipProps = {
-    active?: boolean
-    payload?: Array<{ name?: string; value?: number; color?: string }>
-    label?: string
-    variant?: 'bar' | 'donut'
-}
+const COUNTRY_OPTIONS = [
+    { value: 'all', label: 'All countries' },
+    { value: 'united-kingdom', label: 'United Kingdom' },
+    { value: 'united-states', label: 'United States' },
+    { value: 'canada', label: 'Canada' },
+] as const
 
-const ChartTooltip = ({ active, payload, label, variant = 'bar' }: PremiumTooltipProps) => {
-    if (!active || !payload?.length) return null
-
-    const entry = payload[0]
-
-    return (
-        <div className="rounded-lg border border-[#E4E7EC] bg-white px-3 py-2">
-            {variant === 'bar' && label ? (
-                <p className="mb-0.5 text-xs font-medium text-[#667085]">{label}</p>
-            ) : null}
-            <div className="flex items-center gap-2">
-                <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: entry.color || '#266DD3' }}
-                />
-                <span className="text-sm font-semibold text-[#101928]">
-                    {entry.name}: {entry.value}
-                </span>
-            </div>
-        </div>
-    )
-}
-
-const rechartsTooltipProps = {
-    wrapperStyle: { outline: 'none', zIndex: 20 },
-    contentStyle: {
-        background: 'transparent',
-        border: 'none',
-        boxShadow: 'none',
-        padding: 0,
+const ASSESSMENT_STATUS_META: Record<
+    AssessmentRow['assessmentStatus'],
+    { label: string; shortLabel: string; className: string }
+> = {
+    completed: {
+        label: 'Completed',
+        shortLabel: 'Done',
+        className: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     },
-    itemStyle: { padding: 0 },
-    labelStyle: { padding: 0 },
+    in_progress: {
+        label: 'In progress',
+        shortLabel: 'Active',
+        className: 'bg-sky-50 text-sky-700 border-sky-100',
+    },
+    assigned: {
+        label: 'Assigned',
+        shortLabel: 'Assigned',
+        className: 'bg-violet-50 text-violet-700 border-violet-100',
+    },
+    not_started: {
+        label: 'Not started',
+        shortLabel: 'New',
+        className: 'bg-slate-50 text-slate-600 border-slate-100',
+    },
+}
+
+const CORE_AREA_SLUG: Record<AuditCoreAreaKey, string> = {
+    core1: 'core-area-1',
+    core2: 'core-area-2',
+    core3: 'core-area-3',
+    core4: 'core-area-4',
+}
+
+function formatDateShort(value?: string | null) {
+    if (!value) return '—'
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return '—'
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+}
+
+function formatCountry(code?: string) {
+    if (!code) return '—'
+    return code
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ')
+}
+
+function daysUntil(iso?: string | null) {
+    if (!iso) return null
+    const due = new Date(iso)
+    if (Number.isNaN(due.getTime())) return null
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    due.setHours(0, 0, 0, 0)
+    return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+type StatTone = {
+    accent: string
+    softBg: string
+    iconBg: string
+    iconColor: string
+    glow: string
+    activeRing: string
 }
 
 type StatCardProps = {
@@ -74,283 +194,853 @@ type StatCardProps = {
     value: React.ReactNode
     subtitle?: string
     icon: LucideIcon
-    accent: string
-    iconBg: string
+    tone: StatTone
+    active?: boolean
+    onClick?: () => void
 }
 
-const StatCard = ({ title, value, subtitle, icon: Icon, accent, iconBg }: StatCardProps) => (
-    <Card className={cn(premiumCardClass, 'relative')}>
-        <div className={cn('absolute inset-x-0 top-0 h-1 bg-gradient-to-r', accent)} />
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 pt-5">
-            <div className="space-y-1">
-                <CardTitle className="text-sm font-medium text-[#667085]">{title}</CardTitle>
-                <div className="text-3xl font-bold tracking-tight text-[#101928]">{value}</div>
-                {subtitle ? <p className="text-xs text-[#98A2B3]">{subtitle}</p> : null}
+const StatCard = ({
+    title,
+    value,
+    subtitle,
+    icon: Icon,
+    tone,
+    active,
+    onClick,
+}: StatCardProps) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+            'group relative w-full overflow-hidden rounded-2xl border text-left outline-none transition-all duration-300',
+            'bg-gradient-to-br from-white via-white to-[#F8FBFF]',
+            'shadow-[0_8px_28px_rgba(15,23,42,0.04)]',
+            'hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]',
+            'focus-visible:ring-2 focus-visible:ring-[#266DD3]/35 focus-visible:ring-offset-2',
+            active
+                ? cn('border-transparent shadow-[0_16px_36px_rgba(38,109,211,0.12)]', tone.activeRing)
+                : 'border-[#E8EEF5]/90',
+            onClick && 'cursor-pointer',
+        )}
+    >
+        <div className={cn('absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r', tone.accent)} />
+        <div className={cn('pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full blur-2xl', tone.glow)} />
+        <div className="relative flex items-start justify-between gap-3 p-5 pt-6">
+            <div className="min-w-0 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">
+                    {title}
+                </p>
+                <p className="text-[2rem] font-bold leading-none tracking-tight text-[#101928]">{value}</p>
+                {subtitle ? <p className="text-xs leading-snug text-[#667085]">{subtitle}</p> : null}
+                <span
+                    className={cn(
+                        'inline-flex items-center gap-1 pt-1 text-[11px] font-semibold transition-colors',
+                        active ? 'text-[#266DD3]' : 'text-[#98A2B3] group-hover:text-[#266DD3]',
+                    )}
+                >
+                    {active ? 'Viewing this list' : 'View charities'}
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                </span>
             </div>
-            <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl', iconBg)}>
-                <Icon className="h-5 w-5 text-[#266DD3]" />
+            <div
+                className={cn(
+                    'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm',
+                    tone.iconBg,
+                )}
+            >
+                <Icon className={cn('h-5 w-5', tone.iconColor)} strokeWidth={2.1} />
             </div>
-        </CardHeader>
-    </Card>
-)
-
-type ChartShellProps = {
-    title: string
-    description: string
-    children: React.ReactNode
-    className?: string
-}
-
-const ChartShell = ({ title, description, children, className }: ChartShellProps) => (
-    <Card className={cn(premiumCardClass, className)}>
-        <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-[#101928]">{title}</CardTitle>
-            <CardDescription className="text-sm text-[#667085]">{description}</CardDescription>
-        </CardHeader>
-        <CardContent className={cn('pt-2', className?.includes('h-') ? '' : 'pb-6')}>
-            {children}
-        </CardContent>
-    </Card>
-)
-
-type DonutChartProps = {
-    data: Array<{ name: string; value: number }>
-    colors?: string[]
-    centerLabel: string
-    centerValue: string | number
-    emptyMessage?: string
-}
-
-const DonutChart = ({
-    data,
-    colors = CHART_COLORS,
-    centerLabel,
-    centerValue,
-    emptyMessage = 'No data available',
-}: DonutChartProps) => {
-    const [activeIndex, setActiveIndex] = useState<number | null>(null)
-    const hasData = data.some((item) => item.value > 0)
-
-    if (!hasData) {
-        return (
-            <div className="flex h-[280px] items-center justify-center rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFBFD] text-sm text-[#98A2B3]">
-                {emptyMessage}
-            </div>
-        )
-    }
-
-    return (
-        <div className="relative h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                        data={data}
-                        cx="50%"
-                        cy="46%"
-                        innerRadius={68}
-                        outerRadius={96}
-                        paddingAngle={4}
-                        dataKey="value"
-                        stroke="none"
-                        onMouseEnter={(_, index) => setActiveIndex(index)}
-                        onMouseLeave={() => setActiveIndex(null)}
-                    >
-                        {data.map((entry, index) => (
-                            <Cell
-                                key={entry.name}
-                                fill={colors[index % colors.length]}
-                                opacity={activeIndex === null || activeIndex === index ? 1 : 0.45}
-                            />
-                        ))}
-                    </Pie>
-                    <RechartsTooltip
-                        {...rechartsTooltipProps}
-                        content={<ChartTooltip variant="donut" />}
-                        offset={24}
-                    />
-                    <Legend
-                        verticalAlign="bottom"
-                        height={40}
-                        iconType="circle"
-                        formatter={(value) => <span className="text-xs font-medium text-[#475467]">{value}</span>}
-                    />
-                </PieChart>
-            </ResponsiveContainer>
-            {activeIndex === null ? (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center pb-8">
-                    <div className="text-center">
-                        <div className="text-2xl font-bold tracking-tight text-[#101928]">{centerValue}</div>
-                        <div className="text-[11px] font-medium uppercase tracking-wide text-[#98A2B3]">{centerLabel}</div>
-                    </div>
-                </div>
-            ) : null}
         </div>
-    )
+    </button>
+)
+
+const STAT_TONES = {
+    total: {
+        accent: 'from-[#266DD3] via-[#5CD9F2] to-[#266DD3]',
+        softBg: 'bg-[#EEF4FD]',
+        iconBg: 'bg-[#EEF4FD]',
+        iconColor: 'text-[#266DD3]',
+        glow: 'bg-[#266DD3]/10',
+        activeRing: 'ring-2 ring-[#266DD3]/25',
+    },
+    assigned: {
+        accent: 'from-[#059669] via-[#34D399] to-[#059669]',
+        softBg: 'bg-[#ECFDF3]',
+        iconBg: 'bg-[#ECFDF3]',
+        iconColor: 'text-[#059669]',
+        glow: 'bg-[#10B981]/10',
+        activeRing: 'ring-2 ring-[#10B981]/25',
+    },
+    inProgress: {
+        accent: 'from-[#2563EB] via-[#60A5FA] to-[#2563EB]',
+        softBg: 'bg-[#EFF6FF]',
+        iconBg: 'bg-[#EFF6FF]',
+        iconColor: 'text-[#2563EB]',
+        glow: 'bg-[#3B82F6]/10',
+        activeRing: 'ring-2 ring-[#3B82F6]/25',
+    },
+    completed: {
+        accent: 'from-[#7C3AED] via-[#A78BFA] to-[#7C3AED]',
+        softBg: 'bg-[#F5F3FF]',
+        iconBg: 'bg-[#F5F3FF]',
+        iconColor: 'text-[#7C3AED]',
+        glow: 'bg-[#8B5CF6]/10',
+        activeRing: 'ring-2 ring-[#8B5CF6]/25',
+    },
+} as const satisfies Record<string, StatTone>
+
+type ColumnDef = {
+    id: string
+    header: React.ReactNode
+    className?: string
+    cell: (row: AssessmentRow) => React.ReactNode
 }
 
-const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics }) => {
+const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: initialMetrics }) => {
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+
+    const [metrics, setMetrics] = useState<DashboardMetrics | null>(initialMetrics)
+    const [rows, setRows] = useState<AssessmentRow[]>([])
+    const [meta, setMeta] = useState<ListMeta | null>(null)
+    const [isLoadingList, setIsLoadingList] = useState(true)
+    const [isRefreshingMetrics, startMetricsTransition] = useTransition()
+    const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '')
+
     usePageNavigationDismiss(!metrics)
 
-    const statusChartData = useMemo(() => {
-        if (!metrics?.statusDistribution) return []
-        return Object.entries(metrics.statusDistribution).map(([key, value]) => ({
-            name: key.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-            count: value as number,
-        }))
-    }, [metrics?.statusDistribution])
+    const progress = (searchParams.get('progress') as ProgressFilter) || 'all'
+    const countryCode = searchParams.get('country') || 'all'
+    const sortBy = (searchParams.get('sortBy') as DashboardAssessmentsParams['sortBy']) || 'updatedAt'
+    const topRated = searchParams.get('topRated') === 'true'
+    const completedFrom = searchParams.get('completedFrom') || ''
+    const completedTo = searchParams.get('completedTo') || ''
+    const minCore1 = searchParams.get('minCore1') || ''
+    const minCore2 = searchParams.get('minCore2') || ''
+    const minCore3 = searchParams.get('minCore3') || ''
+    const minCore4 = searchParams.get('minCore4') || ''
+    const page = Math.max(1, Number(searchParams.get('page') || '1'))
+    const period = (searchParams.get('period') as 'current' | 'previous-month') || 'current'
+    const search = searchParams.get('search') || ''
 
-    const assignmentPieData = [
-        { name: 'Assigned', value: metrics?.assignmentMetrics?.assigned || 0 },
-        { name: 'Unassigned', value: metrics?.assignmentMetrics?.unassigned || 0 },
-    ]
+    const updateParams = useCallback(
+        (patch: Record<string, string | null | undefined>, options?: { resetPage?: boolean }) => {
+            const next = new URLSearchParams(searchParams.toString())
+            Object.entries(patch).forEach(([key, value]) => {
+                if (value == null || value === '' || value === 'all') next.delete(key)
+                else next.set(key, value)
+            })
+            if (options?.resetPage !== false && !('page' in patch)) {
+                next.delete('page')
+            }
+            const qs = next.toString()
+            router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+        },
+        [pathname, router, searchParams],
+    )
 
-    const progressPieData = [
-        { name: 'Completed', value: metrics?.progressMetrics?.completed || 0 },
-        { name: 'In Progress', value: metrics?.progressMetrics?.inProgress || 0 },
-        { name: 'Not Started', value: metrics?.progressMetrics?.notStarted || 0 },
-    ].filter((d) => d.value > 0)
+    const activeCardProgress = progress === 'all' ? 'total' : progress
 
-    const eligibilityPieData = Object.entries(metrics?.eligibilityMetrics || {})
-        .map(([key, value]) => ({
-            name: key.charAt(0).toUpperCase() + key.slice(1),
-            value: value as number,
-        }))
-        .filter((d) => d.value > 0)
+    useEffect(() => {
+        setSearchInput(search)
+    }, [search])
 
-    const assignmentTotal = assignmentPieData.reduce((sum, item) => sum + item.value, 0)
-    const progressTotal = progressPieData.reduce((sum, item) => sum + item.value, 0)
-    const eligibilityTotal = eligibilityPieData.reduce((sum, item) => sum + item.value, 0)
+    useEffect(() => {
+        let cancelled = false
+        const load = async () => {
+            setIsLoadingList(true)
+            try {
+                const params: DashboardAssessmentsParams = {
+                    page,
+                    limit: 25,
+                    progress: progress === 'all' ? 'all' : progress,
+                    sortBy,
+                    order: 'DESC',
+                }
+                if (search) params.search = search
+                if (countryCode !== 'all') params.countryCode = countryCode
+                if (completedFrom) params.completedFrom = completedFrom
+                if (completedTo) params.completedTo = completedTo
+                if (topRated) params.topRated = true
+                if (minCore1) params.minCore1 = Number(minCore1)
+                if (minCore2) params.minCore2 = Number(minCore2)
+                if (minCore3) params.minCore3 = Number(minCore3)
+                if (minCore4) params.minCore4 = Number(minCore4)
+
+                const res = await getDashboardAssessmentsAction(params)
+                if (cancelled) return
+                if (res.ok) {
+                    const data = res.payload?.data?.data
+                    setRows(Array.isArray(data?.charities) ? data.charities : [])
+                    setMeta(data?.meta ?? null)
+                } else {
+                    setRows([])
+                    setMeta(null)
+                }
+            } catch {
+                if (!cancelled) {
+                    setRows([])
+                    setMeta(null)
+                }
+            } finally {
+                if (!cancelled) setIsLoadingList(false)
+            }
+        }
+        load()
+        return () => {
+            cancelled = true
+        }
+    }, [
+        page,
+        progress,
+        countryCode,
+        sortBy,
+        topRated,
+        completedFrom,
+        completedTo,
+        minCore1,
+        minCore2,
+        minCore3,
+        minCore4,
+        search,
+    ])
+
+    useEffect(() => {
+        startMetricsTransition(async () => {
+            const res = await getDashboardMetricsAction(period)
+            if (res.ok) {
+                setMetrics(res.payload?.data?.data ?? null)
+            }
+        })
+    }, [period])
+
+    const snapshot = metrics?.activitySnapshot
+
+    const columns: ColumnDef[] = useMemo(
+        () => [
+            {
+                id: 'charity',
+                header: 'Charity',
+                className: 'w-[18%] min-w-0',
+                cell: (row) => (
+                    <div className="min-w-0 pr-1">
+                        <Link
+                            href={`/charities/${row.id}`}
+                            className="block truncate text-[13px] font-semibold text-[#101928] hover:text-[#266DD3]"
+                            title={row.name}
+                        >
+                            {row.name}
+                        </Link>
+                        <p className="truncate text-[10px] text-[#98A2B3]">{formatCountry(row.countryCode)}</p>
+                    </div>
+                ),
+            },
+            {
+                id: 'createdAt',
+                header: 'Created',
+                className: 'w-[9%]',
+                cell: (row) => (
+                    <span className="whitespace-nowrap text-[11px] text-[#475467]">
+                        {formatDateShort(row.createdAt)}
+                    </span>
+                ),
+            },
+            {
+                id: 'status',
+                header: 'Status',
+                className: 'w-[10%]',
+                cell: (row) => {
+                    const meta = ASSESSMENT_STATUS_META[row.assessmentStatus]
+                    return (
+                        <span
+                            className={cn(
+                                'inline-flex max-w-full truncate rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
+                                meta.className,
+                            )}
+                        >
+                            {meta.shortLabel}
+                        </span>
+                    )
+                },
+            },
+            {
+                id: 'completedAt',
+                header: 'Done',
+                className: 'w-[9%]',
+                cell: (row) => (
+                    <span className="whitespace-nowrap text-[11px] text-[#475467]">
+                        {formatDateShort(row.auditTimeline?.completedAt)}
+                    </span>
+                ),
+            },
+            {
+                id: 'scores',
+                header: (
+                    <div className="grid w-full grid-cols-4 gap-1.5 text-center">
+                        <span>CA1</span>
+                        <span>CA2</span>
+                        <span>CA3</span>
+                        <span>CA4</span>
+                    </div>
+                ),
+                className: 'w-[32%]',
+                cell: (row) => (
+                    <div className="grid w-full grid-cols-4 gap-1.5">
+                        <ScoreCell row={row} area="core1" compact />
+                        <ScoreCell row={row} area="core2" compact />
+                        <ScoreCell row={row} area="core3" compact />
+                        <ScoreCell row={row} area="core4" compact />
+                    </div>
+                ),
+            },
+            {
+                id: 'overall',
+                header: 'Overall',
+                className: 'w-[8%]',
+                cell: (row) => {
+                    const score = getOverallDisplayScore(row.reviews, row.overallScorePercent)
+                    return (
+                        <Link
+                            href={`/charities/${row.id}/assessments`}
+                            className="inline-flex w-full items-center justify-center rounded-md bg-[#EEF4FD]/80 px-1.5 py-1 font-mono text-[11px] font-bold tabular-nums text-[#266DD3] hover:bg-[#E0ECFF]"
+                            title="View assessment history"
+                        >
+                            {score != null ? formatAuditScore(score) : '—'}
+                        </Link>
+                    )
+                },
+            },
+            {
+                id: 'nextDue',
+                header: 'Next due',
+                className: 'w-[10%]',
+                cell: (row) => {
+                    const remaining = daysUntil(row.nextAssessmentDueAt)
+                    if (!row.nextAssessmentDueAt) {
+                        return <span className="text-[11px] text-[#98A2B3]">—</span>
+                    }
+                    return (
+                        <div className="min-w-0 leading-tight">
+                            <p className="whitespace-nowrap text-[11px] text-[#475467]">
+                                {formatDateShort(row.nextAssessmentDueAt)}
+                            </p>
+                            {remaining != null ? (
+                                <p
+                                    className={cn(
+                                        'text-[10px] font-medium',
+                                        remaining < 0
+                                            ? 'text-rose-600'
+                                            : remaining <= 30
+                                              ? 'text-amber-600'
+                                              : 'text-[#98A2B3]',
+                                    )}
+                                >
+                                    {remaining < 0
+                                        ? `${Math.abs(remaining)}d overdue`
+                                        : `${remaining}d left`}
+                                </p>
+                            ) : null}
+                        </div>
+                    )
+                },
+            },
+            {
+                id: 'scorecard',
+                header: 'Card',
+                className: 'w-[5%]',
+                cell: () => (
+                    <span
+                        className="inline-flex items-center rounded-full border border-dashed border-[#D0D5DD] bg-[#FAFBFC] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#98A2B3]"
+                        title="Scorecard will be finalised once the assessment formula is locked"
+                    >
+                        TBD
+                    </span>
+                ),
+            },
+        ],
+        [],
+    )
 
     if (!metrics) {
         return null
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 pb-10">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatCard
-                    title="Total Charities"
-                    value={metrics.totalCharities || 0}
-                    subtitle="In your workspace"
-                    icon={FileText}
-                    accent="from-[#266DD3] via-[#5CD9F2] to-[#266DD3]"
-                    iconBg="bg-[#EEF4FD]"
-                />
-                <StatCard
-                    title="Assigned"
-                    value={metrics.assignmentMetrics?.assigned || 0}
-                    subtitle={`${metrics.assignmentMetrics?.unassigned || 0} unassigned`}
-                    icon={Users}
-                    accent="from-[#10B981] via-[#34D399] to-[#10B981]"
-                    iconBg="bg-[#ECFDF3]"
-                />
-                <StatCard
-                    title="In Progress"
-                    value={metrics.progressMetrics?.inProgress || 0}
-                    subtitle="Active assessments"
-                    icon={Clock}
-                    accent="from-[#3B82E8] via-[#60A5FA] to-[#3B82E8]"
-                    iconBg="bg-[#EFF6FF]"
-                />
-                <StatCard
-                    title="Completed"
-                    value={metrics.progressMetrics?.completed || 0}
-                    subtitle="Finished assessments"
-                    icon={CheckCircle}
-                    accent="from-[#8B5CF6] via-[#A78BFA] to-[#8B5CF6]"
-                    iconBg="bg-[#F5F3FF]"
-                />
-            </div>
+        <div className="relative mx-auto w-full max-w-7xl pb-12">
+            <div className="pointer-events-none absolute inset-x-0 -top-6 h-56 rounded-[2rem] bg-[radial-gradient(ellipse_at_top,_rgba(38,109,211,0.08),_transparent_60%)]" />
 
-            <ChartShell
-                title="Charity Status Overview"
-                description="Distribution of charities across workflow stages"
-            >
-                {statusChartData.length === 0 ? (
-                    <div className="flex h-[340px] items-center justify-center rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFBFD] text-sm text-[#98A2B3]">
-                        No status data available
+            <div className="relative flex flex-col gap-7">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="space-y-1.5">
+                        <div className="inline-flex items-center gap-1.5 rounded-full border border-[#D9E8FB] bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-[#266DD3] shadow-sm">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Project Manager
+                        </div>
+                        <h1 className="text-2xl font-bold tracking-tight text-[#101928] sm:text-[1.75rem]">
+                            Dashboard
+                        </h1>
+                        <p className="max-w-xl text-sm leading-relaxed text-[#667085]">
+                            Track charity assessment progress. Click a metric card to filter the list below.
+                        </p>
                     </div>
-                ) : (
-                    <div className="h-[340px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={statusChartData} margin={{ top: 12, right: 12, left: -8, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="pmBarGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#5CD9F2" />
-                                        <stop offset="100%" stopColor="#266DD3" />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#EEF2F6" />
-                                <XAxis
-                                    dataKey="name"
-                                    tick={{ fill: '#667085', fontSize: 11 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    dy={8}
-                                />
-                                <YAxis
-                                    tick={{ fill: '#98A2B3', fontSize: 11 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    allowDecimals={false}
-                                />
-                                <RechartsTooltip
-                                    {...rechartsTooltipProps}
-                                    content={<ChartTooltip variant="bar" />}
-                                    cursor={false}
-                                />
-                                <Bar
-                                    dataKey="count"
-                                    fill="url(#pmBarGradient)"
-                                    radius={[8, 8, 0, 0]}
-                                    maxBarSize={52}
-                                />
-                            </BarChart>
-                        </ResponsiveContainer>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        title="Total Charities"
+                        value={metrics.totalCharities || 0}
+                        subtitle="In your workspace"
+                        icon={FileText}
+                        tone={STAT_TONES.total}
+                        active={activeCardProgress === 'total'}
+                        onClick={() => updateParams({ progress: null })}
+                    />
+                    <StatCard
+                        title="Assigned"
+                        value={metrics.assignmentMetrics?.assigned || 0}
+                        subtitle={`${metrics.assignmentMetrics?.unassigned || 0} unassigned`}
+                        icon={Users}
+                        tone={STAT_TONES.assigned}
+                        active={activeCardProgress === 'assigned'}
+                        onClick={() => updateParams({ progress: 'assigned' })}
+                    />
+                    <StatCard
+                        title="In Progress"
+                        value={metrics.progressMetrics?.inProgress || 0}
+                        subtitle="Active assessments"
+                        icon={Clock}
+                        tone={STAT_TONES.inProgress}
+                        active={activeCardProgress === 'in_progress'}
+                        onClick={() => updateParams({ progress: 'in_progress' })}
+                    />
+                    <StatCard
+                        title="Completed"
+                        value={metrics.progressMetrics?.completed || 0}
+                        subtitle="Finished assessments"
+                        icon={CheckCircle}
+                        tone={STAT_TONES.completed}
+                        active={activeCardProgress === 'completed'}
+                        onClick={() => updateParams({ progress: 'completed' })}
+                    />
+                </div>
+
+                <section className={cn(shellClass, 'overflow-hidden')}>
+                    <div className="flex flex-col gap-4 border-b border-[#EEF2F6] bg-gradient-to-r from-[#F8FBFF] via-white to-[#F7FFFB] px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-base font-semibold text-[#101928]">
+                                Assessment Activity Snapshot
+                            </h2>
+                            <p className="mt-0.5 text-sm text-[#667085]">
+                                Review throughput for {snapshot?.monthLabel ?? 'this period'}
+                            </p>
+                        </div>
+                        <div className="inline-flex rounded-full border border-[#E4E7EC] bg-[#F8FAFC] p-1 shadow-inner">
+                            <button
+                                type="button"
+                                disabled={isRefreshingMetrics}
+                                onClick={() => updateParams({ period: 'current' }, { resetPage: false })}
+                                className={cn(
+                                    'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all',
+                                    period === 'current'
+                                        ? 'bg-white text-[#266DD3] shadow-sm'
+                                        : 'text-[#667085] hover:text-[#101928]',
+                                )}
+                            >
+                                This month
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isRefreshingMetrics}
+                                onClick={() =>
+                                    updateParams({ period: 'previous-month' }, { resetPage: false })
+                                }
+                                className={cn(
+                                    'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all',
+                                    period === 'previous-month'
+                                        ? 'bg-white text-[#266DD3] shadow-sm'
+                                        : 'text-[#667085] hover:text-[#101928]',
+                                )}
+                            >
+                                Previous month
+                            </button>
+                        </div>
                     </div>
-                )}
-            </ChartShell>
+                    <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-3">
+                        <SnapshotStat
+                            label="Avg. time to complete a review"
+                            value={
+                                snapshot?.avgCompletionDays != null
+                                    ? `${snapshot.avgCompletionDays} days`
+                                    : '—'
+                            }
+                            hint="From first assessment start to full completion"
+                        />
+                        <SnapshotStat
+                            label="Assessments completed this week"
+                            value={String(snapshot?.assessmentsCompletedThisWeek ?? 0)}
+                            hint="Core-area assessments marked completed"
+                        />
+                        <SnapshotStat
+                            label="Assessments completed this month"
+                            value={String(snapshot?.assessmentsCompletedThisMonth ?? 0)}
+                            hint={snapshot?.monthLabel ?? 'Selected month'}
+                            loading={isRefreshingMetrics}
+                        />
+                    </div>
+                </section>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <ChartShell
-                    title="Assignment Distribution"
-                    description="Assigned vs unassigned charities"
-                >
-                    <DonutChart
-                        data={assignmentPieData}
-                        colors={['#266DD3', '#E4E7EC']}
-                        centerLabel="Total"
-                        centerValue={assignmentTotal}
-                    />
-                </ChartShell>
+                <section className={cn(shellClass, 'overflow-hidden')}>
+                    <div className="space-y-4 border-b border-[#EEF2F6] px-5 py-5">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <h2 className="text-base font-semibold text-[#101928]">
+                                    All Assessment Charities
+                                </h2>
+                                <p className="mt-0.5 text-sm text-[#667085]">
+                                    Status, scores, and next assessment due. Combine filters as needed.
+                                </p>
+                            </div>
+                            <span className="inline-flex w-fit items-center rounded-full border border-[#E8EEF5] bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-semibold text-[#667085]">
+                                {meta ? `${meta.total} charities` : '—'}
+                            </span>
+                        </div>
 
-                <ChartShell
-                    title="Assessment Progress"
-                    description="Completion status across charities"
-                >
-                    <DonutChart
-                        data={progressPieData}
-                        colors={['#10B981', '#3B82E8', '#D0D5DD']}
-                        centerLabel="Total"
-                        centerValue={progressTotal}
-                        emptyMessage="No assessment progress data"
-                    />
-                </ChartShell>
+                        <div className="rounded-2xl border border-[#EEF2F6] bg-[#F8FAFC]/80 p-3">
+                            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+                                <div className="relative xl:col-span-2">
+                                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                                    <Input
+                                        value={searchInput}
+                                        onChange={(e) => setSearchInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                updateParams({ search: searchInput.trim() || null })
+                                            }
+                                        }}
+                                        placeholder="Search charities…"
+                                        className={cn(filterControlClass, 'pl-10')}
+                                    />
+                                </div>
 
-                <ChartShell
-                    title="Eligibility Overview"
-                    description="Eligibility outcomes breakdown"
-                >
-                    <DonutChart
-                        data={eligibilityPieData}
-                        colors={CHART_COLORS.slice(2)}
-                        centerLabel="Total"
-                        centerValue={eligibilityTotal}
-                        emptyMessage="No eligibility data"
-                    />
-                </ChartShell>
+                                <Select
+                                    value={progress ?? 'all'}
+                                    onValueChange={(value) =>
+                                        updateParams({ progress: value === 'all' ? null : value })
+                                    }
+                                >
+                                    <SelectTrigger className={filterControlClass}>
+                                        <SelectValue placeholder="Progress" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All progress</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                        <SelectItem value="in_progress">In progress</SelectItem>
+                                        <SelectItem value="assigned">Assigned</SelectItem>
+                                        <SelectItem value="not_started">Not started</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={countryCode}
+                                    onValueChange={(value) => updateParams({ country: value })}
+                                >
+                                    <SelectTrigger className={filterControlClass}>
+                                        <SelectValue placeholder="Country" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {COUNTRY_OPTIONS.map((opt) => (
+                                            <SelectItem key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={sortBy}
+                                    onValueChange={(value) => updateParams({ sortBy: value })}
+                                >
+                                    <SelectTrigger className={filterControlClass}>
+                                        <SelectValue placeholder="Sort" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="updatedAt">Most recent</SelectItem>
+                                        <SelectItem value="createdAt">Date created</SelectItem>
+                                        <SelectItem value="completedAt">Assessment completed</SelectItem>
+                                        <SelectItem value="overallScorePercent">Overall score</SelectItem>
+                                        <SelectItem value="name">Name</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="date"
+                                        value={completedFrom}
+                                        onChange={(e) =>
+                                            updateParams({ completedFrom: e.target.value || null })
+                                        }
+                                        className={filterControlClass}
+                                        aria-label="Completed from"
+                                    />
+                                    <span className="shrink-0 text-xs font-medium text-[#98A2B3]">to</span>
+                                    <Input
+                                        type="date"
+                                        value={completedTo}
+                                        onChange={(e) =>
+                                            updateParams({ completedTo: e.target.value || null })
+                                        }
+                                        className={filterControlClass}
+                                        aria-label="Completed to"
+                                    />
+                                </div>
+
+                                <Select
+                                    value={minCore1 || 'any'}
+                                    onValueChange={(value) =>
+                                        updateParams({ minCore1: value === 'any' ? null : value })
+                                    }
+                                >
+                                    <SelectTrigger className={filterControlClass}>
+                                        <SelectValue placeholder="CA1 score" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="any">CA1 any</SelectItem>
+                                        <SelectItem value="8">CA1 ≥ 8/10</SelectItem>
+                                        <SelectItem value="10">CA1 = 10/10</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={minCore2 || 'any'}
+                                    onValueChange={(value) =>
+                                        updateParams({ minCore2: value === 'any' ? null : value })
+                                    }
+                                >
+                                    <SelectTrigger className={filterControlClass}>
+                                        <SelectValue placeholder="CA2 score" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="any">CA2 any</SelectItem>
+                                        <SelectItem value="26">CA2 ≥ 26/40</SelectItem>
+                                        <SelectItem value="33">CA2 ≥ 33/40</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={topRated ? 'default' : 'outline'}
+                                        className={cn(
+                                            'h-10 rounded-xl px-3.5',
+                                            topRated
+                                                ? 'bg-[#266DD3] hover:bg-[#1f5bb5]'
+                                                : 'border-[#E4E7EC] bg-white text-[#344054]',
+                                        )}
+                                        onClick={() =>
+                                            updateParams({ topRated: topRated ? null : 'true' })
+                                        }
+                                    >
+                                        Top rated (80+)
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-10 rounded-xl text-[#667085] hover:bg-white hover:text-[#101928]"
+                                        onClick={() => {
+                                            setSearchInput('')
+                                            router.replace(pathname, { scroll: false })
+                                        }}
+                                    >
+                                        Clear filters
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="w-full overflow-hidden">
+                        <Table className="w-full table-fixed">
+                            <TableHeader>
+                                <TableRow className="border-[#EEF2F6] bg-[#FAFBFC]/90 hover:bg-[#FAFBFC]/90">
+                                    {columns.map((col) => (
+                                        <TableHead
+                                            key={col.id}
+                                            className={cn(
+                                                'h-10 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#98A2B3]',
+                                                col.className,
+                                            )}
+                                        >
+                                            {col.header}
+                                        </TableHead>
+                                    ))}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoadingList ? (
+                                    <TableRow>
+                                        <TableCell colSpan={columns.length} className="h-44 text-center">
+                                            <div className="inline-flex items-center gap-2 text-sm text-[#667085]">
+                                                <Loader2 className="h-4 w-4 animate-spin text-[#266DD3]" />
+                                                Loading assessments…
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : rows.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={columns.length} className="h-44 text-center">
+                                            <p className="text-sm font-semibold text-[#344054]">
+                                                No charities match these filters
+                                            </p>
+                                            <p className="mt-1 text-xs text-[#98A2B3]">
+                                                Try clearing filters or selecting a different metric card.
+                                            </p>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    rows.map((row) => (
+                                        <TableRow
+                                            key={row.id}
+                                            className="border-[#F2F4F7] transition-colors hover:bg-[#F8FBFF]/90"
+                                        >
+                                            {columns.map((col) => (
+                                                <TableCell
+                                                    key={col.id}
+                                                    className={cn('px-2 py-2.5 align-middle', col.className)}
+                                                >
+                                                    {col.cell(row)}
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    {meta && meta.totalPages > 1 ? (
+                        <div className="flex items-center justify-between border-t border-[#EEF2F6] bg-[#FAFBFC]/60 px-5 py-3.5">
+                            <p className="text-xs font-medium text-[#667085]">
+                                Page {meta.page} of {meta.totalPages}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-9 rounded-xl border-[#E4E7EC] bg-white"
+                                    disabled={!meta.hasPrevPage || isLoadingList}
+                                    onClick={() =>
+                                        updateParams({ page: String(Math.max(1, page - 1)) }, {
+                                            resetPage: false,
+                                        })
+                                    }
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Prev
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-9 rounded-xl border-[#E4E7EC] bg-white"
+                                    disabled={!meta.hasNextPage || isLoadingList}
+                                    onClick={() =>
+                                        updateParams({ page: String(page + 1) }, { resetPage: false })
+                                    }
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    ) : null}
+                </section>
             </div>
         </div>
+    )
+}
+
+function SnapshotStat({
+    label,
+    value,
+    hint,
+    loading,
+}: {
+    label: string
+    value: string
+    hint: string
+    loading?: boolean
+}) {
+    return (
+        <div className="rounded-2xl border border-[#EEF2F6] bg-gradient-to-br from-[#FAFBFC] to-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">
+                {label}
+            </p>
+            <p className="mt-2.5 text-2xl font-bold tracking-tight text-[#101928]">
+                {loading ? <Loader2 className="h-5 w-5 animate-spin text-[#266DD3]" /> : value}
+            </p>
+            <p className="mt-1.5 text-[11px] leading-snug text-[#98A2B3]">{hint}</p>
+        </div>
+    )
+}
+
+function ScoreCell({
+    row,
+    area,
+    compact = false,
+}: {
+    row: AssessmentRow
+    area: AuditCoreAreaKey
+    compact?: boolean
+}) {
+    const review = row.reviews[area]
+    const displayMax =
+        area === 'core1'
+            ? AUDIT_DISPLAY_MAX.core1
+            : area === 'core2'
+              ? AUDIT_DISPLAY_MAX.core2
+              : area === 'core4'
+                ? AUDIT_DISPLAY_MAX.core4
+                : AUDIT_DISPLAY_MAX.core3Weightage
+
+    const score =
+        area === 'core3'
+            ? getZakatDisplayScores(review).weightageScore
+            : getAreaDisplayScore(review, displayMax)
+
+    const href = `/charities/${row.id}/assessments/${CORE_AREA_SLUG[area]}?preview-mode=true&country=${encodeURIComponent(row.countryCode || 'united-states')}`
+
+    if (score == null) {
+        return (
+            <span
+                className={cn(
+                    'inline-flex w-full items-center justify-center text-[#C4CDD8]',
+                    compact ? 'h-7 rounded-md bg-[#F8FAFC] text-[10px]' : 'text-xs',
+                )}
+                title={`${AUDIT_AREA_LABELS[area]} — no score`}
+            >
+                —
+            </span>
+        )
+    }
+
+    return (
+        <Link
+            href={href}
+            className={cn(
+                'inline-flex items-center justify-center font-mono font-semibold tabular-nums text-[#266DD3] transition-colors hover:bg-[#E0ECFF]',
+                compact
+                    ? 'h-7 w-full rounded-md bg-[#EEF4FD] px-1 text-[11px]'
+                    : 'rounded-lg bg-[#EEF4FD]/70 px-2 py-1 text-xs',
+            )}
+            title={`View ${AUDIT_AREA_LABELS[area]} details (${formatAuditScore(score)}/${displayMax})`}
+        >
+            {formatAuditScore(score)}
+            {!compact ? <span className="text-[#98A2B3]">/{displayMax}</span> : null}
+        </Link>
     )
 }
 

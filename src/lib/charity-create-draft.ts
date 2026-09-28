@@ -31,7 +31,10 @@ export type CharityCreateDraft = {
     submittedByEmail?: string | null
     isIslamic?: boolean
     doesCharityGiveZakat?: boolean
-    annualRevenue?: number
+    annualRevenue?: number | null
+    revenueThresholdBand?: 'above' | 'below' | 'unknown' | null
+    eligibilityRevenueOverride?: boolean
+    eligibilityRevenueOverrideReason?: string | null
     isEligible?: boolean
 }
 

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import { getDashboardMetricsAction } from '@/app/actions/charities'
 import { getMeAction } from '@/app/actions/users'
 import { redirect } from 'next/navigation'
@@ -24,11 +24,13 @@ const PmDashboardPage = async () => {
         return <NotAuthorized />
     }
 
-    const metricsRes = await getDashboardMetricsAction()
+    const metricsRes = await getDashboardMetricsAction('current')
     const metrics = metricsRes.payload?.data?.data || null
 
     return (
-        <PmDashboardComponent metrics={metrics} />
+        <Suspense fallback={<div className="p-6 text-sm text-[#667085]">Loading dashboard…</div>}>
+            <PmDashboardComponent metrics={metrics} />
+        </Suspense>
     )
 }
 

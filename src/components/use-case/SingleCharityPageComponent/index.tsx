@@ -34,7 +34,7 @@ import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
 import { addCharityCommentAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
-import { CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2 } from 'lucide-react'
+import { Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2 } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
 import ConfigureRoleModal from './models/ConfigureRoleModal'
 import { usePermissions } from '@/components/common/permissions-provider'
@@ -625,7 +625,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 <div className="relative border-b border-[#E8EEF5]/90 bg-gradient-to-br from-[#F8FBFF] via-white to-[#F4FBFD] p-5 lg:p-7">
                     <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
-                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <div className="mb-3 flex flex-wrap items-center gap-2">
                                 <span className="inline-flex items-center rounded-full border border-[#D9E8FB] bg-white/80 px-3 py-1 text-xs font-semibold text-[#266DD3] shadow-sm">
                                     Charity Profile
                                 </span>
@@ -634,10 +634,23 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                     color={getCharityStatusColor(status)}
                                 />
                             </div>
-                            <h1 className="text-2xl font-semibold tracking-[-0.03em] text-[#101928] sm:text-3xl">
-                                {charityTitle}
-                            </h1>
-                            <p className="mt-1.5 text-sm text-[#667085]">
+                            <div className="inline-flex max-w-full items-stretch overflow-hidden rounded-2xl border border-[#BFD6F5] bg-gradient-to-r from-[#E8F1FC] via-[#F3F8FE] to-[#EAF8FB] shadow-[0_8px_24px_rgba(38,109,211,0.12)]">
+                                <div className="w-1.5 shrink-0 bg-[#266DD3]" aria-hidden />
+                                <div className="flex min-w-0 items-center gap-3 px-4 py-3.5 sm:gap-4 sm:px-5 sm:py-4">
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#266DD3] text-white shadow-sm sm:h-12 sm:w-12">
+                                        <Building2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.25} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#266DD3]">
+                                            Charity name
+                                        </p>
+                                        <h1 className="mt-0.5 truncate text-2xl font-bold tracking-[-0.03em] text-[#0B1F3A] sm:text-[2rem] sm:leading-tight">
+                                            {charityTitle}
+                                        </h1>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="mt-2.5 text-sm text-[#667085]">
                                 Submitted by <span className="font-medium text-[#344054]">{charityOwnerName}</span>
                             </p>
                         </div>
@@ -830,7 +843,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             <InfoRow label="Assessment Requested:" value={assessmentRequested ? 'Yes' : 'No'} />
                             <InfoRow label="Annual Revenue:" value={typeof annualRevenue === 'number' ? `${getCurrencySymbol(country)}${annualRevenue.toLocaleString()}` : '-'} />
                             <InfoRow label="Muslim Charity:" value={isThisMuslimCharity ? 'Yes' : 'No'} />
-                            <InfoRow label="Pays Zakat:" value={doTheyPayZakat ? 'Yes' : 'No'} />
+                            <InfoRow label="Collects Zakah:" value={doTheyPayZakat ? 'Yes' : 'No'} />
                         </div>
                     </PremiumSectionCard>
                     <PremiumSectionCard

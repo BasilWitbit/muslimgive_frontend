@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useTransition } from 'react'
+import React, { useState, useEffect, useMemo, useTransition } from 'react'
 import {
     Accordion,
     AccordionContent,
@@ -18,6 +18,11 @@ import { useCharityNavigation } from '@/hooks/use-charity-navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, ClipboardList } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+    AUDIT_DISPLAY_MAX,
+    formatAuditScore,
+    getOverallDisplayScore,
+} from '@/lib/audit-score-display'
 
 type CoreAreaReview = {
     status: 'pending' | 'in_progress' | 'submitted' | 'completed' | 'draft';
@@ -71,9 +76,18 @@ const AssessmentHistoryLoader = () => (
     </div>
 )
 
+const OVERALL_PASS_THRESHOLD = 80
+
+const overallStatusMeta = {
+    incomplete: { label: 'Incomplete', bg: '#FFF7ED', text: '#C2410C', border: '#FDBA74' },
+    final: { label: 'Final', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
+} as const
+
 const AssessmentHistoryPage = () => {
     const [reviews, setReviews] = useState<CharityReviews | null>(null)
     const [charityTitle, setCharityTitle] = useState('')
+    const [overallScorePercent, setOverallScorePercent] = useState<number | null>(null)
+    const [overallScoreResult, setOverallScoreResult] = useState<'pass' | 'fail' | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [country, setCountry] = useState<'united-kingdom' | 'united-states' | 'canada'>('united-states')
     const [isBackPending, startBackTransition] = useTransition()
@@ -95,6 +109,16 @@ const AssessmentHistoryPage = () => {
                     const charityData = response.payload.data.data
                     setReviews(charityData.reviews)
                     setCharityTitle(charityData.name || '')
+                    setOverallScorePercent(
+                        typeof charityData.overallScorePercent === 'number'
+                            ? charityData.overallScorePercent
+                            : null,
+                    )
+                    setOverallScoreResult(
+                        charityData.overallScoreResult === 'pass' || charityData.overallScoreResult === 'fail'
+                            ? charityData.overallScoreResult
+                            : null,
+                    )
                     const raw = String(charityData.countryCode || 'united-states').toLowerCase()
                     const normalized = raw === 'uk' || raw === 'united kingdom' || raw === 'united-kingdom'
                         ? 'united-kingdom'
@@ -168,6 +192,28 @@ const AssessmentHistoryPage = () => {
         }
     }
 
+    const overallSummary = useMemo(() => {
+        if (!reviews) return null
+
+        const overallScore = getOverallDisplayScore(reviews, overallScorePercent)
+        const allAreasComplete = reviews.summary.completed >= reviews.summary.total
+        const derivedResult =
+            overallScoreResult ??
+            (overallScore !== null
+                ? (overallScore >= OVERALL_PASS_THRESHOLD ? 'pass' : 'fail')
+                : null)
+        const isFinal = overallScore !== null && (allAreasComplete || overallScoreResult !== null)
+
+        return {
+            score: overallScore,
+            result: isFinal ? derivedResult : null,
+            statusKey: isFinal ? 'final' as const : 'incomplete' as const,
+            statusHint: isFinal
+                ? 'Weighted total across all core areas (pass at 80+).'
+                : 'Overall score unlocks when every required core area has a score.',
+        }
+    }, [reviews, overallScorePercent, overallScoreResult])
+
     if (isLoading) {
         return <AssessmentHistoryLoader />
     }
@@ -181,6 +227,10 @@ const AssessmentHistoryPage = () => {
             </div>
         )
     }
+
+    const overallStatusStyle = overallSummary
+        ? overallStatusMeta[overallSummary.statusKey]
+        : overallStatusMeta.incomplete
 
     return (
         <div className="space-y-5 pb-6">
@@ -245,7 +295,7 @@ const AssessmentHistoryPage = () => {
                                 <AccordionItem
                                     key={eachAssessment}
                                     value={eachAssessment}
-                                    className="border-0 border-b border-[#EEF2F6] last:border-b-0"
+                                    className="border-0 border-b border-[#EEF2F6]"
                                 >
                                     <AccordionTrigger
                                         className={cn(
@@ -281,6 +331,81 @@ const AssessmentHistoryPage = () => {
                             )
                         })}
                     </Accordion>
+
+                    {overallSummary ? (
+                        <div className="relative border-t border-[#D9E8FB] bg-gradient-to-r from-[#F0F6FF] via-[#F8FBFF] to-[#F0FAFC] px-4 py-4 md:pl-5 md:pr-5">
+                            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#266DD3] via-[#3B82F6] to-[#5CD9F2]" />
+                            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[20px_minmax(88px,0.75fr)_minmax(0,1.4fr)_72px_88px_96px] md:items-center md:gap-3">
+                                <span className="hidden md:block" aria-hidden />
+                                <div className="flex min-w-0 items-center gap-2 md:contents">
+                                    <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-[#BFD6F5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#266DD3] shadow-sm">
+                                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#266DD3]" />
+                                        Overall
+                                    </span>
+                                    <div className="min-w-0 md:col-start-3">
+                                        <p className="truncate text-sm font-semibold text-[#101928]">
+                                            Combined score (all core areas)
+                                        </p>
+                                        <p className="mt-0.5 text-[11px] leading-snug text-[#667085]">
+                                            {overallSummary.statusHint}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 md:contents">
+                                    <div className="md:col-start-4 md:text-center">
+                                        <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
+                                            Result
+                                        </span>
+                                        {overallSummary.result ? (
+                                            <span
+                                                className={cn(
+                                                    'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                                    overallSummary.result === 'pass'
+                                                        ? 'bg-green-50 text-green-700'
+                                                        : 'bg-red-50 text-red-700',
+                                                )}
+                                            >
+                                                {overallSummary.result === 'pass' ? '✓ Pass' : '✕ Fail'}
+                                            </span>
+                                        ) : (
+                                            <span className="text-sm text-[#98A2B3]">—</span>
+                                        )}
+                                    </div>
+
+                                    <div className="md:col-start-5 md:text-center">
+                                        <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
+                                            Score
+                                        </span>
+                                        {overallSummary.score !== null ? (
+                                            <span className="font-mono text-sm font-bold tabular-nums text-[#266DD3]">
+                                                {formatAuditScore(overallSummary.score)}
+                                                <span className="text-[#98A2B3]"> / {AUDIT_DISPLAY_MAX.overall}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-sm text-[#98A2B3]">—</span>
+                                        )}
+                                    </div>
+
+                                    <div className="ml-auto md:col-start-6 md:ml-0 md:flex md:justify-end">
+                                        <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
+                                            Status
+                                        </span>
+                                        <span
+                                            className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold"
+                                            style={{
+                                                backgroundColor: overallStatusStyle.bg,
+                                                color: overallStatusStyle.text,
+                                                borderColor: overallStatusStyle.border,
+                                            }}
+                                        >
+                                            {overallStatusStyle.label}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
             </section>
         </div>

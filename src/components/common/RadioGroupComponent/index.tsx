@@ -9,6 +9,8 @@ export type RadioOption = {
     label: string;
     value: string;
     disabled?: boolean;
+    /** Optional descriptor shown under the option label */
+    description?: string;
 };
 
 export type RadioGroupControlledProps = {
@@ -85,14 +87,33 @@ const RadioGroupComponent = React.forwardRef<HTMLDivElement, RadioGroupControlle
                 >
                     {options.map((eachOption, index) => {
                         const itemId = `${baseId}-opt-${index}`;
+                        const isSelected = value !== undefined && String(value) === eachOption.value;
                         return (
-                            <div key={eachOption.value} className="flex items-center gap-3 cursor-pointer">
+                            <div
+                                key={eachOption.value}
+                                className={cn(
+                                    'flex items-start gap-3 cursor-pointer rounded-md border p-3 transition-colors',
+                                    eachOption.description
+                                        ? isSelected
+                                            ? 'border-[#266dd3]/40 bg-white shadow-sm'
+                                            : 'border-gray-200 hover:bg-gray-50'
+                                        : 'border-transparent p-0',
+                                )}
+                            >
                                 <RadioGroupItem
                                     value={eachOption.value}
                                     id={itemId}
                                     disabled={disabled || eachOption.disabled}
+                                    className="mt-0.5"
                                 />
-                                <Label htmlFor={itemId}>{eachOption.label}</Label>
+                                <Label htmlFor={itemId} className="cursor-pointer flex flex-col gap-1 w-full font-normal">
+                                    <span className="font-medium text-sm text-[#101928]">{eachOption.label}</span>
+                                    {eachOption.description ? (
+                                        <span className="text-xs text-[#667085] font-normal leading-snug">
+                                            {eachOption.description}
+                                        </span>
+                                    ) : null}
+                                </Label>
                             </div>
                         );
                     })}

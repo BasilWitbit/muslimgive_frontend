@@ -1,575 +1,671 @@
-﻿"use client"
+﻿'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import LinkComponent from '@/components/common/LinkComponent'
-import { ControlledTextFieldComponent } from '@/components/common/TextFieldComponent/ControlledTextFieldComponent'
-import DatePicker from '@/components/common/ControlledDatePickerComponent'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { CategoryEnum } from '@/components/use-case/CharitiesPageComponent/kanban/KanbanView'
-import CountrySelectComponent from '@/components/common/CountrySelectComponent'
-import type { CountriesInKebab } from '@/components/common/CountrySelectComponent/countries.types'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import EligibilitySuggestionCard, { buildEligibilitySuggestion } from '@/components/common/EligibilitySuggestionCard'
-import { LogoUploadComponent } from '@/components/common/LogoUploadComponent'
-import { uploadCharityLogoAction } from '@/app/actions/charities'
 import { toast } from 'sonner'
-import { getCurrencySymbol, getCurrencyCode } from '@/lib/utils'
+import { Plus, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Textarea } from '@/components/ui/textarea'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import { CategoryEnum } from '@/components/use-case/CharitiesPageComponent/kanban/KanbanView'
+import type { CountriesInKebab } from '@/components/common/CountrySelectComponent/countries.types'
+import { AutoCompleteComponent } from '@/components/common/AutoCompleteComponent'
+import { buildEligibilitySuggestion } from '@/components/common/EligibilitySuggestionCard'
 import {
     clearCharityCreateDraft,
+    resolveCharityCreateCountryCode,
     resolveCharityCreateDraft,
     saveCharityCreateDraft,
     type CharityCreateDraft,
 } from '@/lib/charity-create-draft'
+import { cn, getCurrencySymbol } from '@/lib/utils'
 
-const FIELD_FOCUS_ORDER = [
-    'name',
-    'country',
-    'category',
-    'otherCategory',
-    'startDate',
-    'startYear',
-    'ukCharityNumber',
-    'ukCharityCommissionUrl',
-    'caRegistrationNumber',
-    'caCraUrl',
-    'usEin',
-    'ceoName',
-    'submittedByName',
-    'submittedByEmail',
-    'isIslamic',
-    'paysZakat',
-    'annualRevenue',
-    'isEligible',
-] as const
+type RevenueBand = 'above' | 'below' | 'unknown' | ''
 
-const FIELD_ELEMENT_IDS: Record<(typeof FIELD_FOCUS_ORDER)[number], string> = {
-    name: 'charity-name',
-    country: 'field-country',
-    category: 'field-category',
-    otherCategory: 'other-category',
-    startDate: 'charity-startdate',
-    startYear: 'charity-startyear',
-    ukCharityNumber: 'uk-charity-number',
-    ukCharityCommissionUrl: 'uk-charity-commission',
-    caRegistrationNumber: 'ca-registration-number',
-    caCraUrl: 'ca-cra-link',
-    usEin: 'us-ein',
-    ceoName: 'ceo-name',
-    submittedByName: 'submitted-by-name',
-    submittedByEmail: 'submitted-by-email',
-    isIslamic: 'field-is-islamic',
-    paysZakat: 'field-pays-zakat',
-    annualRevenue: 'annual-revenue',
-    isEligible: 'field-is-eligible',
+type CharityRow = {
+    key: string
+    name: string
+    countryCode: CountriesInKebab | ''
+    category: string
+    otherCategory: string
+    startYear: string
+    regNumber: string
+    profileUrl: string
+    ceoName: string
+    submittedByEmail: string
+    assessmentRequested: boolean
+    isIslamic: 'yes' | 'no' | ''
+    collectsZakah: 'yes' | 'no' | ''
+    revenueBand: RevenueBand
+    annualRevenue: string
+    eligibilityOverride: boolean
+    overrideReason: string
+    isEligible: 'yes' | 'no' | ''
 }
 
-const FOCUSABLE_SELECTOR = 'input:not([type="hidden"]), textarea, select, button, [role="combobox"], [tabindex]:not([tabindex="-1"])'
-const SCROLL_TOP_OFFSET_PX = 112
+const emptyRow = (): CharityRow => ({
+    key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: '',
+    countryCode: '',
+    category: '',
+    otherCategory: '',
+    startYear: '',
+    regNumber: '',
+    profileUrl: '',
+    ceoName: '',
+    submittedByEmail: '',
+    assessmentRequested: false,
+    isIslamic: '',
+    collectsZakah: '',
+    revenueBand: '',
+    annualRevenue: '',
+    eligibilityOverride: false,
+    overrideReason: '',
+    isEligible: '',
+})
 
-function getScrollableAncestor(el: HTMLElement): HTMLElement | null {
-    let parent = el.parentElement
-    while (parent) {
-        const { overflowY } = window.getComputedStyle(parent)
-        const canScroll = overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay'
-        if (canScroll && parent.scrollHeight > parent.clientHeight + 1) {
-            return parent
-        }
-        parent = parent.parentElement
+const COUNTRY_OPTIONS: Array<{ value: CountriesInKebab; label: string }> = [
+    { value: 'united-kingdom', label: 'UK' },
+    { value: 'united-states', label: 'US' },
+    { value: 'canada', label: 'CA' },
+]
+
+const CURRENT_YEAR = new Date().getFullYear()
+const START_YEAR_OPTIONS = Array.from({ length: CURRENT_YEAR - 1899 }, (_, i) => String(CURRENT_YEAR - i))
+const START_YEAR_AUTOCOMPLETE_OPTIONS = START_YEAR_OPTIONS.map((year) => ({
+    value: year,
+    label: year,
+}))
+
+const cellInputClass =
+    'h-9 min-w-0 rounded-lg border-[#E4E7EC] bg-white px-2 text-xs shadow-none focus-visible:ring-[#266DD3]/30'
+
+function rowToDraft(row: CharityRow): CharityCreateDraft {
+    const resolvedCategory = row.category === 'other' ? (row.otherCategory || 'other') : row.category
+    const isUk = row.countryCode === 'united-kingdom'
+    const isCa = row.countryCode === 'canada'
+    const isUs = row.countryCode === 'united-states'
+    const revenueNum = row.annualRevenue.trim() ? Number(row.annualRevenue) : null
+
+    return {
+        name: row.name.trim(),
+        assessmentRequested: row.assessmentRequested,
+        countryCode: row.countryCode || undefined,
+        category: resolvedCategory,
+        otherCategory: row.category === 'other' ? row.otherCategory : null,
+        startYear: row.startYear.trim() ? Number(row.startYear) : null,
+        startDate: null,
+        ukCharityNumber: isUk ? row.regNumber || null : null,
+        ukCharityCommissionUrl: isUk ? row.profileUrl || null : null,
+        caRegistrationNumber: isCa ? row.regNumber || null : null,
+        caCraUrl: isCa ? row.profileUrl || null : null,
+        usEin: isUs ? row.regNumber || null : null,
+        usIrsUrl: isUs ? row.profileUrl || null : null,
+        ceoName: row.ceoName.trim(),
+        submittedByEmail: row.submittedByEmail.trim() || null,
+        isIslamic: row.isIslamic === 'yes',
+        doesCharityGiveZakat: row.collectsZakah === 'yes',
+        annualRevenue: revenueNum != null && !Number.isNaN(revenueNum) ? revenueNum : null,
+        revenueThresholdBand: row.revenueBand || null,
+        eligibilityRevenueOverride: row.eligibilityOverride,
+        eligibilityRevenueOverrideReason: row.eligibilityOverride ? row.overrideReason.trim() : null,
+        isEligible: row.isEligible === 'yes',
     }
+}
+
+function draftToRow(draft: CharityCreateDraft): CharityRow {
+    const countryCode = resolveCharityCreateCountryCode(draft.countryCode) ?? ''
+    const knownCategories = new Set(Object.keys(CategoryEnum))
+    const categoryValue = draft.category || ''
+    const isOther =
+        Boolean(draft.otherCategory) ||
+        (categoryValue !== '' && !knownCategories.has(categoryValue)) ||
+        categoryValue === 'other'
+
+    let regNumber = ''
+    let profileUrl = ''
+    if (countryCode === 'united-kingdom') {
+        regNumber = draft.ukCharityNumber || ''
+        profileUrl = draft.ukCharityCommissionUrl || ''
+    } else if (countryCode === 'canada') {
+        regNumber = draft.caRegistrationNumber || ''
+        profileUrl = draft.caCraUrl || ''
+    } else if (countryCode === 'united-states') {
+        regNumber = draft.usEin || ''
+        profileUrl = draft.usIrsUrl || ''
+    }
+
+    return {
+        ...emptyRow(),
+        name: draft.name || '',
+        countryCode,
+        category: isOther ? 'other' : categoryValue,
+        otherCategory: isOther ? draft.otherCategory || (knownCategories.has(categoryValue) ? '' : categoryValue) : '',
+        startYear: draft.startYear != null ? String(draft.startYear) : '',
+        regNumber,
+        profileUrl,
+        ceoName: draft.ceoName || '',
+        submittedByEmail: draft.submittedByEmail || '',
+        assessmentRequested: Boolean(draft.assessmentRequested),
+        isIslamic: draft.isIslamic === undefined ? '' : draft.isIslamic ? 'yes' : 'no',
+        collectsZakah: draft.doesCharityGiveZakat === undefined ? '' : draft.doesCharityGiveZakat ? 'yes' : 'no',
+        revenueBand: (draft.revenueThresholdBand as RevenueBand) || '',
+        annualRevenue: draft.annualRevenue != null ? String(draft.annualRevenue) : '',
+        eligibilityOverride: Boolean(draft.eligibilityRevenueOverride),
+        overrideReason: draft.eligibilityRevenueOverrideReason || '',
+        isEligible: draft.isEligible === undefined ? '' : draft.isEligible ? 'yes' : 'no',
+    }
+}
+
+function validateRow(row: CharityRow): string | null {
+    if (!row.name.trim()) return 'Name is required'
+    if (!row.countryCode) return 'Country is required'
+    if (!row.category) return 'Category is required'
+    if (row.category === 'other' && !row.otherCategory.trim()) return 'Other category is required'
+    if (!row.ceoName.trim()) return 'CEO name is required'
+    if (!row.isIslamic) return 'Islamic charity selection is required'
+    if (!row.collectsZakah) return 'Collects Zakah selection is required'
+    if (row.startYear.trim() && !START_YEAR_OPTIONS.includes(row.startYear.trim())) {
+        return 'Start year is invalid'
+    }
+    if (row.annualRevenue.trim() && (Number.isNaN(Number(row.annualRevenue)) || Number(row.annualRevenue) < 0)) {
+        return 'Annual revenue must be a valid number'
+    }
+
+    const revenueNum = row.annualRevenue.trim() ? Number(row.annualRevenue) : null
+    const band =
+        row.revenueBand ||
+        (revenueNum == null
+            ? ''
+            : revenueNum >= 500000
+              ? 'above'
+              : 'below')
+
+    if (band === 'below' && row.isEligible === 'yes' && !row.eligibilityOverride) {
+        return 'Below-threshold charities need a revenue override + reason to be eligible'
+    }
+    if (row.eligibilityOverride && !row.overrideReason.trim()) {
+        return 'Override reason is required'
+    }
+    if (!row.isEligible) return 'Eligibility selection is required'
+
+    if (row.countryCode === 'united-kingdom' && !row.regNumber.trim()) return 'Charity number is required'
+    if (row.countryCode === 'canada' && !row.regNumber.trim()) return 'Registration number is required'
+    if (row.countryCode === 'united-states' && !row.regNumber.trim()) return 'EIN is required'
+
     return null
 }
 
-function scrollElementIntoView(el: HTMLElement) {
-    const scrollParent = getScrollableAncestor(el)
-
-    if (!scrollParent) {
-        const top = window.scrollY + el.getBoundingClientRect().top - SCROLL_TOP_OFFSET_PX
-        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
-        return
-    }
-
-    const parentRect = scrollParent.getBoundingClientRect()
-    const elRect = el.getBoundingClientRect()
-    const top = scrollParent.scrollTop + (elRect.top - parentRect.top) - SCROLL_TOP_OFFSET_PX
-    scrollParent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
-}
-
-function scrollToFirstInvalidField(errors: Record<string, string>) {
-    const firstKey = FIELD_FOCUS_ORDER.find((key) => Boolean(errors[key]))
-    if (!firstKey) return
-
-    const el = document.getElementById(FIELD_ELEMENT_IDS[firstKey])
-    if (!el) return
-
-    const focusTarget = (
-        el.matches(FOCUSABLE_SELECTOR)
-            ? el
-            : el.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
-    ) ?? el
-
-    scrollElementIntoView(el)
-
-    // Native focus scroll as a fallback if custom scroll is ignored by the browser.
-    window.setTimeout(() => {
-        try {
-            focusTarget.focus({ preventScroll: false })
-        } catch {
-            focusTarget.focus()
-        }
-        scrollElementIntoView(el)
-    }, 50)
-}
-
 const CreateCharityStandalonePage = () => {
-    const [name, setName] = useState('')
-    const [logoUrl, setLogoUrl] = useState('')
-    const [isUploadingLogo, setIsUploadingLogo] = useState(false)
-    const [assessmentRequested, setAssessmentRequested] = useState(false)
-    const [country, setCountry] = useState<CountriesInKebab | ''>('')
-    const [category, setCategory] = useState<string>('')
-    const [otherCategory, setOtherCategory] = useState('')
-
-    const [startDateType, setStartDateType] = useState<'date' | 'year'>('date')
-    const [startDate, setStartDate] = useState<Date | undefined>(undefined)
-    const [startYear, setStartYear] = useState('')
-
-    const [ukCharityNumber, setUkCharityNumber] = useState('')
-    const [ukCharityCommissionUrl, setUkCharityCommissionUrl] = useState('')
-    const [caRegistrationNumber, setCaRegistrationNumber] = useState('')
-    const [caCraUrl, setCaCraUrl] = useState('')
-    const [usEin, setUsEin] = useState('')
-    const [usIrsUrl, setUsIrsUrl] = useState('')
-
-    const [ceoName, setCeoName] = useState('')
-    const [submittedByName, setSubmittedByName] = useState('')
-    const [submittedByEmail, setSubmittedByEmail] = useState('')
-
-    const [isIslamic, setIsIslamic] = useState<'yes' | 'no' | ''>('')
-    const [paysZakat, setPaysZakat] = useState<'yes' | 'no' | ''>('')
-    const [annualRevenue, setAnnualRevenue] = useState('')
-
-    const [isEligible, setIsEligible] = useState<'yes' | 'no' | ''>('')
-
-    const [errors, setErrors] = useState<{ [k: string]: string }>({})
-    const shouldScrollToErrorRef = React.useRef(false)
-
-    const categories = useMemo(() => Object.entries(CategoryEnum).map(([k, v]) => ({ id: k, label: v })), [])
-    const eligibilitySuggestion = useMemo(() => {
-        return buildEligibilitySuggestion({
-            annualRevenue: annualRevenue.trim() ? Number(annualRevenue) : null,
-            isIslamic: isIslamic === 'yes',
-            category,
-            assessmentRequested,
-            startDate: startDateType === 'date' ? startDate : null,
-            startYear: startDateType === 'year' ? startYear : null,
-            countryCode: country,
-        })
-    }, [annualRevenue, isIslamic, category, assessmentRequested, startDateType, startDate, startYear, country])
-
     const router = useRouter()
     const searchParams = useSearchParams()
+    const [rows, setRows] = useState<CharityRow[]>([emptyRow()])
+    const [hydrated, setHydrated] = useState(false)
+    const categories = useMemo(
+        () => Object.entries(CategoryEnum).map(([id, label]) => ({ id, label })),
+        [],
+    )
 
-    const isUk = country === 'united-kingdom'
-    const isCa = country === 'canada'
-    const isUs = country === 'united-states'
-
-    React.useEffect(() => {
-        const parsed = resolveCharityCreateDraft(searchParams.get('data'))
-        if (!parsed) return
-
-        if (parsed.name) setName(parsed.name)
-        if (parsed.logoUrl) setLogoUrl(parsed.logoUrl)
-        if (parsed.assessmentRequested) setAssessmentRequested(Boolean(parsed.assessmentRequested))
-        if (parsed.countryCode) setCountry(parsed.countryCode as CountriesInKebab)
-        if (parsed.category) setCategory(parsed.category)
-        if (parsed.otherCategory) setOtherCategory(parsed.otherCategory)
-        if (parsed.startDate) {
-            setStartDateType('date')
-            setStartDate(new Date(parsed.startDate))
+    useEffect(() => {
+        if (hydrated) return
+        const draft = resolveCharityCreateDraft(searchParams.get('data'))
+        if (draft) {
+            setRows([draftToRow(draft)])
         }
-        if (parsed.startYear) {
-            setStartDateType('year')
-            setStartYear(String(parsed.startYear))
-        }
-        if (parsed.ukCharityNumber) setUkCharityNumber(parsed.ukCharityNumber)
-        if (parsed.ukCharityCommissionUrl) setUkCharityCommissionUrl(parsed.ukCharityCommissionUrl)
-        if (parsed.caRegistrationNumber) setCaRegistrationNumber(parsed.caRegistrationNumber)
-        if (parsed.caCraUrl) setCaCraUrl(parsed.caCraUrl)
-        if (parsed.usEin) setUsEin(parsed.usEin)
-        if (parsed.usIrsUrl) setUsIrsUrl(parsed.usIrsUrl)
-        if (parsed.ceoName) setCeoName(parsed.ceoName)
-        if (parsed.submittedByName) setSubmittedByName(parsed.submittedByName)
-        if (parsed.submittedByEmail) setSubmittedByEmail(parsed.submittedByEmail)
-        if (parsed.isIslamic !== undefined) setIsIslamic(parsed.isIslamic ? 'yes' : 'no')
-        if (parsed.doesCharityGiveZakat !== undefined) setPaysZakat(parsed.doesCharityGiveZakat ? 'yes' : 'no')
-        if (parsed.annualRevenue !== undefined) setAnnualRevenue(String(parsed.annualRevenue))
-        if (parsed.isEligible !== undefined) setIsEligible(parsed.isEligible ? 'yes' : 'no')
-    }, [searchParams])
+        setHydrated(true)
+    }, [hydrated, searchParams])
 
-    React.useEffect(() => {
-        if (!shouldScrollToErrorRef.current) return
-        if (Object.keys(errors).length === 0) return
+    const updateRow = (key: string, patch: Partial<CharityRow>) => {
+        setRows((prev) =>
+            prev.map((row) => {
+                if (row.key !== key) return row
+                const next = { ...row, ...patch }
 
-        shouldScrollToErrorRef.current = false
+                // Auto-suggest eligibility when revenue band / islamic / category / age change
+                const revenueNum = next.annualRevenue.trim() ? Number(next.annualRevenue) : null
+                const effectiveBand =
+                    next.revenueBand ||
+                    (revenueNum == null ? '' : revenueNum >= 500000 ? 'above' : 'below')
 
-        let innerRaf = 0
-        const outerRaf = window.requestAnimationFrame(() => {
-            innerRaf = window.requestAnimationFrame(() => {
-                scrollToFirstInvalidField(errors)
-            })
-        })
+                if (
+                    patch.revenueBand !== undefined ||
+                    patch.annualRevenue !== undefined ||
+                    patch.isIslamic !== undefined ||
+                    patch.category !== undefined ||
+                    patch.startYear !== undefined ||
+                    patch.assessmentRequested !== undefined ||
+                    patch.eligibilityOverride !== undefined
+                ) {
+                    const suggestion = buildEligibilitySuggestion({
+                        annualRevenue:
+                            effectiveBand === 'above'
+                                ? 500000
+                                : effectiveBand === 'below'
+                                  ? 0
+                                  : revenueNum,
+                        isIslamic: next.isIslamic === 'yes',
+                        category: next.category,
+                        assessmentRequested: next.assessmentRequested,
+                        startYear: next.startYear || null,
+                        countryCode: next.countryCode || null,
+                    })
 
-        return () => {
-            window.cancelAnimationFrame(outerRaf)
-            if (innerRaf) window.cancelAnimationFrame(innerRaf)
-        }
-    }, [errors])
+                    const belowBlocked = effectiveBand === 'below' && !next.eligibilityOverride
+                    if (belowBlocked) {
+                        next.isEligible = 'no'
+                    } else if (patch.isEligible === undefined && next.isEligible === '') {
+                        next.isEligible = suggestion.suggestedEligible ? 'yes' : 'no'
+                    }
+                }
 
-    const handleLogoUpload = async (file: File) => {
-        setIsUploadingLogo(true)
-
-        try {
-            const res = await uploadCharityLogoAction(file)
-            if (res.ok && res.payload?.data?.url) {
-                const uploadedUrl = res.payload.data.url
-                setLogoUrl(uploadedUrl)
-                toast.success('Logo uploaded successfully!')
-            } else {
-                toast.error(res.message || 'Failed to upload logo')
-            }
-        } catch (error) {
-            console.error('Error uploading logo:', error)
-            toast.error('An error occurred while uploading the logo')
-        } finally {
-            setIsUploadingLogo(false)
-        }
+                return next
+            }),
+        )
     }
 
-    const handleLogoRemove = () => {
-        setLogoUrl('')
+    const addRow = () => setRows((prev) => [...prev, emptyRow()])
+
+    const removeRow = (key: string) => {
+        setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)))
     }
 
-    const onSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-        const next: { [k: string]: string } = {}
-        if (!name.trim()) next.name = 'Name is required'
-        if (!country) next.country = 'Country is required'
-        if (!category) next.category = 'Category is required'
-        if (category === 'other' && !otherCategory.trim()) next.otherCategory = 'Other category is required'
-
-        if (startDateType === 'date') {
-            if (!startDate) next.startDate = 'Start date is required'
-        } else {
-            if (!startYear.trim()) {
-                next.startYear = 'Start year is required'
-            } else if (!/^\d{4}$/.test(startYear.trim())) {
-                next.startYear = 'Start year must be a 4-digit year'
-            }
-        }
-
-        if (isUk) {
-            if (!ukCharityNumber.trim()) next.ukCharityNumber = 'Charity number is required'
-            if (!ukCharityCommissionUrl.trim()) next.ukCharityCommissionUrl = 'Charity Commission link is required'
-        }
-        if (isCa) {
-            if (!caRegistrationNumber.trim()) next.caRegistrationNumber = 'Registration number is required'
-            if (!caCraUrl.trim()) next.caCraUrl = 'CRA link is required'
-        }
-        if (isUs) {
-            if (!usEin.trim()) next.usEin = 'EIN is required'
-        }
-
-        if (!ceoName.trim()) next.ceoName = 'CEO name is required'
-        if (submittedByEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submittedByEmail)) {
-            next.submittedByEmail = 'Invalid email address'
-        }
-
-        if (!isIslamic) next.isIslamic = 'Is Islamic charity is required'
-        if (!paysZakat) next.paysZakat = 'Zakat selection is required'
-
-        if (!annualRevenue.trim()) {
-            next.annualRevenue = 'Annual revenue is required'
-        } else if (Number.isNaN(Number(annualRevenue)) || Number(annualRevenue) < 0) {
-            next.annualRevenue = 'Annual revenue must be a number greater than or equal to 0'
-        }
-
-        if (!isEligible) next.isEligible = 'Eligibility selection is required'
-
-        setErrors(next)
-        if (Object.keys(next).length > 0) {
-            shouldScrollToErrorRef.current = true
+    const goToPreview = (key: string) => {
+        const row = rows.find((r) => r.key === key)
+        if (!row) return
+        const validationError = validateRow(row)
+        if (validationError) {
+            toast.error(validationError)
             return
         }
-
-        const payload: CharityCreateDraft = {
-            name,
-            logoUrl: logoUrl || null,
-            assessmentRequested,
-            countryCode: country,
-            category,
-            otherCategory: otherCategory.trim() || null,
-            startDate: startDateType === 'date' && startDate ? startDate.toISOString().split('T')[0] : null,
-            startYear: startDateType === 'year' ? Number(startYear) : null,
-            ukCharityNumber: isUk ? ukCharityNumber : null,
-            ukCharityCommissionUrl: isUk ? ukCharityCommissionUrl : null,
-            caRegistrationNumber: isCa ? caRegistrationNumber : null,
-            caCraUrl: isCa ? caCraUrl : null,
-            usEin: isUs ? usEin : null,
-            usIrsUrl: isUs ? usIrsUrl || null : null,
-            ceoName,
-            submittedByName: submittedByName.trim() || null,
-            submittedByEmail: submittedByEmail.trim() || null,
-            isIslamic: isIslamic === 'yes',
-            doesCharityGiveZakat: paysZakat === 'yes',
-            annualRevenue: Number(annualRevenue),
-            isEligible: isEligible === 'yes',
-        }
-
-        saveCharityCreateDraft(payload)
-        const encoded = encodeURIComponent(JSON.stringify(payload))
-        router.push(`/charities/preview?data=${encoded}`)
+        const draft = rowToDraft(row)
+        saveCharityCreateDraft(draft)
+        router.push(`/charities/preview?data=${encodeURIComponent(JSON.stringify(draft))}`)
     }
 
     return (
-        <div className="p-6">
-            <form onSubmit={onSubmit} className="flex flex-col gap-6">
-                <div className="bg-white border rounded-md p-4">
-                    <div className="grid grid-cols-1 gap-4">
-                        <div>
-                            <Label htmlFor="charity-name" className="text-sm">Name of Charity <span className="text-red-500">*</span></Label>
-                            <ControlledTextFieldComponent id="charity-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="" />
-                            {errors.name ? <div className="text-xs text-red-500 mt-1">{errors.name}</div> : null}
-                        </div>
+        <div className="relative mx-auto w-full max-w-[1400px] pb-12">
+            <div className="pointer-events-none absolute inset-x-0 -top-4 h-40 rounded-[2rem] bg-[radial-gradient(ellipse_at_top,_rgba(38,109,211,0.07),_transparent_65%)]" />
 
-                        <div className="max-w-sm">
-                            <LogoUploadComponent
-                                label="Charity Logo (Optional)"
-                                description="Upload a logo for the charity"
-                                value={logoUrl}
-                                onFileUpload={handleLogoUpload}
-                                onRemove={handleLogoRemove}
-                                isUploading={isUploadingLogo}
-                                accept={['image/png', 'image/jpeg', 'image/jpg']}
-                                maxSizeBytes={5 * 1024 * 1024}
-                            />
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <Checkbox id="assessment-requested" checked={assessmentRequested} onCheckedChange={(v) => setAssessmentRequested(Boolean(v))} />
-                            <Label htmlFor="assessment-requested" className="text-sm">Assessment requested by charity?</Label>
-                        </div>
-
-                        <div id="field-country" className="max-w-sm scroll-mt-28">
-                            <Label className="text-sm">Select Country <span className="text-red-500">*</span></Label>
-                            <CountrySelectComponent
-                                value={country || undefined}
-                                onChange={(value) => setCountry(value)}
-                                allowedCountries={['united-kingdom', 'canada', 'united-states']}
-                                placeholder="Select Country"
-                            />
-                            {errors.country ? <div className="text-xs text-red-500 mt-1">{errors.country}</div> : null}
-                        </div>
-
-                        <div id="field-category" className="max-w-sm scroll-mt-28">
-                            <Label className="text-sm">Select the category of this charity <span className="text-red-500">*</span></Label>
-                            <Select key={category} value={category} onValueChange={(v) => setCategory(v)}>
-                                <SelectTrigger className="h-9 w-full">
-                                    <SelectValue placeholder="Select Category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map((c) => (
-                                        <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.category ? <div className="text-xs text-red-500 mt-1">{errors.category}</div> : null}
-                        </div>
-                        {category === 'other' ? (
-                            <div className="max-w-sm">
-                                <Label htmlFor="other-category" className="text-sm">Other category <span className="text-red-500">*</span></Label>
-                                <ControlledTextFieldComponent
-                                    id="other-category"
-                                    value={otherCategory}
-                                    onChange={(e) => setOtherCategory(e.target.value)}
-                                    placeholder="Enter category"
-                                />
-                                {errors.otherCategory ? <div className="text-xs text-red-500 mt-1">{errors.otherCategory}</div> : null}
-                            </div>
-                        ) : null}
-
-                        <div id="field-start-date" className="flex flex-col gap-3">
-                            <Label className="text-sm">Start date or Start Year <span className="text-red-500">*</span></Label>
-                            <RadioGroup value={startDateType} onValueChange={(val) => setStartDateType(val as 'date' | 'year')} className="flex flex-col gap-2">
-                                <div className="flex items-center gap-2">
-                                    <RadioGroupItem value="date" id="start-date" />
-                                    <Label htmlFor="start-date">Exact start date</Label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <RadioGroupItem value="year" id="start-year" />
-                                    <Label htmlFor="start-year">Start year only</Label>
-                                </div>
-                            </RadioGroup>
-                            {startDateType === 'date' ? (
-                                <div className="max-w-sm">
-                                    <DatePicker value={startDate} onChange={setStartDate} disabledFutureDates={true} id="charity-startdate" />
-                                    {errors.startDate ? <div className="text-xs text-red-500 mt-1">{errors.startDate}</div> : null}
-                                </div>
-                            ) : (
-                                <div className="max-w-sm">
-                                    <ControlledTextFieldComponent
-                                        id="charity-startyear"
-                                        value={startYear}
-                                        onChange={(e) => setStartYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                        placeholder="2___"
-                                        type="text"
-                                        inputMode="numeric"
-                                        maxLength={4}
-                                        pattern="\d{4}"
-                                    />
-                                    {errors.startYear ? <div className="text-xs text-red-500 mt-1">{errors.startYear}</div> : null}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-3">
-                            <Label className="text-sm">Website <span className="text-red-500">*</span></Label>
-                            {isUk ? (
-                                <div className="grid grid-cols-1 gap-3 max-w-lg">
-                                    <div>
-                                        <Label htmlFor="uk-charity-number" className="text-sm">Charity No <span className="text-red-500">*</span></Label>
-                                        <ControlledTextFieldComponent id="uk-charity-number" value={ukCharityNumber} onChange={(e) => setUkCharityNumber(e.target.value)} placeholder="" />
-                                        {errors.ukCharityNumber ? <div className="text-xs text-red-500 mt-1">{errors.ukCharityNumber}</div> : null}
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="uk-charity-commission" className="text-sm">Charity Commission Website link <span className="text-red-500">*</span></Label>
-                                        <ControlledTextFieldComponent id="uk-charity-commission" value={ukCharityCommissionUrl} onChange={(e) => setUkCharityCommissionUrl(e.target.value)} placeholder="https://" />
-                                        {errors.ukCharityCommissionUrl ? <div className="text-xs text-red-500 mt-1">{errors.ukCharityCommissionUrl}</div> : null}
-                                    </div>
-                                </div>
-                            ) : null}
-                            {isCa ? (
-                                <div className="grid grid-cols-1 gap-3 max-w-lg">
-                                    <div>
-                                        <Label htmlFor="ca-registration-number" className="text-sm">Registration No <span className="text-red-500">*</span></Label>
-                                        <ControlledTextFieldComponent id="ca-registration-number" value={caRegistrationNumber} onChange={(e) => setCaRegistrationNumber(e.target.value)} placeholder="" />
-                                        {errors.caRegistrationNumber ? <div className="text-xs text-red-500 mt-1">{errors.caRegistrationNumber}</div> : null}
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="ca-cra-link" className="text-sm">CRA Charity detail page link <span className="text-red-500">*</span></Label>
-                                        <ControlledTextFieldComponent id="ca-cra-link" value={caCraUrl} onChange={(e) => setCaCraUrl(e.target.value)} placeholder="https://" />
-                                        {errors.caCraUrl ? <div className="text-xs text-red-500 mt-1">{errors.caCraUrl}</div> : null}
-                                    </div>
-                                </div>
-                            ) : null}
-                            {isUs ? (
-                                <div className="grid grid-cols-1 gap-3 max-w-lg">
-                                    <div>
-                                        <Label htmlFor="us-ein" className="text-sm">EIN number <span className="text-red-500">*</span></Label>
-                                        <ControlledTextFieldComponent id="us-ein" value={usEin} onChange={(e) => setUsEin(e.target.value)} placeholder="" />
-                                        {errors.usEin ? <div className="text-xs text-red-500 mt-1">{errors.usEin}</div> : null}
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="us-irs-link" className="text-sm">IRS website link (optional)</Label>
-                                        <ControlledTextFieldComponent id="us-irs-link" value={usIrsUrl} onChange={(e) => setUsIrsUrl(e.target.value)} placeholder="https://" />
-                                    </div>
-                                </div>
-                            ) : null}
-                            {!isUk && !isCa && !isUs ? (
-                                <div className="text-sm text-muted-foreground">Select a country to enter the website details.</div>
-                            ) : null}
-                        </div>
-
-                        <div>
-                            <Label htmlFor="ceo-name" className="text-sm">CEO&apos;s name <span className="text-red-500">*</span></Label>
-                            <ControlledTextFieldComponent id="ceo-name" value={ceoName} onChange={(e) => setCeoName(e.target.value)} placeholder="" />
-                            {errors.ceoName ? <div className="text-xs text-red-500 mt-1">{errors.ceoName}</div> : null}
-                        </div>
-
-                        <div>
-                            <Label htmlFor="submitted-by-name" className="text-sm">Submitted by name (optional)</Label>
-                            <ControlledTextFieldComponent id="submitted-by-name" value={submittedByName} onChange={(e) => setSubmittedByName(e.target.value)} placeholder="" />
-                            {errors.submittedByName ? <div className="text-xs text-red-500 mt-1">{errors.submittedByName}</div> : null}
-                        </div>
-
-                        <div>
-                            <Label htmlFor="submitted-by-email" className="text-sm">Submitted by email (optional)</Label>
-                            <ControlledTextFieldComponent id="submitted-by-email" value={submittedByEmail} onChange={(e) => setSubmittedByEmail(e.target.value)} placeholder="" type="email" />
-                            <p className="text-xs text-muted-foreground mt-1">If provided, this person will receive emails from Zakah Advisor.</p>
-                            {errors.submittedByEmail ? <div className="text-xs text-red-500 mt-1">{errors.submittedByEmail}</div> : null}
-                        </div>
-
-                        <div className="flex flex-col gap-4">
-                            <div id="field-is-islamic" className="flex flex-col gap-2 scroll-mt-28">
-                                <Label className="text-sm">Is this an islamic charity <span className="text-red-500">*</span></Label>
-                                <RadioGroup value={isIslamic} onValueChange={(val) => setIsIslamic(val as 'yes' | 'no')} className="flex flex-col gap-2">
-                                    <div className="flex items-center gap-2">
-                                        <RadioGroupItem value="yes" id="islamic-yes" />
-                                        <Label htmlFor="islamic-yes">Yes</Label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <RadioGroupItem value="no" id="islamic-no" />
-                                        <Label htmlFor="islamic-no">No</Label>
-                                    </div>
-                                </RadioGroup>
-                                {errors.isIslamic ? <div className="text-xs text-red-500 mt-1">{errors.isIslamic}</div> : null}
-                            </div>
-
-                            <div id="field-pays-zakat" className="flex flex-col gap-2 scroll-mt-28">
-                                <Label className="text-sm">Do they pay zakat <span className="text-red-500">*</span></Label>
-                                <RadioGroup value={paysZakat} onValueChange={(val) => setPaysZakat(val as 'yes' | 'no')} className="flex flex-col gap-2">
-                                    <div className="flex items-center gap-2">
-                                        <RadioGroupItem value="yes" id="zakat-yes" />
-                                        <Label htmlFor="zakat-yes">Yes</Label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <RadioGroupItem value="no" id="zakat-no" />
-                                        <Label htmlFor="zakat-no">No</Label>
-                                    </div>
-                                </RadioGroup>
-                                {errors.paysZakat ? <div className="text-xs text-red-500 mt-1">{errors.paysZakat}</div> : null}
-                            </div>
-                        </div>
-
-                        <div className="max-w-sm">
-                            <Label htmlFor="annual-revenue" className="text-sm">
-                                Annual revenue (in {getCurrencySymbol(country)} {getCurrencyCode(country)})
-                                <span className="text-red-500">*</span>
-                            </Label>
-                            <ControlledTextFieldComponent id="annual-revenue" value={annualRevenue} onChange={(e) => setAnnualRevenue(e.target.value)} placeholder="" type="number" />
-                            {errors.annualRevenue ? <div className="text-xs text-red-500 mt-1">{errors.annualRevenue}</div> : null}
-                        </div>
-
-                        <div id="field-is-eligible" className="flex flex-col gap-2 scroll-mt-28">
-                            <Label className="text-sm">Is this charity eligible for review? <span className="text-red-500">*</span></Label>
-                            <EligibilitySuggestionCard suggestion={eligibilitySuggestion} />
-                            <RadioGroup value={isEligible} onValueChange={(val) => setIsEligible(val as 'yes' | 'no')} className="flex flex-col gap-2">
-                                <div className="flex items-center gap-2">
-                                    <RadioGroupItem value="yes" id="eligible-yes" />
-                                    <Label htmlFor="eligible-yes">Yes</Label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <RadioGroupItem value="no" id="eligible-no" />
-                                    <Label htmlFor="eligible-no">No</Label>
-                                </div>
-                            </RadioGroup>
-                            {errors.isEligible ? <div className="text-xs text-red-500 mt-1">{errors.isEligible}</div> : null}
-                        </div>
+            <div className="relative space-y-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="space-y-1">
+                        <h1 className="text-2xl font-bold tracking-tight text-[#101928]">Create Charity</h1>
+                        <p className="max-w-2xl text-sm text-[#667085]">
+                            Spreadsheet-style entry for one or many charities. Fill a row, preview the details, then
+                            create — return here afterward to keep adding.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 rounded-xl border-[#E4E7EC]"
+                            onClick={() => {
+                                clearCharityCreateDraft()
+                                router.push('/charities')
+                            }}
+                        >
+                            Back to charities
+                        </Button>
+                        <Button
+                            type="button"
+                            className="h-10 rounded-xl bg-[#266DD3] hover:bg-[#1f5bb5]"
+                            onClick={addRow}
+                        >
+                            <Plus className="mr-1.5 h-4 w-4" />
+                            Add row
+                        </Button>
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <Button variant="primary" type="submit">Preview Charity</Button>
-                    <LinkComponent to="/charities" onClick={clearCharityCreateDraft}>
-                        <Button variant="outline" type="button">Cancel</Button>
-                    </LinkComponent>
+                <div className="overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_10px_40px_rgba(15,23,42,0.05)]">
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[1280px] border-collapse text-left">
+                            <thead>
+                                <tr className="border-b border-[#EEF2F6] bg-[#FAFBFC]">
+                                    {[
+                                        'Charity',
+                                        'Country',
+                                        'Category',
+                                        'Start yr',
+                                        'Reg #',
+                                        'Profile URL',
+                                        'CEO',
+                                        'Islamic',
+                                        'Collects Zakah',
+                                        'Revenue',
+                                        'Amount',
+                                        'Eligible',
+                                        'Override',
+                                        '',
+                                    ].map((label) => (
+                                        <th
+                                            key={label || 'actions'}
+                                            className="whitespace-nowrap px-2.5 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#98A2B3]"
+                                        >
+                                            {label}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map((row) => {
+                                    const currency = getCurrencySymbol(row.countryCode || undefined)
+                                    const showOverride =
+                                        row.revenueBand === 'below' ||
+                                        (row.annualRevenue.trim() !== '' &&
+                                            !Number.isNaN(Number(row.annualRevenue)) &&
+                                            Number(row.annualRevenue) < 500000)
+
+                                    return (
+                                        <React.Fragment key={row.key}>
+                                            <tr className="border-b border-[#F2F4F7] align-top">
+                                                <td className="px-2.5 py-2">
+                                                    <Input
+                                                        value={row.name}
+                                                        onChange={(e) => updateRow(row.key, { name: e.target.value })}
+                                                        placeholder="Name *"
+                                                        className={cn(cellInputClass, 'min-w-[140px]')}
+                                                    />
+                                                    <label className="mt-1.5 flex items-center gap-1.5 text-[10px] text-[#667085]">
+                                                        <Checkbox
+                                                            checked={row.assessmentRequested}
+                                                            onCheckedChange={(v) =>
+                                                                updateRow(row.key, {
+                                                                    assessmentRequested: Boolean(v),
+                                                                })
+                                                            }
+                                                        />
+                                                        Assessment requested
+                                                    </label>
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Select
+                                                        value={row.countryCode || undefined}
+                                                        onValueChange={(v) =>
+                                                            updateRow(row.key, {
+                                                                countryCode: v as CountriesInKebab,
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger className={cn(cellInputClass, 'w-[88px]')}>
+                                                            <SelectValue placeholder="—" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {COUNTRY_OPTIONS.map((c) => (
+                                                                <SelectItem key={c.value} value={c.value}>
+                                                                    {c.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Select
+                                                        value={row.category || undefined}
+                                                        onValueChange={(v) => updateRow(row.key, { category: v })}
+                                                    >
+                                                        <SelectTrigger className={cn(cellInputClass, 'w-[130px]')}>
+                                                            <SelectValue placeholder="Category *" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {categories.map((c) => (
+                                                                <SelectItem key={c.id} value={c.id}>
+                                                                    {c.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    {row.category === 'other' ? (
+                                                        <Input
+                                                            value={row.otherCategory}
+                                                            onChange={(e) =>
+                                                                updateRow(row.key, { otherCategory: e.target.value })
+                                                            }
+                                                            placeholder="Other…"
+                                                            className={cn(cellInputClass, 'mt-1 w-[130px]')}
+                                                        />
+                                                    ) : null}
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <AutoCompleteComponent
+                                                        options={START_YEAR_AUTOCOMPLETE_OPTIONS}
+                                                        value={row.startYear || null}
+                                                        onValueChange={(v) =>
+                                                            updateRow(row.key, { startYear: v ?? '' })
+                                                        }
+                                                        placeholder="Year"
+                                                        inputPlaceholder="Search year…"
+                                                        emptyMessage="No year found."
+                                                        className="w-[108px]"
+                                                        triggerClassName={cn(
+                                                            cellInputClass,
+                                                            'h-9 justify-between px-2 font-normal shadow-none',
+                                                        )}
+                                                        contentClassName="w-[140px] p-0"
+                                                    />
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Input
+                                                        value={row.regNumber}
+                                                        onChange={(e) =>
+                                                            updateRow(row.key, { regNumber: e.target.value })
+                                                        }
+                                                        placeholder={
+                                                            row.countryCode === 'united-states'
+                                                                ? 'EIN *'
+                                                                : row.countryCode === 'canada'
+                                                                  ? 'CRA # *'
+                                                                  : 'Charity # *'
+                                                        }
+                                                        className={cn(cellInputClass, 'min-w-[110px]')}
+                                                    />
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Input
+                                                        value={row.profileUrl}
+                                                        onChange={(e) =>
+                                                            updateRow(row.key, { profileUrl: e.target.value })
+                                                        }
+                                                        placeholder="Link"
+                                                        className={cn(cellInputClass, 'min-w-[120px]')}
+                                                    />
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Input
+                                                        value={row.ceoName}
+                                                        onChange={(e) =>
+                                                            updateRow(row.key, { ceoName: e.target.value })
+                                                        }
+                                                        placeholder="CEO *"
+                                                        className={cn(cellInputClass, 'min-w-[110px]')}
+                                                    />
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Select
+                                                        value={row.isIslamic || undefined}
+                                                        onValueChange={(v) =>
+                                                            updateRow(row.key, {
+                                                                isIslamic: v as 'yes' | 'no',
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger className={cn(cellInputClass, 'w-[78px]')}>
+                                                            <SelectValue placeholder="—" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="yes">Yes</SelectItem>
+                                                            <SelectItem value="no">No</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Select
+                                                        value={row.collectsZakah || undefined}
+                                                        onValueChange={(v) =>
+                                                            updateRow(row.key, {
+                                                                collectsZakah: v as 'yes' | 'no',
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger className={cn(cellInputClass, 'w-[78px]')}>
+                                                            <SelectValue placeholder="—" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="yes">Yes</SelectItem>
+                                                            <SelectItem value="no">No</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    {row.collectsZakah === 'no' ? (
+                                                        <p className="mt-1 max-w-[90px] text-[9px] leading-snug text-[#98A2B3]">
+                                                            Zakah assessment excluded
+                                                        </p>
+                                                    ) : null}
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Select
+                                                        value={row.revenueBand || undefined}
+                                                        onValueChange={(v) =>
+                                                            updateRow(row.key, {
+                                                                revenueBand: v as RevenueBand,
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger className={cn(cellInputClass, 'w-[128px]')}>
+                                                            <SelectValue placeholder="Optional" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="above">Above threshold</SelectItem>
+                                                            <SelectItem value="below">Below threshold</SelectItem>
+                                                            <SelectItem value="unknown">Not known</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Input
+                                                        type="number"
+                                                        value={row.annualRevenue}
+                                                        onChange={(e) =>
+                                                            updateRow(row.key, { annualRevenue: e.target.value })
+                                                        }
+                                                        placeholder={`${currency} optional`}
+                                                        className={cn(cellInputClass, 'w-[110px]')}
+                                                    />
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <Select
+                                                        value={row.isEligible || undefined}
+                                                        disabled={showOverride && !row.eligibilityOverride}
+                                                        onValueChange={(v) =>
+                                                            updateRow(row.key, {
+                                                                isEligible: v as 'yes' | 'no',
+                                                            })
+                                                        }
+                                                    >
+                                                        <SelectTrigger className={cn(cellInputClass, 'w-[88px]')}>
+                                                            <SelectValue placeholder="—" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="yes">Yes</SelectItem>
+                                                            <SelectItem value="no">No</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    {showOverride ? (
+                                                        <label className="flex items-start gap-1.5 text-[10px] text-[#667085]">
+                                                            <Checkbox
+                                                                checked={row.eligibilityOverride}
+                                                                onCheckedChange={(v) =>
+                                                                    updateRow(row.key, {
+                                                                        eligibilityOverride: Boolean(v),
+                                                                        isEligible: v ? row.isEligible : 'no',
+                                                                    })
+                                                                }
+                                                            />
+                                                            Allow below threshold
+                                                        </label>
+                                                    ) : (
+                                                        <span className="text-[10px] text-[#C4CDD8]">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-2.5 py-2">
+                                                    <div className="flex min-w-[180px] items-start gap-1.5">
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            className="h-8 flex-1 rounded-lg bg-[#266DD3] hover:bg-[#1f5bb5]"
+                                                            onClick={() => goToPreview(row.key)}
+                                                        >
+                                                            Create Charity
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-8 w-8 rounded-lg p-0 text-[#98A2B3]"
+                                                            disabled={rows.length <= 1}
+                                                            onClick={() => removeRow(row.key)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {showOverride && row.eligibilityOverride ? (
+                                                <tr className="border-b border-[#F2F4F7] bg-amber-50/40">
+                                                    <td colSpan={14} className="px-3 py-2.5">
+                                                        <Label className="mb-1 block text-[11px] font-medium text-amber-900">
+                                                            Override reason <span className="text-rose-500">*</span>
+                                                        </Label>
+                                                        <Textarea
+                                                            value={row.overrideReason}
+                                                            onChange={(e) =>
+                                                                updateRow(row.key, {
+                                                                    overrideReason: e.target.value,
+                                                                })
+                                                            }
+                                                            placeholder="Explain why assessment should continue despite being below the revenue threshold…"
+                                                            className="min-h-[64px] rounded-xl border-amber-200 bg-white text-sm"
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                        </React.Fragment>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-[#EEF2F6] bg-[#FAFBFC]/80 px-4 py-3">
+                        <p className="text-xs text-[#667085]">
+                            Revenue threshold is {getCurrencySymbol()}500k. If unknown, create now — Financial Assessment
+                            will update the figure later. If Collects Zakah is No, Zakah scoring is excluded.
+                        </p>
+                        <Button type="button" variant="outline" className="h-9 rounded-xl" onClick={addRow}>
+                            <Plus className="mr-1.5 h-4 w-4" />
+                            Add another charity
+                        </Button>
+                    </div>
                 </div>
-            </form>
+            </div>
         </div>
     )
 }
 
-export default CreateCharityStandalonePage
+export default function CreateCharityPage() {
+    return (
+        <Suspense fallback={<div className="p-6 text-sm text-[#667085]">Loading…</div>}>
+            <CreateCharityStandalonePage />
+        </Suspense>
+    )
+}

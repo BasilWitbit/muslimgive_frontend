@@ -45,12 +45,13 @@ const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }
     const reviewsFromReport = {
         core1: coreAreas.find((area: any) => area.coreArea === 1) ?? { status: 'pending', score: null, totalScore: 10, result: null },
         core2: coreAreas.find((area: any) => area.coreArea === 2) ?? { status: 'pending', score: null, totalScore: 40, result: null },
-        core3: coreAreas.find((area: any) => area.coreArea === 3) ?? { status: 'pending', score: null, totalScore: 76, result: null },
+        core3: coreAreas.find((area: any) => area.coreArea === 3) ?? { status: 'pending', score: null, totalScore: AUDIT_DISPLAY_MAX.core3Weightage, result: null },
         core4: coreAreas.find((area: any) => area.coreArea === 4) ?? { status: 'pending', score: null, totalScore: 10, result: null },
     }
 
     const overallScore = getOverallDisplayScore(reviewsFromReport, summary.overallScorePercent)
     const resultText = summary.overallScoreResult ? summary.overallScoreResult.toUpperCase() : 'N/A'
+    const finalRating: { rating: string; zakatCaution: boolean; reasons: string[] } | null = summary.finalRating ?? null
 
     return (
         <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
@@ -87,7 +88,31 @@ const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }
                         <TypographyComponent variant="caption" className="text-[#667085]">Assessments Completed</TypographyComponent>
                         <TypographyComponent variant="body2" className="font-semibold">{summary.assessmentsCompleted}/{summary.assessmentsTotal}</TypographyComponent>
                     </div>
+                    <div>
+                        <TypographyComponent variant="caption" className="text-[#667085]">Final Rating</TypographyComponent>
+                        {finalRating ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                                {finalRating.rating === 'Not Assessed' ? (
+                                    <TypographyComponent variant="body2" className="font-semibold">Not Assessed</TypographyComponent>
+                                ) : (
+                                    <RatingBandBadge ratingBand={finalRating.rating as RatingBand} />
+                                )}
+                                {finalRating.zakatCaution ? (
+                                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">Caution</span>
+                                ) : null}
+                            </div>
+                        ) : (
+                            <TypographyComponent variant="body2" className="font-semibold">N/A</TypographyComponent>
+                        )}
+                    </div>
                 </div>
+                {finalRating?.reasons?.length ? (
+                    <ul className="mt-3 list-disc pl-5 text-xs text-[#667085]">
+                        {finalRating.reasons.map((reason, idx) => (
+                            <li key={idx}>{reason}</li>
+                        ))}
+                    </ul>
+                ) : null}
             </div>
 
             <div className="flex flex-col gap-4">
@@ -130,6 +155,33 @@ const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }
                                     <TypographyComponent variant="caption" className="block text-[#667085] font-mono tabular-nums">
                                         Overall Weightage: {formatAuditScore(zakatScores.weightageScore)}/{AUDIT_DISPLAY_MAX.core3Weightage}
                                     </TypographyComponent>
+                                    {area.ratingBand ? (
+                                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                                            <RatingBandBadge ratingBand={area.ratingBand as RatingBand} />
+                                            {area.zakat?.caution ? (
+                                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">Caution</span>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
+                                    {area.zakat ? (
+                                        <>
+                                            <TypographyComponent variant="caption" className="block text-[#667085] font-mono tabular-nums">
+                                                Mandatory Metrics: {formatAuditScore(area.zakat.mandatoryScore)}/{area.zakat.mandatoryMax}
+                                            </TypographyComponent>
+                                            <TypographyComponent variant="caption" className="block text-[#667085]">
+                                                Donor Support Profile: {area.zakat.donorSupport.profile} ({formatAuditScore(area.zakat.donorSupport.score)}/{area.zakat.donorSupport.max})
+                                            </TypographyComponent>
+                                            {area.zakat.publicLabels?.length ? (
+                                                <ul className="mt-2 list-disc pl-5 text-sm text-[#101928]">
+                                                    {area.zakat.publicLabels.map((item: { id: string; title: string; label: string }) => (
+                                                        <li key={item.id}>
+                                                            <span className="text-[#667085]">{item.title}:</span> {item.label}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : null}
+                                        </>
+                                    ) : null}
                                 </>
                             ) : (
                                 <TypographyComponent variant="caption" className="text-[#667085] font-mono tabular-nums">

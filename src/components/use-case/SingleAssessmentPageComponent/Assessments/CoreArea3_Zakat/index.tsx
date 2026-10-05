@@ -12,11 +12,15 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Check, Link } from 'lucide-react';
-import { CRITERIA_OPTION_TEXT } from './CRITERIA_OPTION_TEXT';
 import {
+    DONOR_SUPPORT_SECTION_ID,
     formatScore,
+    getDiscretionaryRating,
     getEarnedScoreForCriterion,
     getGroupScoreSummary,
+    getOptionText,
+    getRatingOptions,
+    isDiscretionarySelection,
 } from './scoring';
 import { cn } from '@/lib/utils';
 import { useRouteLoader } from '@/components/common/route-loader-provider';
@@ -37,7 +41,8 @@ type RubricSection = {
     id: string;
     title: string;
     maxScore: number;
-    optional: boolean;
+    optional?: boolean;
+    scored?: boolean;
 };
 
 type RubricCriterion = {
@@ -48,7 +53,9 @@ type RubricCriterion = {
     sectionTitle: string;
     label: string;
     pointsPossible: number;
-    isDiscretionary: boolean;
+    isDiscretionary?: boolean;
+    discretionaryRating?: string | null;
+    options?: Partial<Record<string, string>>;
 };
 
 type Rubric = {
@@ -58,22 +65,15 @@ type Rubric = {
 };
 
 type AnswerItem = {
-    rating: 'strong' | 'moderate' | 'needs_improvement' | 'concern' | null;
+    rating: string | null;
     discretionary_points?: number | null;
     links?: string[];
     note?: string;
 };
 
-const RATING_OPTIONS = [
-    { value: 'strong', label: 'Strong' },
-    { value: 'moderate', label: 'Moderate' },
-    { value: 'needs_improvement', label: 'Needs Improvement' },
-    { value: 'concern', label: 'Concern' },
-] as const;
-
 const isCriterionComplete = (criterion: RubricCriterion, ans?: AnswerItem): boolean => {
     if (!ans?.rating) return false;
-    if (criterion.isDiscretionary && ans.rating === 'moderate') {
+    if (isDiscretionarySelection(criterion, ans.rating)) {
         return ans.discretionary_points !== null && ans.discretionary_points !== undefined;
     }
     return true;
@@ -228,10 +228,9 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
             return false;
         }
 
-        // Validate: discretionary criteria rated 'moderate' must have discretionary_points
         const missingDiscretionary = rubric.criteria.filter(c => {
             const ans = answers[c.id];
-            return c.isDiscretionary && ans?.rating === 'moderate' && (ans.discretionary_points === null || ans.discretionary_points === undefined);
+            return isDiscretionarySelection(c, ans?.rating) && (ans.discretionary_points === null || ans.discretionary_points === undefined);
         });
         if (missingDiscretionary.length > 0) {
             const ids = missingDiscretionary.map(c => c.id).join(', ');
@@ -248,7 +247,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
             for (const [criterionId, ans] of Object.entries(answers)) {
                 const criterion = rubric.criteria.find(c => c.id === criterionId);
                 const cleaned: any = { rating: ans.rating };
-                if (criterion?.isDiscretionary && ans.rating === 'moderate' && ans.discretionary_points != null) {
+                if (criterion && isDiscretionarySelection(criterion, ans.rating) && ans.discretionary_points != null) {
                     cleaned.discretionary_points = ans.discretionary_points;
                 }
                 if (ans.note) cleaned.note = ans.note;
@@ -563,12 +562,24 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                     <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900">
                         <span className="font-semibold">Note for assessors: </span>
                         Findings may not always match with the specific criteria outlined under the assessment options of &ldquo;Moderate&rdquo; and &ldquo;Needs Improvement.&rdquo; The Assessor should use their own discretion in such cases, and, if necessary, add a note.
+                        {rubric.version === 'v15' && (
+                            <span className="mt-2 block">
+                                Strong 100% · Moderate 67% · Needs Improvement 33% · Concern 0% of each criterion&rsquo;s points. Where a criterion lists 3 sub-elements: 1 met = Needs Improvement, 2 met = Moderate.
+                                Mandatory Metrics (/30): 30 has no effect; above 24 and below 30 adds Caution; 24 or below makes the Zakat rating Concern.
+                            </span>
+                        )}
                     </div>
                 )}
 
             <div className="mb-8 flex flex-col gap-6">
                 <div>
                     <h2 className="text-xl font-bold text-gray-900">{getSectionDisplayTitle(currentSection, step)}</h2>
+                    {currentSection.id === DONOR_SUPPORT_SECTION_ID && (
+                        <div className="mt-4 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-relaxed text-blue-900">
+                            Separate Charity Services review (13 points). It sets the Donor Support Profile only and does not change the Zakat score out of 80 or the Mandatory outcome.
+                            Per criterion: Comprehensive 1 · Broad 0.75 · Moderate 0.5 · Basic 0.25 · None 0.
+                        </div>
+                    )}
                     {currentSection.optional && canEdit && (
                         <div className="mt-4 flex items-center space-x-2 bg-blue-50 p-4 rounded-md border border-blue-100">
                             <Switch
@@ -600,6 +611,8 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                 const ans = answers[criterion.id] || { rating: null };
                                 const hasNotesOrLinks = Boolean(ans.note?.trim() || ans.links?.length);
                                 const earnedScore = getEarnedScoreForCriterion(criterion, ans);
+                                const ratingOptions = getRatingOptions(criterion);
+                                const discretionaryRating = getDiscretionaryRating(criterion);
                                 return (
                                     <div key={criterion.id} id={`criterion-${criterion.id}`} className="flex flex-col gap-4 border-b pb-6 last:border-0 last:pb-0 border-gray-100 scroll-mt-4">
                                         <div className="flex items-start justify-between gap-3">
@@ -623,10 +636,13 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                                     }))
                                                 }}
                                                 disabled={!canEdit}
-                                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+                                                className={cn(
+                                                    'grid grid-cols-1 sm:grid-cols-2 gap-3',
+                                                    ratingOptions.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4',
+                                                )}
                                             >
-                                                {RATING_OPTIONS.map(opt => {
-                                                    const optionText = CRITERIA_OPTION_TEXT[criterion.id]?.[opt.value];
+                                                {ratingOptions.map(opt => {
+                                                    const optionText = getOptionText(criterion, opt.value);
                                                     return (
                                                         <div key={opt.value} className={`flex items-center space-x-2 border rounded-md p-3 transition-colors ${ans.rating === opt.value ? 'bg-white border-primary shadow-sm' : 'border-gray-200 hover:bg-gray-100'}`}>
                                                             <RadioGroupItem value={opt.value} id={`${criterion.id}-${opt.value}`} />
@@ -640,10 +656,10 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                             </RadioGroup>
                                         </div>
 
-                                        {criterion.isDiscretionary && ans.rating === 'moderate' && (
+                                        {discretionaryRating && isDiscretionarySelection(criterion, ans.rating) && (
                                             <div className="flex flex-col gap-1 mt-2 bg-amber-50 border border-amber-200 rounded-md p-3">
                                                 <Label className="text-sm font-medium text-amber-900">
-                                                    {CRITERIA_OPTION_TEXT[criterion.id]?.moderate || "At Assessor's Discretion"}{' '}
+                                                    {getOptionText(criterion, discretionaryRating) || "At Assessor's Discretion"}{' '}
                                                     <span className="text-red-500">*</span>
                                                 </Label>
                                                 <p className="text-xs text-amber-700 mb-1">Enter points (0–{criterion.pointsPossible})</p>
@@ -651,11 +667,15 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                                     type="number"
                                                     min={0}
                                                     max={criterion.pointsPossible}
+                                                    step={0.01}
                                                     className={`max-w-[150px] ${ans.discretionary_points == null ? 'border-red-400' : ''}`}
                                                     disabled={!canEdit}
                                                     value={ans.discretionary_points ?? ''}
                                                     onChange={(e) => {
-                                                        const val = e.target.value ? parseInt(e.target.value, 10) : null;
+                                                        const parsed = e.target.value ? Number(e.target.value) : null;
+                                                        const val = parsed === null || Number.isNaN(parsed)
+                                                            ? null
+                                                            : Math.min(Math.max(parsed, 0), criterion.pointsPossible);
                                                         setAnswers(prev => ({
                                                             ...prev,
                                                             [criterion.id]: {

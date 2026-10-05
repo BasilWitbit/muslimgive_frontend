@@ -55,6 +55,32 @@ export type CreateCharityPayload = {
     isEligible: boolean;
 }
 
+export type CharityUsdPreviewPayload = {
+    countryCode: CountriesInKebab;
+    fiscalYearEnd?: string | null;
+    totalAssets?: number | null;
+    totalLiabilities?: number | null;
+    totalRevenue?: number | null;
+}
+
+export type CharityUsdPreview = {
+    year: string | null;
+    currency: 'CAD' | 'GBP' | 'USD' | null;
+    rate: number | null;
+    missingRate: boolean;
+    fxUnavailable?: boolean;
+    message: string | null;
+    amounts: Record<string, number | null>;
+}
+
+/**
+ * POST /charities/usd-preview
+ * USD values for assessment financials using the Annual FX Tables rate for the fiscal year.
+ */
+export const previewCharityUsdAction = async (payload: CharityUsdPreviewPayload): Promise<ResponseType> => {
+    return await _post('/charities/usd-preview', payload);
+}
+
 /**
  * GET /charities
  * Lists all charities with pagination and filters

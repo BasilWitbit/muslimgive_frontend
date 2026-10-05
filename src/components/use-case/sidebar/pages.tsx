@@ -5,6 +5,7 @@ export type PageType = 'menu' | 'admin'
 export type SidebarIconName =
     | 'pm-dashboard'
     | 'charities'
+    | 'assessment-sheet'
     | 'profile'
     | 'access-control'
     | 'email-logs'
@@ -49,6 +50,21 @@ export const PAGES: Page[] = [
         type: 'menu',
         show: true,
         permissions: { anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.CHARITY_MANAGE] },
+    },
+    {
+        name: 'assessment-sheet',
+        path: '/assessment-sheet',
+        heading: 'Assessment Sheet',
+        iconName: 'assessment-sheet',
+        type: 'menu',
+        show: true,
+        permissions: {
+            anyOf: [
+                PERMISSIONS.VIEW_CHARITIES,
+                PERMISSIONS.AUDIT_CHARITY_VIEW,
+                PERMISSIONS.AUDIT_SUBMISSION_CREATE,
+            ],
+        },
     },
     {
         name: 'profile',

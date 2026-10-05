@@ -58,6 +58,26 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
         },
     },
     {
+        pattern: /^\/assessment-sheet$/,
+        requirement: {
+            anyOf: [
+                PERMISSIONS.VIEW_CHARITIES,
+                PERMISSIONS.AUDIT_CHARITY_VIEW,
+                PERMISSIONS.AUDIT_SUBMISSION_CREATE,
+            ],
+        },
+    },
+    {
+        pattern: /^\/assessment-sheet\/[^/]+$/,
+        requirement: {
+            anyOf: [
+                PERMISSIONS.VIEW_CHARITIES,
+                PERMISSIONS.AUDIT_CHARITY_VIEW,
+                PERMISSIONS.AUDIT_SUBMISSION_CREATE,
+            ],
+        },
+    },
+    {
         pattern: /^\/create-charity$/,
         requirement: { anyOf: [PERMISSIONS.CREATE_CHARITY] },
     },

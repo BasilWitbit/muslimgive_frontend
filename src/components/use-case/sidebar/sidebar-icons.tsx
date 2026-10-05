@@ -6,6 +6,7 @@ import DashboardIcon from '@/components/common/IconComponents/pages_icons/Dashbo
 import Profile from '@/components/common/IconComponents/pages_icons/Profile'
 import EmailIcon from '@/components/common/IconComponents/EmailIcon'
 import EmailIconBlack from '@/components/common/IconComponents/EmailIconBlack'
+import { Table2 } from 'lucide-react'
 import type { SidebarIconName } from './pages'
 
 export type SidebarIconProps = {
@@ -13,9 +14,14 @@ export type SidebarIconProps = {
     strokeWidth?: number
 }
 
+function AssessmentSheetIcon({ color = '#266DD3', strokeWidth = 1.85 }: SidebarIconProps) {
+    return <Table2 color={color} strokeWidth={strokeWidth} size={18} />
+}
+
 const SIDEBAR_ICONS = {
     'pm-dashboard': DashboardIcon,
     charities: Charities,
+    'assessment-sheet': AssessmentSheetIcon,
     profile: Profile,
     'access-control': AccessControl,
     'email-logs': EmailIconBlack,

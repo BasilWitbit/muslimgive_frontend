@@ -29,12 +29,12 @@ import ModelComponentWithExternalControl from '@/components/common/ModelComponen
 import AssignProjectManager from './models/AssignProjectManager'
 import { toast } from 'sonner'
 import { capitalizeWords, kebabToTitle } from '@/lib/helpers'
-import { getCurrencySymbol } from '@/lib/utils'
+import { getCurrencyCode, getCurrencySymbol } from '@/lib/utils'
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
 import { addCharityCommentAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
-import { Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2 } from 'lucide-react'
+import { Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2, Table2 } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
 import ConfigureRoleModal from './models/ConfigureRoleModal'
 import { usePermissions } from '@/components/common/permissions-provider'
@@ -68,6 +68,9 @@ type AssignmentMode = 'assign' | 'reassign'
 
 const InfoRow = PremiumInfoRow
 
+const formatLocalAmount = (country: string | null | undefined, amount: number | null | undefined) =>
+    typeof amount === 'number' ? `${getCurrencySymbol(country)}${amount.toLocaleString()}` : '-'
+
 const SingleCharityPageComponent: FC<IProps> = ({
     charityDesc,
     charityOwnerName,
@@ -93,6 +96,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
     caCraUrl,
     usEin,
     usIrsUrl,
+    totalAssets,
+    totalLiabilities,
+    totalRevenue,
+    fiscalYearEnd,
     ceoName,
     reviews,
     submittedByEmail,
@@ -732,8 +739,20 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 <div className="text-sm font-semibold text-[#101928]">Perform Assessments</div>
                                 <div className="text-xs text-[#667085]">Overall completion across all audit areas</div>
                             </div>
-                            <div className="text-2xl font-bold tracking-tight text-[#266DD3]">
-                                {assessmentsCompleted}<span className="text-lg font-semibold text-[#98A2B3]">/{assessmentsTotal}</span>
+                            <div className="flex items-center gap-3">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 gap-1.5 rounded-xl border-[#D7E2F0] bg-white text-[#1A2332] hover:bg-[#F3F7FC]"
+                                    onClick={() => router.push(`/assessment-sheet/${charityId}`)}
+                                >
+                                    <Table2 className="h-3.5 w-3.5 text-[#266DD3]" />
+                                    Open sheet
+                                </Button>
+                                <div className="text-2xl font-bold tracking-tight text-[#266DD3]">
+                                    {assessmentsCompleted}<span className="text-lg font-semibold text-[#98A2B3]">/{assessmentsTotal}</span>
+                                </div>
                             </div>
                         </div>
                         <Progress value={assessmentProgress} className="h-3 rounded-full bg-[#EEF2F6]" />
@@ -841,7 +860,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             <InfoRow label="Start Date:" value={startDate ? formatStableDate(startDate) : '-'} />
                             {!startDate ? <InfoRow label="Start Year:" value={startYear ?? '-'} /> : null}
                             <InfoRow label="Assessment Requested:" value={assessmentRequested ? 'Yes' : 'No'} />
-                            <InfoRow label="Annual Revenue:" value={typeof annualRevenue === 'number' ? `${getCurrencySymbol(country)}${annualRevenue.toLocaleString()}` : '-'} />
+                            <InfoRow label={`Total Assets (${getCurrencyCode(country)}):`} value={formatLocalAmount(country, totalAssets)} />
+                            <InfoRow label={`Total Liabilities (${getCurrencyCode(country)}):`} value={formatLocalAmount(country, totalLiabilities)} />
+                            <InfoRow label={`Total Revenue (${getCurrencyCode(country)}):`} value={formatLocalAmount(country, totalRevenue ?? annualRevenue)} />
+                            <InfoRow label="Fiscal Year End:" value={fiscalYearEnd ? String(fiscalYearEnd).slice(0, 10) : '-'} />
                             <InfoRow label="Muslim Charity:" value={isThisMuslimCharity ? 'Yes' : 'No'} />
                             <InfoRow label="Collects Zakah:" value={doTheyPayZakat ? 'Yes' : 'No'} />
                         </div>

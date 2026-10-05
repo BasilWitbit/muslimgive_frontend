@@ -8,8 +8,13 @@ import ModelComponentWithExternalControl from '@/components/common/ModelComponen
 import SubmittedSymbol from '../../Assessments/CoreArea1_CharityStatus/SubmittedSymbol';
 import { completeAssessmentAction, getAssessmentAction } from '@/app/actions/assessments';
 import { toast } from 'sonner';
-import { CRITERIA_OPTION_TEXT } from './CRITERIA_OPTION_TEXT';
-import { formatScore, getEarnedScoreForCriterion, normalizeRatingKey } from './scoring';
+import {
+    DONOR_SUPPORT_SECTION_ID,
+    formatScore,
+    getEarnedScoreForCriterion,
+    getOptionText,
+    normalizeRatingKey,
+} from './scoring';
 import { cn } from '@/lib/utils';
 import { useAssessmentHistoryNavigation } from '@/hooks/use-assessment-navigation';
 import { AssessmentPreviewLoading, AssessmentHistoryEditButton } from '../../UI/AssessmentHistoryPreviewFrame';
@@ -49,7 +54,13 @@ const RATING_STYLES: Record<string, { bg: string; text: string; dot: string }> =
     moderate: { bg: 'bg-sky-50', text: 'text-sky-800', dot: 'bg-sky-500' },
     needs_improvement: { bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
     concern: { bg: 'bg-rose-50', text: 'text-rose-800', dot: 'bg-rose-500' },
+    comprehensive: { bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
+    broad: { bg: 'bg-teal-50', text: 'text-teal-800', dot: 'bg-teal-500' },
+    basic: { bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
+    none: { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' },
 };
+
+const formatPoints = (value: unknown) => (typeof value === 'number' ? formatScore(value) : '—');
 
 const formatRating = (rating?: string | null) => {
     const key = normalizeRatingKey(rating);
@@ -156,9 +167,20 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
     }
 
     const { sections, criteria } = rubric;
+    const isV15 = scoring?.scoring_version === 'v15' || rubric.version === 'v15';
+    const donorSupport = isV15 ? scoring?.donor_support : null;
+    const publicLabels: Array<{ id: string; title: string; outcome: string; label: string }> = isV15 && scoring
+        ? [
+            ...(scoring.metric_scores ?? []).map((m: any) => ({ id: m.metric_id, title: m.metric_title, outcome: m.outcome, label: m.public_label })),
+            ...(scoring.section_scores ?? []).map((s: any) => ({ id: s.section_id, title: s.section_title, outcome: s.outcome, label: s.public_label })),
+        ].filter(item => item.label)
+        : [];
 
     const getSectionScore = (sectionId: string) => {
-        return scoring?.section_scores?.find((s: any) => s.sectionId === sectionId);
+        if (sectionId === DONOR_SUPPORT_SECTION_ID && donorSupport) {
+            return { score: donorSupport.score, max: donorSupport.max };
+        }
+        return scoring?.section_scores?.find((s: any) => (s.section_id ?? s.sectionId) === sectionId);
     };
 
     const getEarnedScoreDisplay = (criterion: any, ans: AnswerItem) => {
@@ -205,10 +227,24 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                 : 'border-amber-200 bg-gradient-to-r from-amber-50 to-white text-amber-800',
                         )}>
                             {scoring.auto_concern ? (
+                                isV15 ? (
+                                    <>
+                                        <span className="font-semibold">Mandatory Metrics 24/30 or below</span>
+                                        {' — '}
+                                        {formatPoints(scoring.mandatory_score)} / {scoring.mandatory_max}. Final rating is <strong>Concern</strong> regardless of the Zakat score ({formatPoints(scoring.raw_grand_total)} / {scoring.raw_grand_max}).
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="font-semibold">Mandatory gate failed</span>
+                                        {' — '}
+                                        below 22.5 / {scoring.mandatory_max ?? 28}. Final rating is <strong>Concern</strong> regardless of grand total ({scoring.grand_total} / {scoring.grand_max}).
+                                    </>
+                                )
+                            ) : isV15 ? (
                                 <>
-                                    <span className="font-semibold">Mandatory gate failed</span>
+                                    <span className="font-semibold">Caution</span>
                                     {' — '}
-                                    below 22.5 / {scoring.mandatory_max ?? 28}. Final rating is <strong>Concern</strong> regardless of grand total ({scoring.grand_total} / {scoring.grand_max}).
+                                    Mandatory Metrics {formatPoints(scoring.mandatory_score)} / {scoring.mandatory_max} (above 24, below 30). The calculated rating is kept and a Caution note is added.
                                 </>
                             ) : (
                                 <>
@@ -220,29 +256,47 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-4">
+                    <div className={cn('grid grid-cols-2 gap-3 p-4', isV15 ? 'lg:grid-cols-5' : 'lg:grid-cols-4')}>
                         <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Mandatory</p>
                             <p className={cn(
                                 'mt-1 font-mono text-xl font-bold tabular-nums',
                                 scoring.auto_concern ? 'text-rose-700' : scoring.caution_flag ? 'text-amber-700' : 'text-emerald-700',
                             )}>
-                                {scoring.mandatory_score ?? '—'}/{scoring.mandatory_max ?? 28}
+                                {formatPoints(scoring.mandatory_score)}/{scoring.mandatory_max ?? 28}
                             </p>
                         </div>
+                        {isV15 ? (
+                            <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Zakat Score</p>
+                                <p className="mt-1 font-mono text-xl font-bold tabular-nums text-[#101928]">
+                                    {formatPoints(scoring.raw_grand_total)}/{scoring.raw_grand_max}
+                                </p>
+                            </div>
+                        ) : null}
                         <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Grand Total</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">{isV15 ? 'Score (÷2)' : 'Grand Total'}</p>
                             <p className="mt-1 font-mono text-xl font-bold tabular-nums text-[#101928]">
-                                {scoring.grand_total}/{scoring.grand_max}
+                                {formatPoints(scoring.grand_total)}/{scoring.grand_max}
                             </p>
                         </div>
                         <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Final Rating</p>
-                            <div className="mt-1.5">
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                                 <RatingCell rating={scoring.final_rating} />
+                                {scoring.caution_flag ? (
+                                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Caution</span>
+                                ) : null}
                             </div>
                         </div>
-                        {scoring.section_scores?.slice(0, 1).map((sec: any, idx: number) => (
+                        {donorSupport ? (
+                            <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Donor Support</p>
+                                <p className="mt-1 text-xs font-semibold text-[#101928]">{donorSupport.profile}</p>
+                                <p className="font-mono text-[11px] tabular-nums text-[#667085]">{formatPoints(donorSupport.score)}/{donorSupport.max}</p>
+                            </div>
+                        ) : null}
+                        {!isV15 && scoring.section_scores?.slice(0, 1).map((sec: any, idx: number) => (
                             <div key={idx} className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
                                 <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]" title={sec.section_title || sec.sectionId}>
                                     {sec.section_title || sec.sectionId}
@@ -254,22 +308,44 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                         ))}
                     </div>
 
-                    {scoring.section_scores && scoring.section_scores.length > 1 ? (
+                    {scoring.section_scores && scoring.section_scores.length > (isV15 ? 0 : 1) ? (
                         <div className="grid grid-cols-2 gap-2 border-t border-[#EEF2F6] bg-[#FAFBFC] px-4 py-3 sm:grid-cols-3 lg:grid-cols-4">
-                            {scoring.section_scores.slice(1).map((sec: any, idx: number) => (
+                            {scoring.section_scores.slice(isV15 ? 0 : 1).map((sec: any, idx: number) => (
                                 <div key={idx} className="rounded-lg border border-[#E8EEF5] bg-white px-3 py-2">
                                     <p className="truncate text-[10px] font-medium text-[#667085]" title={sec.section_title || sec.sectionId}>
                                         {sec.section_title || sec.sectionId}
                                     </p>
-                                    <p className="font-mono text-sm font-semibold tabular-nums text-[#344054]">{sec.score}/{sec.max}</p>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="font-mono text-sm font-semibold tabular-nums text-[#344054]">{formatPoints(sec.score)}/{sec.max}</p>
+                                        {sec.outcome ? <RatingCell rating={sec.outcome} /> : null}
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     ) : null}
 
+                    {publicLabels.length > 0 ? (
+                        <div className="border-t border-[#EEF2F6] bg-white px-4 py-3">
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Public display labels</p>
+                            <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2">
+                                {publicLabels.map(item => (
+                                    <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border border-[#EEF2F6] bg-[#FAFBFC] px-3 py-2">
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-medium text-[#667085]">{item.title}</p>
+                                            <p className="text-xs font-semibold text-[#101928]">{item.label}</p>
+                                        </div>
+                                        <RatingCell rating={item.outcome} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+
                     <div className="border-t border-[#EEF2F6] bg-white px-4 py-2 text-[10px] leading-relaxed text-[#8B95A5]">
-                        Bands (out of 40): Strong 34.74–40.00 · Moderate 26.84–34.73 · Needs Improvement 21.05–26.83 · Concern 0.00–21.04
-                        {scoring.auto_concern ? ' · Mandatory gate override applies' : ''}
+                        {isV15
+                            ? 'Bands (out of 80): Strong >68–80 · Moderate >54–68 · Needs Improvement 40–54 · Concern <40. Out of 40 (÷2): >34 · >27 · 20–27 · <20. Unrounded scores. Donor Support is excluded from the Zakat score.'
+                            : 'Bands (out of 40): Strong 34.74–40.00 · Moderate 26.84–34.73 · Needs Improvement 21.05–26.83 · Concern 0.00–21.04'}
+                        {scoring.auto_concern ? ' · Mandatory override applies' : ''}
                     </div>
                 </div>
             )}
@@ -333,7 +409,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                         if (!ans) return null;
 
                                         const descriptor = ans.rating
-                                            ? CRITERIA_OPTION_TEXT[c.id]?.[normalizeRatingKey(ans.rating)] ?? ''
+                                            ? getOptionText(c, normalizeRatingKey(ans.rating))
                                             : '';
                                         const pts = getEarnedScoreDisplay(c, ans);
                                         const metricIndex = metricIndexById.get(c.metricId) ?? 0;

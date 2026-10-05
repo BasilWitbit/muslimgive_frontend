@@ -1,7 +1,7 @@
 export const AUDIT_DISPLAY_MAX = {
     core1: 10,
     core2: 40,
-    core3Assessment: 76,
+    core3Assessment: 80,
     core3Weightage: 40,
     core4: 10,
     overall: 100,

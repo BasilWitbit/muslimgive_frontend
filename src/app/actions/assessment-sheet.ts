@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 export type UpdateAssessmentSheetPayload = {
   name?: string
   charityCommissionWebsiteUrl?: string | null
+  financialStatementsUrl?: string | null
   ukCharityCommissionUrl?: string | null
   caCraUrl?: string | null
   usIrsUrl?: string | null

@@ -48,6 +48,7 @@ function buildPayload(
 export default function AssessmentSheetPageComponent() {
   const [rows, setRows] = useState<AssessmentSheetRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [search, setSearch] = useState('')
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -74,6 +75,7 @@ export default function AssessmentSheetPageComponent() {
       toast.error('Failed to load charities')
     } finally {
       setLoading(false)
+      setHasLoaded(true)
     }
   }, [])
 
@@ -153,17 +155,7 @@ export default function AssessmentSheetPageComponent() {
         totalCount={rows.length}
       />
 
-      <div className="relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9AA8BA]" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search charities…"
-          className="h-10 rounded-xl border-[#E4EAF2] bg-white pl-9 text-[13px] shadow-none focus-visible:ring-[#266DD3]/30"
-        />
-      </div>
-
-      {loading && rows.length === 0 ? (
+      {loading && !hasLoaded ? (
         <div className="flex min-h-[40vh] items-center justify-center rounded-2xl border border-[#E4EAF2] bg-white">
           <Loader2 className="size-6 animate-spin text-[#266DD3]" />
         </div>
@@ -171,6 +163,20 @@ export default function AssessmentSheetPageComponent() {
         <AssessmentSheetGrid
           rows={rows}
           onCellCommit={onCellCommit}
+          toolbarLeading={
+            <div className="relative w-full sm:w-72">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9AA8BA]" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search charities…"
+                className="h-9 rounded-xl border-[#E4EAF2] bg-white pl-9 text-[13px] shadow-[0_1px_2px_rgba(26,35,50,0.04)] focus-visible:ring-[#266DD3]/30"
+              />
+              {loading ? (
+                <Loader2 className="absolute right-3 top-1/2 size-3.5 -translate-y-1/2 animate-spin text-[#9AA8BA]" />
+              ) : null}
+            </div>
+          }
         />
       )}
     </div>

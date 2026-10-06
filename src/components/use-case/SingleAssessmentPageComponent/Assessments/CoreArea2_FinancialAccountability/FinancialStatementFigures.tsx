@@ -4,6 +4,7 @@ import React from 'react'
 import { cn } from '@/lib/utils'
 import { assessmentCurrency, parseFinancialAmount, sanitizeAmountInput } from '@/lib/assessment-sheet/financial'
 import { CharityUsdPreviewNote } from '@/components/common/CharityUsdPreviewNote'
+import { Checkbox } from '@/components/ui/checkbox'
 import type { CharityUsdPreviewState } from '@/hooks/use-charity-usd-preview'
 
 export const ASSURANCE_LEVELS = ['Audit', 'Review', 'Compilation', 'None'] as const
@@ -132,6 +133,8 @@ export default function FinancialStatementFigures({
             <div className="divide-y divide-[#F0F3F8]">
                 {AMOUNT_ROWS.map(({ key, label, notReported }) => {
                     const isNotReported = notReported ? figures[notReported] : false
+                    const hasError = Boolean(errors[key])
+                    const isDisabled = !canEdit || isNotReported
                     return (
                         <div key={key} className="grid grid-cols-[minmax(180px,260px)_1fr] items-stretch">
                             <label
@@ -139,35 +142,49 @@ export default function FinancialStatementFigures({
                                 className="flex items-center bg-[#FAFBFC] px-5 text-[13px] font-medium text-[#1A2332]"
                             >
                                 {label}
-                                {currency ? ` (${currency})` : ''}
                                 <span className="ml-1 text-[#E11D48]">*</span>
                             </label>
-                            <div>
-                                <div className="flex items-center">
-                                    <input
-                                        id={`ca2-figure-${key}`}
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        disabled={!canEdit || isNotReported}
-                                        value={isNotReported ? '' : figures[key]}
-                                        onChange={(e) => onChange({ [key]: sanitizeAmountInput(e.target.value) })}
-                                        placeholder={isNotReported ? 'Not reported' : '0'}
+                            <div className="px-4 py-2.5">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <div
                                         className={cn(
-                                            'h-11 w-full border-0 bg-transparent px-4 text-right text-[13px] tabular-nums text-[#1A2332] outline-none',
-                                            'placeholder:text-[#C0C8D4] focus:bg-[#EEF4FC] focus:ring-1 focus:ring-inset focus:ring-[#266DD3]/40',
-                                            (!canEdit || isNotReported) && 'cursor-not-allowed text-[#6B7A8F]',
+                                            'flex h-11 w-full max-w-[280px] items-center overflow-hidden rounded-lg border bg-white shadow-[0_1px_2px_rgba(26,35,50,0.04)] transition-colors',
+                                            hasError
+                                                ? 'border-red-300'
+                                                : 'border-[#D7E2F0] hover:border-[#B9C8DC]',
+                                            'focus-within:border-[#266DD3] focus-within:ring-2 focus-within:ring-[#266DD3]/15',
+                                            isDisabled && 'border-[#E8EDF4] bg-[#F7F9FC]',
                                         )}
-                                    />
+                                    >
+                                        {currency ? (
+                                            <span className="flex h-full shrink-0 items-center border-r border-[#EEF1F6] bg-[#FAFBFC] px-3 text-[11.5px] font-semibold tracking-wide text-[#9AA8BA]">
+                                                {currency}
+                                            </span>
+                                        ) : null}
+                                        <input
+                                            id={`ca2-figure-${key}`}
+                                            inputMode="decimal"
+                                            autoComplete="off"
+                                            disabled={isDisabled}
+                                            value={isNotReported ? '' : figures[key]}
+                                            onChange={(e) => onChange({ [key]: sanitizeAmountInput(e.target.value) })}
+                                            placeholder={isNotReported ? 'Not reported' : '0'}
+                                            className={cn(
+                                                'h-full w-full min-w-0 bg-transparent px-3.5 text-right text-[13px] tabular-nums text-[#1A2332] outline-none',
+                                                'placeholder:text-[#C0C8D4]',
+                                                isDisabled && 'cursor-not-allowed text-[#9AA8BA]',
+                                            )}
+                                        />
+                                    </div>
                                     {notReported ? (
-                                        <label className="flex shrink-0 items-center gap-1.5 px-4 text-[12px] text-[#5A6B82]">
-                                            <input
-                                                type="checkbox"
+                                        <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[12px] font-medium text-[#5A6B82]">
+                                            <Checkbox
+                                                checked={Boolean(isNotReported)}
                                                 disabled={!canEdit}
-                                                checked={isNotReported}
-                                                onChange={(e) =>
+                                                onCheckedChange={(checked) =>
                                                     onChange({
-                                                        [notReported]: e.target.checked,
-                                                        ...(e.target.checked ? { [key]: '' } : {}),
+                                                        [notReported]: checked === true,
+                                                        ...(checked === true ? { [key]: '' } : {}),
                                                     })
                                                 }
                                             />
@@ -176,7 +193,7 @@ export default function FinancialStatementFigures({
                                     ) : null}
                                 </div>
                                 {errors[key] ? (
-                                    <p className="px-4 pb-2 text-[12px] text-red-600" role="alert">
+                                    <p className="mt-1.5 text-[12px] text-red-600" role="alert">
                                         {errors[key]}
                                     </p>
                                 ) : null}
@@ -189,8 +206,8 @@ export default function FinancialStatementFigures({
                     <span className="flex items-center bg-[#FAFBFC] px-5 text-[13px] font-medium text-[#1A2332]">
                         Assurance Level<span className="ml-1 text-[#E11D48]">*</span>
                     </span>
-                    <div>
-                        <div className="flex h-11 items-center gap-1 px-3">
+                    <div className="px-4 py-2.5">
+                        <div className="flex flex-wrap items-center gap-2">
                             {ASSURANCE_LEVELS.map((level) => (
                                 <button
                                     key={level}
@@ -198,10 +215,10 @@ export default function FinancialStatementFigures({
                                     disabled={!canEdit}
                                     onClick={() => onChange({ assuranceLevel: level })}
                                     className={cn(
-                                        'rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-all duration-150',
+                                        'rounded-lg border px-3.5 py-2 text-[12px] font-medium transition-all duration-150',
                                         figures.assuranceLevel === level
                                             ? 'border-[#266DD3] bg-[#266DD3] text-white shadow-sm'
-                                            : 'border-[#E4EAF2] bg-white text-[#4A5A70] hover:border-[#C5D5EA] hover:bg-[#F3F7FC]',
+                                            : 'border-[#D7E2F0] bg-white text-[#4A5A70] shadow-[0_1px_2px_rgba(26,35,50,0.04)] hover:border-[#B9C8DC] hover:bg-[#F3F7FC]',
                                         !canEdit && 'opacity-60',
                                     )}
                                 >
@@ -210,7 +227,7 @@ export default function FinancialStatementFigures({
                             ))}
                         </div>
                         {errors.assuranceLevel ? (
-                            <p className="px-4 pb-2 text-[12px] text-red-600" role="alert">
+                            <p className="mt-1.5 text-[12px] text-red-600" role="alert">
                                 {errors.assuranceLevel}
                             </p>
                         ) : null}

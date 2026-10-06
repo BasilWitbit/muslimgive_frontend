@@ -212,15 +212,14 @@ export default function FinanceAssessmentTable({
                         </td>
                         <td
                           className={cn(
-                            'border-b border-[#F0F3F8] p-0 align-middle',
-                            isActive && 'bg-[#EEF4FC]',
+                            'border-b border-[#F0F3F8] px-3 py-2 align-middle',
+                            isActive && 'bg-[#F7FAFE]',
                           )}
                         >
                           <SheetValueCell
                             question={q}
                             value={formData[q.code]}
                             disabled={!canEdit}
-                            isActive={isActive}
                             onActivate={() => canEdit && setActiveCode(q.code)}
                             onBlur={() => setActiveCode(null)}
                             onChange={(v) => onChange(q.code, v)}
@@ -312,7 +311,6 @@ function SheetValueCell({
   question,
   value,
   disabled,
-  isActive,
   onActivate,
   onBlur,
   onChange,
@@ -320,21 +318,21 @@ function SheetValueCell({
   question: Question
   value: any
   disabled: boolean
-  isActive: boolean
   onActivate: () => void
   onBlur: () => void
   onChange: (value: any) => void
 }) {
   const inputClass = cn(
-    'h-11 w-full border-0 bg-transparent px-4 text-[13px] text-[#1A2332] outline-none',
-    'font-[family-name:var(--font-kanit)] tabular-nums placeholder:text-[#C0C8D4]',
-    'focus:bg-[#EEF4FC] focus:ring-1 focus:ring-inset focus:ring-[#266DD3]/40',
-    disabled && 'cursor-not-allowed text-[#6B7A8F]',
+    'h-9 w-full max-w-[260px] rounded-lg border bg-white px-3.5 text-[13px] text-[#1A2332] outline-none',
+    'font-[family-name:var(--font-kanit)] tabular-nums placeholder:text-[#C0C8D4] shadow-[0_1px_2px_rgba(26,35,50,0.04)]',
+    'border-[#D7E2F0] transition-colors hover:border-[#B9C8DC]',
+    'focus:border-[#266DD3] focus:ring-2 focus:ring-[#266DD3]/15',
+    disabled && 'cursor-not-allowed border-[#E8EDF4] bg-[#F7F9FC] text-[#9AA8BA]',
   )
 
   if (question.type === 'radio') {
     return (
-      <div className="flex h-11 items-center gap-1 px-3" onFocus={onActivate}>
+      <div className="flex flex-wrap items-center gap-1.5" onFocus={onActivate}>
         {(question.options ?? []).map((opt) => {
           const selected = value === opt.label
           return (
@@ -361,7 +359,7 @@ function SheetValueCell({
 
   if (question.type === 'date') {
     return (
-      <div className="px-3 py-1.5" onFocus={onActivate}>
+      <div onFocus={onActivate}>
         <DatePicker
           label={question.label}
           value={value instanceof Date ? value : undefined}
@@ -384,9 +382,10 @@ function SheetValueCell({
         onChange={(e) => onChange(e.target.value)}
         placeholder="Add notes…"
         className={cn(
-          'min-h-[88px] w-full resize-y border-0 bg-transparent px-4 py-3 text-[13px] text-[#1A2332] outline-none',
-          'placeholder:text-[#C0C8D4] focus:bg-[#EEF4FC] focus:ring-1 focus:ring-inset focus:ring-[#266DD3]/40',
-          disabled && 'cursor-not-allowed text-[#6B7A8F]',
+          'min-h-[88px] w-full resize-y rounded-lg border bg-white px-3.5 py-2.5 text-[13px] text-[#1A2332] outline-none',
+          'border-[#D7E2F0] shadow-[0_1px_2px_rgba(26,35,50,0.04)] transition-colors hover:border-[#B9C8DC]',
+          'placeholder:text-[#C0C8D4] focus:border-[#266DD3] focus:ring-2 focus:ring-[#266DD3]/15',
+          disabled && 'cursor-not-allowed border-[#E8EDF4] bg-[#F7F9FC] text-[#9AA8BA]',
         )}
       />
     )
@@ -407,7 +406,7 @@ function SheetValueCell({
         isNumber && ['F04', 'F05', 'F06', 'F17'].includes(question.code) ? 100 : undefined
       }
       step={isNumber ? 'any' : undefined}
-      className={cn(inputClass, isActive && 'bg-[#EEF4FC]')}
+      className={inputClass}
     />
   )
 }

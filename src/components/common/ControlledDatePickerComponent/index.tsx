@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
     Popover,
     PopoverContent,
@@ -20,6 +21,7 @@ type DatePickerProps = {
     placeholder?: string;
     disabled?: boolean;
     disabledFutureDates?: boolean;
+    inputClassName?: string;
 
     // allow custom formatting and parsing for other locales or formats
     format?: (date: Date | undefined) => string;
@@ -48,6 +50,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
     placeholder = "June 01, 2025",
     disabled,
     disabledFutureDates = false,
+    inputClassName,
     format = defaultFormat,
     parse = defaultParse,
 }) => {
@@ -79,7 +82,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                 value={input}
                 disabled={disabled}
                 placeholder={placeholder}
-                className="w-full"
+                className={cn("w-full", inputClassName)}
                 onChange={(e) => {
                     const text = e.target.value;
                     setInput(text);

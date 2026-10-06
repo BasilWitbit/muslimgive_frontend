@@ -30,8 +30,8 @@ export type CoreArea2RatingBand = 'Strong' | 'Needs Improvement' | 'Concern'
 
 /** CA2 bands are on the /40 scale (no Moderate). Prefer API `ratingBand` when present. */
 export function computeCoreArea2RatingBand(score: number): CoreArea2RatingBand {
-    if (score >= 33) return 'Strong'
-    if (score >= 26) return 'Needs Improvement'
+    if (score >= 33.33) return 'Strong'
+    if (score >= 26.67) return 'Needs Improvement'
     return 'Concern'
 }
 

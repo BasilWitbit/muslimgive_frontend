@@ -49,9 +49,10 @@ const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }
         core4: coreAreas.find((area: any) => area.coreArea === 4) ?? { status: 'pending', score: null, totalScore: 10, result: null },
     }
 
-    const overallScore = getOverallDisplayScore(reviewsFromReport, summary.overallScorePercent)
-    const resultText = summary.overallScoreResult ? summary.overallScoreResult.toUpperCase() : 'N/A'
-    const finalRating: { rating: string; zakatCaution: boolean; reasons: string[] } | null = summary.finalRating ?? null
+    const finalRating: { rating: string; totalScore: number | null; zakatCaution: boolean; reasons: string[] } | null = summary.finalRating ?? null
+    const overallScore = finalRating
+        ? finalRating.totalScore
+        : getOverallDisplayScore(reviewsFromReport, summary.overallScorePercent)
 
     return (
         <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
@@ -77,16 +78,12 @@ const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }
                         </TypographyComponent>
                     </div>
                     <div>
-                        <TypographyComponent variant="caption" className="text-[#667085]">Pass / Fail</TypographyComponent>
-                        <TypographyComponent variant="body2" className="font-semibold">{resultText}</TypographyComponent>
-                    </div>
-                    <div>
                         <TypographyComponent variant="caption" className="text-[#667085]">Eligibility</TypographyComponent>
                         <TypographyComponent variant="body2" className="font-semibold">{summary.eligibilityResult?.toUpperCase()}</TypographyComponent>
                     </div>
                     <div>
                         <TypographyComponent variant="caption" className="text-[#667085]">Assessments Completed</TypographyComponent>
-                        <TypographyComponent variant="body2" className="font-semibold">{summary.assessmentsCompleted}/{summary.assessmentsTotal}</TypographyComponent>
+                        <TypographyComponent variant="body2" className="font-semibold">{summary.auditsCompleted}/{summary.auditsTotal}</TypographyComponent>
                     </div>
                     <div>
                         <TypographyComponent variant="caption" className="text-[#667085]">Final Rating</TypographyComponent>

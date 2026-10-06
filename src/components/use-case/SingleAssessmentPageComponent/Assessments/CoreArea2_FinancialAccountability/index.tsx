@@ -319,6 +319,8 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
 
     const handleResetAssessment = () => {
         setFormData({})
+        setFigures(EMPTY_FINANCIAL_FIGURES)
+        setFigureErrors({})
         if (typeof window !== 'undefined') {
             localStorage.removeItem(`assessment-form-data-${charityId}-core-area-2`)
         }

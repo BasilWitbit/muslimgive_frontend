@@ -135,7 +135,7 @@ export default function FinanceAssessmentTable({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-separate border-spacing-0">
+          <table className="w-full min-w-[620px] border-separate border-spacing-0">
             <thead>
               <tr className="bg-[#FAFBFC]">
                 <th className="sticky left-0 z-10 w-[72px] border-b border-r border-[#EEF1F6] bg-[#FAFBFC] px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9AA8BA]">
@@ -147,9 +147,6 @@ export default function FinanceAssessmentTable({
                 <th className="min-w-[280px] border-b border-[#EEF1F6] px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9AA8BA]">
                   Value
                 </th>
-                <th className="w-[100px] border-b border-[#EEF1F6] px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9AA8BA]">
-                  Type
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -157,7 +154,7 @@ export default function FinanceAssessmentTable({
                 <React.Fragment key={group.id}>
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={3}
                       className={cn(
                         'border-b border-[#EEF1F6] bg-[#F4F7FB] px-4 py-2.5',
                         groupIndex > 0 && 'border-t border-t-[#E4EAF2]',
@@ -225,9 +222,6 @@ export default function FinanceAssessmentTable({
                             onChange={(v) => onChange(q.code, v)}
                           />
                         </td>
-                        <td className="border-b border-[#F0F3F8] px-4 py-3 align-middle">
-                          <TypeBadge type={q.type} />
-                        </td>
                       </tr>
                     )
                   })}
@@ -289,21 +283,6 @@ function GateChip({
         <p className="truncate text-[12px] font-medium text-[#1A2332]">{detail}</p>
       </div>
     </div>
-  )
-}
-
-function TypeBadge({ type }: { type: Question['type'] }) {
-  const map: Record<string, string> = {
-    radio: 'Select',
-    number: 'Number',
-    text: 'URL / text',
-    date: 'Date',
-    paragraph: 'Notes',
-  }
-  return (
-    <span className="inline-flex rounded-md border border-[#E8EEF5] bg-[#F7F9FC] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#8A98AB]">
-      {map[type] ?? type}
-    </span>
   )
 }
 

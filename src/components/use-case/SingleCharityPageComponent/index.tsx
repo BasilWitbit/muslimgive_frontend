@@ -96,8 +96,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
     caCraUrl,
     usEin,
     usIrsUrl,
-    totalAssets,
-    totalLiabilities,
     totalRevenue,
     fiscalYearEnd,
     ceoName,
@@ -860,8 +858,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             <InfoRow label="Start Date:" value={startDate ? formatStableDate(startDate) : '-'} />
                             {!startDate ? <InfoRow label="Start Year:" value={startYear ?? '-'} /> : null}
                             <InfoRow label="Assessment Requested:" value={assessmentRequested ? 'Yes' : 'No'} />
-                            <InfoRow label={`Total Assets (${getCurrencyCode(country)}):`} value={formatLocalAmount(country, totalAssets)} />
-                            <InfoRow label={`Total Liabilities (${getCurrencyCode(country)}):`} value={formatLocalAmount(country, totalLiabilities)} />
                             <InfoRow label={`Total Revenue (${getCurrencyCode(country)}):`} value={formatLocalAmount(country, totalRevenue ?? annualRevenue)} />
                             <InfoRow label="Fiscal Year End:" value={fiscalYearEnd ? String(fiscalYearEnd).slice(0, 10) : '-'} />
                             <InfoRow label="Muslim Charity:" value={isThisMuslimCharity ? 'Yes' : 'No'} />

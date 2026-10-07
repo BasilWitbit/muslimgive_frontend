@@ -83,10 +83,22 @@ const RatingCell = ({ rating }: { rating?: string | null }) => {
 type SectionRow = {
     id: string
     field: string
+    category?: string
     value: React.ReactNode
+    outcome?: React.ReactNode
     score?: React.ReactNode
     onEdit?: () => void
 }
+
+const getCategoryIndexById = (rows: SectionRow[]) => {
+    const categoryIndexById = new Map<string, number>();
+    rows.forEach((row) => {
+        if (row.category && !categoryIndexById.has(row.category)) {
+            categoryIndexById.set(row.category, categoryIndexById.size);
+        }
+    });
+    return categoryIndexById;
+};
 
 const formatAmount = (currency: string | null, value: number | string | null | undefined) => {
     const num = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : null;
@@ -260,7 +272,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     const getValue = (code: string) => assessmentVals[code];
 
     const figuresRows: SectionRow[] = [
-        { id: 'F16', field: 'Total Revenue', value: formatAmount(currency, getValue('F16')) },
+        { id: 'F16', field: 'Total Revenue', value: formatAmount(currency, getValue('F16')), onEdit: () => navigateToTarget('F16') },
         { id: 'totalAssets', field: 'Total Assets', value: formatAmount(currency, figures?.totalAssets) },
         { id: 'totalLiabilities', field: 'Total Liabilities', value: formatAmount(currency, figures?.totalLiabilities) },
         { id: 'charitableProgramSpend', field: 'Charitable Program Spend', value: formatAmount(currency, figures?.charitableProgramSpend) },
@@ -269,92 +281,121 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
         { id: 'qdSpend', field: 'QD Spend', value: figures?.qdSpendNotReported ? 'Not reported' : formatAmount(currency, figures?.qdSpend) },
         { id: 'compensationSpend', field: 'Compensation Spend', value: figures?.compensationSpendNotReported ? 'Not reported' : formatAmount(currency, figures?.compensationSpend) },
         { id: 'assuranceLevel', field: 'Assurance Level', value: figures?.assuranceLevel || '—' },
-        { id: 'F12', field: 'Fiscal Year End', value: getValue('F12') ? new Date(getValue('F12')).toLocaleDateString() : '—', onEdit: fetchFromAPI ? () => navigateToTarget('F12') : undefined },
+        { id: 'F12', field: 'Fiscal Year End', value: getValue('F12') ? new Date(getValue('F12')).toLocaleDateString() : '—', onEdit: () => navigateToTarget('F12') },
     ];
 
-    const scoreCell = (value: number | undefined, max: number) =>
-        scoring ? <span className="font-mono text-[11px] font-semibold tabular-nums text-[#101928]">{value ?? 0}/{max}</span> : <span className="text-[#C4CDD8]">—</span>;
+    /**
+     * Full points = Strong, zero points = Concern, anything in between (half
+     * points) = Needs Improvement — matches the client's scoring rubric
+     * (Evaluation Summary sheet) exactly, since the scorer only ever awards
+     * full/half/zero per metric.
+     */
+    const metricCell = (earned: number | undefined, max: number): Pick<SectionRow, 'outcome' | 'score'> => {
+        if (!scoring || earned === undefined) {
+            return {
+                outcome: <RatingCell rating={null} />,
+                score: <span className="text-[#C4CDD8]">—</span>,
+            };
+        }
+        const label = earned >= max ? 'Strong' : earned <= 0 ? 'Concern' : 'Needs Improvement';
+        return {
+            outcome: <RatingCell rating={label} />,
+            score: <span className="font-mono text-[11px] font-semibold tabular-nums text-[#101928]">{earned}/{max}</span>,
+        };
+    };
 
     const scoredRows: SectionRow[] = [
         {
             id: 'F01',
             field: 'C/Y Audited Financials (5)',
+            category: 'Transparency',
             value: getValue('F01') || '—',
-            score: scoreCell(getValue('F01') === 'Yes' ? 5 : 0, 5),
-            onEdit: fetchFromAPI ? () => navigateToTarget('F01') : undefined,
+            ...metricCell(getValue('F01') === 'Yes' ? 5 : 0, 5),
+            onEdit: () => navigateToTarget('F01'),
         },
         {
             id: 'F02',
             field: 'P/Y Audited Financials (2)',
+            category: 'Transparency',
             value: getValue('F02') || '—',
-            score: scoreCell(getValue('F02') === 'Yes' ? 2 : 0, 2),
-            onEdit: fetchFromAPI ? () => navigateToTarget('F02') : undefined,
+            ...metricCell(getValue('F02') === 'Yes' ? 2 : 0, 2),
+            onEdit: () => navigateToTarget('F02'),
         },
         {
             id: 'F03',
             field: 'Impact Report (1)',
+            category: 'Transparency',
             value: getValue('F03') || '—',
-            score: scoreCell(getValue('F03') === 'Yes' ? 1 : 0, 1),
-            onEdit: fetchFromAPI ? () => navigateToTarget('F03') : undefined,
+            ...metricCell(getValue('F03') === 'Yes' ? 1 : 0, 1),
+            onEdit: () => navigateToTarget('F03'),
         },
         {
             id: 'F04',
             field: 'Program Spend (7)',
+            category: 'Spending',
             value: `${getValue('F04') ?? '—'}%`,
-            score: scoreCell(scoring?.scores.scoreProgram, 7),
-            onEdit: fetchFromAPI ? () => navigateToTarget('F04') : undefined,
+            ...metricCell(scoring?.scores.scoreProgram, 7),
+            onEdit: () => navigateToTarget('F04'),
         },
         {
             id: 'F05',
             field: 'Fundraising Spend (7)',
+            category: 'Spending',
             value: `${getValue('F05') ?? '—'}%`,
-            score: scoreCell(scoring?.scores.scoreFundraising, 7),
-            onEdit: fetchFromAPI ? () => navigateToTarget('F05') : undefined,
+            ...metricCell(scoring?.scores.scoreFundraising, 7),
+            onEdit: () => navigateToTarget('F05'),
         },
         {
             id: 'F06',
             field: 'Admin Spend (7)',
+            category: 'Spending',
             value: `${getValue('F06') ?? '—'}%`,
-            score: scoreCell(scoring?.scores.scoreAdmin, 7),
-            onEdit: fetchFromAPI ? () => navigateToTarget('F06') : undefined,
+            ...metricCell(scoring?.scores.scoreAdmin, 7),
+            onEdit: () => navigateToTarget('F06'),
         },
         {
             id: 'F17',
             field: 'Compensation (3)',
+            category: 'Spending',
             value: `${getValue('F17') ?? '—'}%`,
-            score: scoreCell(scoring?.scores.scoreCompensation, 3),
-            onEdit: fetchFromAPI ? () => navigateToTarget('F17') : undefined,
+            ...metricCell(scoring?.scores.scoreCompensation, 3),
+            onEdit: () => navigateToTarget('F17'),
         },
         {
             id: 'F07',
             field: 'Revenue Spent (4)',
+            category: 'Impact',
             value: `${getValue('F07') ?? '—'}%`,
-            score: scoreCell(scoring?.scores.scoreRevenueSpent, 4),
-            onEdit: fetchFromAPI ? () => navigateToTarget('F07') : undefined,
+            ...metricCell(scoring?.scores.scoreRevenueSpent, 4),
+            onEdit: () => navigateToTarget('F07'),
         },
         {
             id: 'F18',
             field: 'Reserve (4)',
+            category: 'Impact',
             value: `${getValue('F18') ?? '—'} months`,
-            score: scoreCell(scoring?.scores.scoreReserves, 4),
-            onEdit: fetchFromAPI ? () => navigateToTarget('F18') : undefined,
+            ...metricCell(scoring?.scores.scoreReserves, 4),
+            onEdit: () => navigateToTarget('F18'),
         },
     ];
 
     const documentRows: SectionRow[] = [
-        ...(getValue('F08') ? [{ id: 'F08', field: 'Financials Link', value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F08')}>{getValue('F08')}</LinkComponent>, onEdit: fetchFromAPI ? () => navigateToTarget('F08') : undefined }] : []),
-        ...(getValue('F09') ? [{ id: 'F09', field: 'Tax Return Link (UK)', value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F09')}>{getValue('F09')}</LinkComponent>, onEdit: fetchFromAPI ? () => navigateToTarget('F09') : undefined }] : []),
-        ...(getValue('F10') ? [{ id: 'F10', field: 'IRS Returns Link (US)', value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F10')}>{getValue('F10')}</LinkComponent>, onEdit: fetchFromAPI ? () => navigateToTarget('F10') : undefined }] : []),
-        ...(getValue('F11') ? [{ id: 'F11', field: "CRA Returns Link (Canada)", value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F11')}>{getValue('F11')}</LinkComponent>, onEdit: fetchFromAPI ? () => navigateToTarget('F11') : undefined }] : []),
-        ...(getValue('F13') ? [{ id: 'F13', field: 'Charitable Registration Since', value: new Date(getValue('F13')).toLocaleDateString(), onEdit: fetchFromAPI ? () => navigateToTarget('F13') : undefined }] : []),
+        ...(getValue('F08') ? [{ id: 'F08', field: 'Financials Link', value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F08')}>{getValue('F08')}</LinkComponent>, onEdit: () => navigateToTarget('F08') }] : []),
+        ...(getValue('F09') ? [{ id: 'F09', field: 'Tax Return Link (UK)', value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F09')}>{getValue('F09')}</LinkComponent>, onEdit: () => navigateToTarget('F09') }] : []),
+        ...(getValue('F10') ? [{ id: 'F10', field: 'IRS Returns Link (US)', value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F10')}>{getValue('F10')}</LinkComponent>, onEdit: () => navigateToTarget('F10') }] : []),
+        ...(getValue('F11') ? [{ id: 'F11', field: "CRA Returns Link (Canada)", value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F11')}>{getValue('F11')}</LinkComponent>, onEdit: () => navigateToTarget('F11') }] : []),
+        ...(getValue('F13') ? [{ id: 'F13', field: 'Charitable Registration Since', value: new Date(getValue('F13')).toLocaleDateString(), onEdit: () => navigateToTarget('F13') }] : []),
     ];
 
     const notesRows: SectionRow[] = [
-        { id: 'F15', field: 'Notes', value: getValue('F15') || '—', onEdit: fetchFromAPI ? () => navigateToTarget('F15') : undefined },
+        { id: 'F15', field: 'Notes', value: getValue('F15') || '—', onEdit: () => navigateToTarget('F15') },
     ];
 
     const Section = ({ title, rows, showScore }: { title: string; rows: SectionRow[]; showScore: boolean }) => {
         if (rows.length === 0) return null;
+        const categoryIndexById = getCategoryIndexById(rows);
+        const showCategory = categoryIndexById.size > 0;
+        const showEditColumn = rows.some((r) => r.onEdit);
         return (
             <div className="relative overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
                 <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#10B981] to-[#34D399]" />
@@ -368,44 +409,62 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                     <table className="w-full min-w-0 border-collapse text-xs">
                         <thead>
                             <tr className="bg-[#FAFBFC] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">
-                                <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left">Field</th>
-                                <th className={cn('border-b border-[#EEF2F6] px-3 py-2.5 text-left', !showScore && fetchFromAPI && 'border-r')}>Value entered</th>
-                                {showScore ? (
-                                    <th className={cn('border-b border-[#EEF2F6] px-3 py-2.5 text-center w-[90px]', fetchFromAPI && 'border-r')}>Score</th>
+                                {showCategory ? (
+                                    <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left w-[110px]">Category</th>
                                 ) : null}
-                                {fetchFromAPI && (
+                                <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left">Field</th>
+                                <th className={cn('border-b border-[#EEF2F6] px-3 py-2.5 text-left', !showScore && showEditColumn && 'border-r')}>Value entered</th>
+                                {showScore ? (
+                                    <>
+                                        <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left w-[140px]">Outcome</th>
+                                        <th className={cn('border-b border-[#EEF2F6] px-3 py-2.5 text-center w-[90px]', showEditColumn && 'border-r')}>Score</th>
+                                    </>
+                                ) : null}
+                                {showEditColumn && (
                                     <th className="border-b border-[#EEF2F6] px-2 py-2.5 w-12" aria-hidden />
                                 )}
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.map((row, idx) => (
+                            {rows.map((row, idx) => {
+                                const groupIdx = row.category ? categoryIndexById.get(row.category) ?? idx : idx;
+                                return (
                                 <tr
                                     key={row.id}
-                                    onClick={fetchFromAPI && row.onEdit ? row.onEdit : undefined}
+                                    onClick={row.onEdit}
                                     className={cn(
                                         'group relative transition-all duration-200',
-                                        idx % 2 === 1 ? 'bg-[#E7F4EC]' : 'bg-white',
-                                        fetchFromAPI && row.onEdit && [
+                                        groupIdx % 2 === 1 ? 'bg-[#E7F4EC]' : 'bg-white',
+                                        row.onEdit && [
                                             'cursor-pointer',
                                             'hover:shadow-[inset_3px_0_0_0_#10B981]',
-                                            idx % 2 === 1 ? 'hover:bg-[#DCEFE5]' : 'hover:bg-[#F0F7FF]',
+                                            groupIdx % 2 === 1 ? 'hover:bg-[#DCEFE5]' : 'hover:bg-[#F0F7FF]',
                                         ],
-                                        fetchFromAPI && isNavigating && 'pointer-events-none opacity-70',
+                                        isNavigating && 'pointer-events-none opacity-70',
                                     )}
                                 >
+                                    {showCategory ? (
+                                        <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[11px] font-semibold leading-snug text-[#344054]">
+                                            {row.category ?? '—'}
+                                        </td>
+                                    ) : null}
                                     <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[11px] font-medium leading-snug text-[#344054]">
                                         {row.field}
                                     </td>
-                                    <td className={cn('border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[11px] leading-snug text-[#101928]', !showScore && fetchFromAPI && 'border-r')}>
+                                    <td className={cn('border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[11px] leading-snug text-[#101928]', !showScore && showEditColumn && 'border-r')}>
                                         {row.value}
                                     </td>
                                     {showScore ? (
-                                        <td className={cn('border-b border-[#EEF2F6] px-3 py-2.5 align-top text-center', fetchFromAPI && 'border-r')}>
-                                            {row.score}
-                                        </td>
+                                        <>
+                                            <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top">
+                                                {row.outcome}
+                                            </td>
+                                            <td className={cn('border-b border-[#EEF2F6] px-3 py-2.5 align-top text-center', showEditColumn && 'border-r')}>
+                                                {row.score}
+                                            </td>
+                                        </>
                                     ) : null}
-                                    {fetchFromAPI && (
+                                    {showEditColumn && (
                                         <td className="border-b border-[#EEF2F6] px-2 py-2.5 align-middle">
                                             {row.onEdit ? (
                                                 <div
@@ -420,7 +479,8 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                         </td>
                                     )}
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

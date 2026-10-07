@@ -160,10 +160,10 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                 key={question.id}
                 label={question.label}
                 result={formatValue(assessmentVals[key])}
-                clickable={fetchFromAPI}
+                clickable
                 disabled={isNavigating}
-                onClick={fetchFromAPI ? () => navigateToTarget(question.code) : undefined}
-                title={fetchFromAPI ? 'Click to edit this question' : undefined}
+                onClick={() => navigateToTarget(question.code)}
+                title="Click to edit this question"
                 historyMode={fetchFromAPI}
                 index={questionIndex + 1}
                 accentColor={CORE_AREA_4_ACCENT}

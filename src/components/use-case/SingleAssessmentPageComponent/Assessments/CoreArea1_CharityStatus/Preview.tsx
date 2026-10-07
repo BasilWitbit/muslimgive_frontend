@@ -329,11 +329,9 @@ const PreviewCoreArea1: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                 <tr className="bg-[#FAFBFC] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">
                                     <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left">Metric</th>
                                     <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left w-[140px]">Outcome</th>
-                                    <th className={cn('border-b border-[#EEF2F6] px-3 py-2.5 text-left', fetchFromAPI && 'border-r')}>Descriptor</th>
+                                    <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-left border-r">Descriptor</th>
                                     <th className="border-b border-[#EEF2F6] px-3 py-2.5 text-center w-[72px]">Score</th>
-                                    {fetchFromAPI && (
-                                        <th className="border-b border-[#EEF2F6] px-2 py-2.5 w-12" aria-hidden />
-                                    )}
+                                    <th className="border-b border-[#EEF2F6] px-2 py-2.5 w-12" aria-hidden />
                                 </tr>
                             </thead>
                             <tbody>
@@ -355,16 +353,16 @@ const PreviewCoreArea1: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                     return (
                                         <tr
                                             key={question.id}
-                                            onClick={fetchFromAPI ? () => navigateToTarget(question.code) : undefined}
+                                            onClick={() => navigateToTarget(question.code)}
                                             className={cn(
                                                 'group relative transition-all duration-200',
                                                 index % 2 === 1 ? 'bg-[#EEF4FF]' : 'bg-white',
-                                                fetchFromAPI && [
+                                                [
                                                     'cursor-pointer',
                                                     'hover:shadow-[inset_3px_0_0_0_#3B82F6]',
                                                     index % 2 === 1 ? 'hover:bg-[#E0ECFF]' : 'hover:bg-[#F0F7FF]',
                                                 ],
-                                                fetchFromAPI && isNavigating && 'pointer-events-none opacity-70',
+                                                isNavigating && 'pointer-events-none opacity-70',
                                             )}
                                         >
                                             <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[11px] leading-snug text-[#344054]">
@@ -386,7 +384,7 @@ const PreviewCoreArea1: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                             <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top">
                                                 <OutcomeCell outcome={outcome} />
                                             </td>
-                                            <td className={cn('border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[10px] leading-snug text-[#667085]', fetchFromAPI && 'border-r')}>
+                                            <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[10px] leading-snug text-[#667085] border-r">
                                                 {descriptor ? (
                                                     <span className="line-clamp-3" title={descriptor}>{descriptor}</span>
                                                 ) : (
@@ -396,28 +394,26 @@ const PreviewCoreArea1: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                             <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-center font-mono text-[11px] font-semibold tabular-nums text-[#101928]">
                                                 {formatCoreArea1ScorePoints(pts, max)}
                                             </td>
-                                            {fetchFromAPI && (
-                                                <td className="border-b border-[#EEF2F6] px-2 py-2.5 align-middle">
-                                                    <div
-                                                        aria-hidden
+                                            <td className="border-b border-[#EEF2F6] px-2 py-2.5 align-middle">
+                                                <div
+                                                    aria-hidden
+                                                    className={cn(
+                                                        'flex justify-center',
+                                                        'opacity-0 transition-opacity duration-200',
+                                                        'group-hover:opacity-100',
+                                                    )}
+                                                >
+                                                    <span
                                                         className={cn(
-                                                            'flex justify-center',
-                                                            'opacity-0 transition-opacity duration-200',
-                                                            'group-hover:opacity-100',
+                                                            'inline-flex h-6 w-6 items-center justify-center rounded-md',
+                                                            'border border-[#266dd3]/20 bg-white/92 text-[#266dd3]',
+                                                            'shadow-[0_2px_8px_rgba(38,109,211,0.12)]',
                                                         )}
                                                     >
-                                                        <span
-                                                            className={cn(
-                                                                'inline-flex h-6 w-6 items-center justify-center rounded-md',
-                                                                'border border-[#266dd3]/20 bg-white/92 text-[#266dd3]',
-                                                                'shadow-[0_2px_8px_rgba(38,109,211,0.12)]',
-                                                            )}
-                                                        >
-                                                            <Pencil className="h-3 w-3 stroke-[2.25]" />
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                            )}
+                                                        <Pencil className="h-3 w-3 stroke-[2.25]" />
+                                                    </span>
+                                                </div>
+                                            </td>
                                         </tr>
                                     )
                                 })}

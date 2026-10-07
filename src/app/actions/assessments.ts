@@ -74,3 +74,13 @@ export const getAssessmentHistoryAction = async (charityId: string, coreArea?: n
     const query = typeof coreArea === 'number' ? `?core-area=${coreArea}` : '';
     return await _get(`/audits/charities/${charityId}/history${query}`);
 }
+
+/**
+ * GET /audits/my-assignments-summary
+ * Charity Assignments Overview for the signed-in user: total charities
+ * assigned to them, and how many of their assessments are not started,
+ * started-but-not-completed, or completed.
+ */
+export const getMyAssignmentsSummaryAction = async (): Promise<ResponseType> => {
+    return await _get('/audits/my-assignments-summary');
+}

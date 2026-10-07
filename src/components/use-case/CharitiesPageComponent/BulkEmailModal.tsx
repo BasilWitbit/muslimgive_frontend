@@ -24,7 +24,7 @@ const STATUS_LABELS: Record<StatusType, string> = {
     'pending-eligibility': 'Pending Eligibility Review',
     unassigned: 'Unassigned',
     'open-to-review': 'Open To Review',
-    'pending-admin-review': 'Pending Review',
+    'pending-admin-review': 'Pending Approval',
     approved: 'Approved',
     ineligible: 'Ineligible',
 }
@@ -167,7 +167,7 @@ const BulkEmailModal: FC<BulkEmailModalProps> = ({ onClose, charities = [] }) =>
                     setQueryInput(query)
                 }}
                     query={queryInput}
-                    placeholder="Search Charities by Title or Submitted By"
+                    placeholder="Search charities by name..."
                 />
             </div>
 

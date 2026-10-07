@@ -493,7 +493,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             },
             {
                 id: 'completedAt',
-                header: 'Done',
+                header: 'Completed',
                 className: 'w-[9%]',
                 cell: (row) => (
                     <span className="whitespace-nowrap text-[11px] text-[#475467]">

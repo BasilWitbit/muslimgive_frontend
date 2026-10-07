@@ -12,7 +12,7 @@ export const CHARITY_STATUS_LABELS: Record<string, string> = {
     'pending-eligibility': 'Pending Eligibility Review',
     unassigned: 'Unassigned',
     'open-to-review': 'Open To Review',
-    'pending-admin-review': 'Pending Review',
+    'pending-admin-review': 'Pending Approval',
     approved: 'Approved',
     ineligible: 'Ineligible',
 }

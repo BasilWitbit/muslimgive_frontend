@@ -32,7 +32,7 @@ const STATUS_KEYS = [
     { id: 'unassigned', label: 'Unassigned' },
     { id: 'pending-eligibility', label: 'Pending Eligibility Review' },
     { id: 'open-to-review', label: 'Open To Review' },
-    { id: 'pending-admin-review', label: 'Pending Review' },
+    { id: 'pending-admin-review', label: 'Pending Approval' },
     { id: 'approved', label: 'Approved' },
     { id: 'ineligible', label: 'Ineligible' },
 ]
@@ -321,7 +321,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                             setQueryInput(query)
                         }}
                             query={queryInput}
-                            placeholder="Search Charities by Title or Submitted By"
+                            placeholder="Search charities by name..."
                             className="h-11 rounded-xl border-[#DDE7F3] bg-[#F8FAFC]"
                         />
                         <div className="flex items-center gap-2 md:ml-auto">

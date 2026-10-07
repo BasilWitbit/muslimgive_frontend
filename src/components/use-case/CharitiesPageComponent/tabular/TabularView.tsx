@@ -168,7 +168,7 @@ const statusMeta: Record<string, { title: string }> = {
     'pending-eligibility': { title: 'Pending Eligibility Review' },
     'unassigned': { title: 'Unassigned' },
     'open-to-review': { title: 'Open To Review' },
-    'pending-admin-review': { title: 'Pending Review' },
+    'pending-admin-review': { title: 'Pending Approval' },
     'approved': { title: 'Approved' },
     'ineligible': { title: 'Ineligible' },
 }
@@ -347,7 +347,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                         <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Email</TableHead>
                         <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>E.Status</TableHead>
                         <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Start</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>Done</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>Completed</TableHead>
                         <TableHead className={cn(headCell, 'w-[8%] text-center')}>Actions</TableHead>
                     </TableRow>
                 </TableHeader>

@@ -207,7 +207,7 @@ const KanbanView: FC<IProps> = ({ charities, projectManagers = [] }) => {
         },
         {
             color: '#266DD3',
-            title: 'Pending Review',
+            title: 'Pending Approval',
             id: 'pending-admin-review',
         },
         {

@@ -19,6 +19,7 @@ import LinkComponent from '@/components/common/LinkComponent'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
 import { Trash2 } from 'lucide-react'
 import { useCharityNavigation } from '@/hooks/use-charity-navigation'
+import { CHARITY_ROLE_ALIASES, formatAssignmentLabel } from '@/lib/assignment-candidates'
 type IProps = Omit<SingleCharityType, 'category'> & {
     projectManagers?: AssignmentCandidate[]
 }
@@ -52,6 +53,10 @@ const SingleCharityCard: FC<IProps> = ({
     const { isAllowed, me } = usePermissions()
     const currentUserRoles = me?.roles?.map((r: any) => r.slug || r) || []
     const canDeleteCharity = isAllowed({ anyOf: [PERMISSIONS.DELETE_CHARITY] }) || currentUserRoles.includes('operation-manager')
+    // Managers see every area's assignment info; assessors only see their own area.
+    const isManager = canDeleteCharity || isAllowed({ anyOf: [PERMISSIONS.CHARITY_MANAGE] })
+    const isFinanceAssessor = currentUserRoles.some((r: string) => CHARITY_ROLE_ALIASES['finance-assessor'].includes(r))
+    const isZakatAssessor = currentUserRoles.some((r: string) => CHARITY_ROLE_ALIASES['zakat-assessor'].includes(r))
 
     const handleDeleteCharity = async () => {
         setIsDeleting(true)
@@ -114,7 +119,7 @@ const SingleCharityCard: FC<IProps> = ({
                         </div>
                         <div className="flex justify-between items-center">
                             <span className="text-[11px] text-[#666E76]">
-                                Assigned ZA Members ({members.length})
+                                Team ({members.length})
                             </span>
                             <div className="">
                                 <AvatarGroupComponent images={[...members.map(eachMember => {
@@ -126,6 +131,16 @@ const SingleCharityCard: FC<IProps> = ({
                                 })]} />
                             </div>
                         </div>
+                        {isFinanceAssessor || isManager || isZakatAssessor ? (
+                            <div className="space-y-0.5 text-[11px] text-[#666E76]">
+                                {isFinanceAssessor || isManager ? (
+                                    <div className="truncate">Financial: {formatAssignmentLabel(members, 'finance-assessor', me?.id)}</div>
+                                ) : null}
+                                {isZakatAssessor || isManager ? (
+                                    <div className="truncate">Zakah: {formatAssignmentLabel(members, 'zakat-assessor', me?.id)}</div>
+                                ) : null}
+                            </div>
+                        ) : null}
                         <div className="h-[1px] w-full bg-[rgba(0,0,0,0.1)]">&nbsp;</div>
                         <div className="flex items-center gap-3 text-[11px] text-[#666E76]">
                             <div className="flex items-center min-w-max gap-0.5">

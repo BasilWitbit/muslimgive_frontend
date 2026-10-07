@@ -67,6 +67,24 @@ export function formatMemberRole(role?: string | null): string {
     return role.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
+/**
+ * "Assigned to me" / "Assigned to [name]" / "Assigned to me, [name]" / "Unassigned"
+ * for one role on one charity — the current viewer's own assignment always
+ * sorts first so they can tell at a glance whether they're on it.
+ */
+export function formatAssignmentLabel(
+    members: Array<{ id: string; name: string; role: string }>,
+    roleKey: AssignableCharityRole,
+    currentUserId?: string | null,
+): string {
+    const assigned = getMembersForRole(members, roleKey)
+    if (assigned.length === 0) return 'Unassigned'
+    const names = assigned
+        .map((m) => (m.id === currentUserId ? 'me' : m.name))
+        .sort((a, b) => (a === 'me' ? -1 : b === 'me' ? 1 : 0))
+    return `Assigned to ${names.join(', ')}`
+}
+
 export function mapCharityMembersFromAssignments(assignments: any[] = []) {
     return assignments.flatMap((assignment: any) => {
         const userId = assignment.user?.id

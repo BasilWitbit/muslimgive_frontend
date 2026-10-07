@@ -5,6 +5,7 @@ import { getMeAction } from '@/app/actions/users';
 import { listPermissionsAction } from '@/app/actions/roles';
 import { listCharitiesAction } from '@/app/actions/charities';
 import { resolvePermissions } from '@/lib/permissions';
+import { PERMISSIONS } from '@/lib/permissions-config';
 import React from 'react'
 
 export default async function DashboardScreensLayout({
@@ -36,6 +37,10 @@ export default async function DashboardScreensLayout({
             : [];
 
     const resolvedPermissions = resolvePermissions(userPermissions, catalog);
+    // Per-user override, independent of role: granted from Config > PM Dashboard Access.
+    if (me?.canAccessPmDashboard) {
+        resolvedPermissions.push(PERMISSIONS.PM_DASHBOARD_ACCESS_OVERRIDE);
+    }
 
     const pendingPayload = pendingRes.ok ? (pendingRes.payload?.data as any) : null;
     const pendingCount = pendingPayload?.data?.meta?.total ?? pendingPayload?.meta?.total ?? 0;

@@ -42,6 +42,10 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
     const [score, setScore] = React.useState<number | null>(null);
     const [totalScore, setTotalScore] = React.useState<number | null>(null);
     const [ratingBand, setRatingBand] = React.useState<RatingBand | null>(null);
+    // null while loading; the backend is the source of truth for who may
+    // start/edit this core area (per-charity assignment, or any in-area
+    // assessor once it's been completed).
+    const [isEditable, setIsEditable] = React.useState<boolean | null>(null);
 
     const getCoreAreaIdFromSlug = (slug: AssessmentSlug): number => {
         switch (slug) {
@@ -65,6 +69,7 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
 
                 if (res.ok && res.payload?.data?.data) {
                     const data = res.payload.data.data;
+                    setIsEditable(typeof data.isEditable === 'boolean' ? data.isEditable : true);
                     setScore(data.score);
                     const defaultTotal = coreAreaId === 2
                         ? 40
@@ -93,9 +98,14 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                     } else {
                         setRatingBand(null);
                     }
+                } else {
+                    // Fetch didn't return data; don't block the editor on a transient
+                    // failure — the backend still enforces the real authorization on submit.
+                    setIsEditable(true);
                 }
             } catch (error) {
                 console.error('Failed to fetch assessment score', error);
+                setIsEditable(true);
             }
         };
         fetchScore();
@@ -145,7 +155,16 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                     <TypographyComponent className='text-gray-400 text-sm'>Please enter relevant information regarding the charity</TypographyComponent>
                 </div>
             </div>
-            {renderAssessment(assessmentSlug)}
+            {isEditable === false ? (
+                <div className="rounded-2xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-4 py-8 text-center">
+                    <p className="text-sm font-semibold text-[#344054]">You're not assigned to this assessment</p>
+                    <p className="mt-1 text-xs text-[#667085]">
+                        Only the assessor(s) assigned to this charity's assessment can start it. Once it's been completed, any assessor in this area can view and edit it.
+                    </p>
+                </div>
+            ) : (
+                renderAssessment(assessmentSlug)
+            )}
         </div>
     )
 }

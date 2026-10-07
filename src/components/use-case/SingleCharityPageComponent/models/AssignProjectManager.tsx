@@ -13,6 +13,9 @@ type IProps = {
     isSubmitting?: boolean;
     users: Array<{ id: string; name: string; email?: string | null }>;
     initialSelectedIds?: string[];
+    /** Allow saving with zero selected — e.g. revoking access from everyone. */
+    allowEmpty?: boolean;
+    emptyMessage?: string;
 }
 
 const AssignProjectManager: React.FC<IProps> = ({
@@ -23,6 +26,8 @@ const AssignProjectManager: React.FC<IProps> = ({
     isSubmitting = false,
     users,
     initialSelectedIds = [],
+    allowEmpty = false,
+    emptyMessage,
 }) => {
     const [selectedManagers, setSelectedManagers] = React.useState<string[]>(initialSelectedIds)
     const [searchQuery, setSearchQuery] = React.useState("")
@@ -85,9 +90,9 @@ const AssignProjectManager: React.FC<IProps> = ({
                     ))}
                 </div>
             ) : (
-                <TypographyComponent className="text-gray-800 text-xs">{`Please select at least one ${roleLabel}.`}</TypographyComponent>
+                <TypographyComponent className="text-gray-800 text-xs">{emptyMessage ?? `Please select at least one ${roleLabel}.`}</TypographyComponent>
             )}
-            <Button className="w-full" variant={"primary"} loading={isSubmitting} disabled={selectedManagers.length === 0 || isSubmitting} onClick={() => {
+            <Button className="w-full" variant={"primary"} loading={isSubmitting} disabled={(!allowEmpty && selectedManagers.length === 0) || isSubmitting} onClick={() => {
                 onSelection(selectedManagers)
             }}>{actionLabel}</Button>
             <Button className="w-full" variant={"outline"} disabled={isSubmitting} onClick={onCancel}>Cancel</Button>

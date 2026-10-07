@@ -120,6 +120,31 @@ export const updateUserRolesAction = async (userId: string, payload: UpdateUserR
 }
 
 /**
+ * GET /users/pm-dashboard-access
+ * Lists the users currently granted the PM Dashboard access override.
+ */
+export const listPmDashboardAccessAction = async (): Promise<ResponseType> => {
+    return await _get('/users/pm-dashboard-access');
+}
+
+export type UpdatePmDashboardAccessPayload = {
+    add: string[];
+    remove: string[];
+}
+
+/**
+ * PATCH /users/pm-dashboard-access
+ * Grants/revokes PM Dashboard access for specific users, independent of role.
+ */
+export const updatePmDashboardAccessAction = async (payload: UpdatePmDashboardAccessPayload): Promise<ResponseType> => {
+    const res = await _patch('/users/pm-dashboard-access', payload);
+    if (res.ok) {
+        revalidateTag('user-me');
+    }
+    return res;
+}
+
+/**
  * Payload for updating the current user's profile
  */
 export type UpdateMePayload = {

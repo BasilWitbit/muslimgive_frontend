@@ -31,6 +31,8 @@ export const PERMISSIONS = {
     AUDIT_SUBMISSION_CREATE: "assessment:submission:create",
     AUDIT_SUBMISSION_COMPLETE: "assessment:submission:complete",
     CREATE_CHARITY_COMMENT: "create:charity_comment",
+    /** Synthetic, per-user flag (not a real role-granted permission) — set client-side from the user's own `canAccessPmDashboard` field. Lets an admin grant PM Dashboard access to one user without assigning the full Project Manager role. */
+    PM_DASHBOARD_ACCESS_OVERRIDE: "pm_dashboard:access_override",
 } as const;
 
 export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
@@ -84,7 +86,8 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
     {
         pattern: /^\/pm-dashboard$/,
         requirement: {
-            roles: ['operation-manager', 'operations-manager', 'project-manager']
+            roles: ['operation-manager', 'operations-manager', 'project-manager'],
+            anyOf: [PERMISSIONS.PM_DASHBOARD_ACCESS_OVERRIDE],
         },
     },
     {

@@ -42,6 +42,7 @@ export type UserProfile = {
     requestingPasswordReset: boolean;
     profilePicture?: string;
     isDeleted?: boolean;
+    canAccessPmDashboard?: boolean;
 }
 
 export type ChangePasswordPayload = {

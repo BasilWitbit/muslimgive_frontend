@@ -37,7 +37,7 @@ import {
     type AuditCoreAreaKey,
 } from '@/lib/audit-score-display'
 import CharityTeamPopover from './CharityTeamPopover'
-import { getMembersForRole } from '@/lib/assignment-candidates'
+import { CHARITY_ROLE_ALIASES, formatAssignmentLabel, getMembersForRole } from '@/lib/assignment-candidates'
 import { useCharityNavigation } from '@/hooks/use-charity-navigation'
 import { cn } from '@/lib/utils'
 
@@ -102,15 +102,24 @@ type CoreAreaReview = {
     ratingBand?: string | null
     weightedScore?: number | null
     weightageScore?: number | null
+    submittedBy?: string | null
 }
 
 type CharityReviews = {
     eligibility: string
     core1: CoreAreaReview
-    core2: CoreAreaReview
-    core3: CoreAreaReview
+    // Financial (core2) and Zakah (core3) assessment info is siloed to that
+    // area's assessors — the backend returns null here for everyone else.
+    core2: CoreAreaReview | null
+    core3: CoreAreaReview | null
     core4: CoreAreaReview
     summary: { completed: number; total: number }
+}
+
+/** Maps a core area to the assessor role whose assignment/"assigned to" info it shows. */
+const CORE_AREA_ASSESSOR_ROLE: Partial<Record<AuditCoreAreaKey, AssignableCharityRole>> = {
+    core2: 'finance-assessor',
+    core3: 'zakat-assessor',
 }
 
 const CORE_AREA_META: Record<AuditCoreAreaKey, { label: string; color: string; displayMax: number }> = {
@@ -209,6 +218,8 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     const canAssignAssessor = canAssignPM
         || isAllowed({ anyOf: [PERMISSIONS.CHARITY_MANAGE] })
         || currentUserRoles.includes('operation-manager')
+    const isFinanceAssessor = currentUserRoles.some((r: string) => CHARITY_ROLE_ALIASES['finance-assessor'].includes(r))
+    const isZakatAssessor = currentUserRoles.some((r: string) => CHARITY_ROLE_ALIASES['zakat-assessor'].includes(r))
 
     const openAssignRoleModal = (charityId: string, role: AssignableCharityRole, members: SingleCharityType['members']) => {
         setAssignRoleState({ charityId, role, members })
@@ -380,7 +391,16 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                             <ChevronDown
                                                 className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                                             />
-                                            <div className="min-w-0 truncate font-semibold text-[#101928]" title={c.charityTitle}>{c.charityTitle}</div>
+                                            <div className="min-w-0">
+                                                <div className="truncate font-semibold text-[#101928]" title={c.charityTitle}>{c.charityTitle}</div>
+                                                {isFinanceAssessor || isZakatAssessor ? (
+                                                    <div className="truncate text-[9px] font-medium text-[#667085]">
+                                                        {isFinanceAssessor ? `Financial: ${formatAssignmentLabel(c.members, 'finance-assessor', me?.id)}` : null}
+                                                        {isFinanceAssessor && isZakatAssessor ? ' · ' : null}
+                                                        {isZakatAssessor ? `Zakah: ${formatAssignmentLabel(c.members, 'zakat-assessor', me?.id)}` : null}
+                                                    </div>
+                                                ) : null}
+                                            </div>
                                         </div>
                                     </TableCell>
 
@@ -591,6 +611,10 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                         <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                                             {(['core1', 'core2', 'core3', 'core4'] as const).map((key) => {
                                                                 const area = reviews[key]
+                                                                // Financial/Zakah info is siloed to that area's assessors —
+                                                                // the backend returns null when this viewer can't see it.
+                                                                if (!area) return null
+                                                                const assessorRole = CORE_AREA_ASSESSOR_ROLE[key]
                                                                 const meta = CORE_AREA_META[key]
                                                                 const statusStyle = getCoreAreaStatusMeta(area.status)
                                                                 const coreAreaBand = key === 'core1'
@@ -636,6 +660,19 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                                 {statusStyle.label}
                                                                             </Badge>
                                                                         </div>
+
+                                                                        {assessorRole ? (
+                                                                            <div className="mb-3 space-y-0.5 text-[10px] leading-snug text-[#667085]">
+                                                                                <div className="truncate" title={formatAssignmentLabel(c.members, assessorRole, me?.id)}>
+                                                                                    {formatAssignmentLabel(c.members, assessorRole, me?.id)}
+                                                                                </div>
+                                                                                {area.status === 'completed' && area.submittedBy ? (
+                                                                                    <div className="truncate" title={`Submitted by ${area.submittedBy}`}>
+                                                                                        Submitted by {area.submittedBy}
+                                                                                    </div>
+                                                                                ) : null}
+                                                                            </div>
+                                                                        ) : null}
 
                                                                         {isPending ? (
                                                                             <div className="rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-3 py-5 text-center text-xs italic text-[#667085]">

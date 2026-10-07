@@ -39,7 +39,8 @@ export const PAGES: Page[] = [
         type: 'menu',
         show: true,
         permissions: {
-            roles: ['operation-manager', 'operations-manager', 'project-manager']
+            roles: ['operation-manager', 'operations-manager', 'project-manager'],
+            anyOf: [PERMISSIONS.PM_DASHBOARD_ACCESS_OVERRIDE],
         },
     },
     {

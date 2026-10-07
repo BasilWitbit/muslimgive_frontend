@@ -63,3 +63,14 @@ export const editAssessmentAction = async (payload: SubmitAssessmentPayload): Pr
     }
     return res;
 }
+
+/**
+ * GET /audits/charities/{charityId}/history?core-area={coreArea}
+ * Fetches the field-level change log (who changed what, when, before/after)
+ * for a charity's assessments. Financial/Zakah history is only returned to
+ * viewers authorized for that area.
+ */
+export const getAssessmentHistoryAction = async (charityId: string, coreArea?: number): Promise<ResponseType> => {
+    const query = typeof coreArea === 'number' ? `?core-area=${coreArea}` : '';
+    return await _get(`/audits/charities/${charityId}/history${query}`);
+}

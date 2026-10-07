@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/accordion'
 import { AssessmentIds, GradeType, AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS'
 import AccordionHeader from './AccordionHeader'
+import AssessmentChangeHistory from './AssessmentChangeHistory'
 import Preview from '@/components/use-case/SingleAssessmentPageComponent/Assessments/Preview'
 import { AUDIT_DEFINITIONS } from '@/components/use-case/SingleAssessmentPageComponent/ASSESSMENT_DEFINITIONS'
 import { usePathname } from 'next/navigation'
@@ -34,8 +35,10 @@ type CoreAreaReview = {
 type CharityReviews = {
     eligibility: string;
     core1: CoreAreaReview;
-    core2: CoreAreaReview;
-    core3: CoreAreaReview;
+    // Financial (core2) and Zakah (core3) info is siloed to that area's
+    // assessors — the backend returns null here for everyone else.
+    core2: CoreAreaReview | null;
+    core3: CoreAreaReview | null;
     core4: CoreAreaReview;
     summary: {
         completed: number;
@@ -179,6 +182,9 @@ const AssessmentHistoryPage = () => {
 
         const coreAreaKey = coreAreaMap[assessmentKey]
         const coreAreaData = reviews[coreAreaKey]
+        // Null means this viewer's role can't see that area's assessment info
+        // (Financial/Zakah data is siloed to that area's assessors).
+        if (!coreAreaData) return null
 
         const normalizedScore = coreAreaData.totalScore > 0
             ? Math.round(((coreAreaData.score ?? 0) / coreAreaData.totalScore) * 100)
@@ -408,6 +414,8 @@ const AssessmentHistoryPage = () => {
                     ) : null}
                 </div>
             </section>
+
+            <AssessmentChangeHistory charityId={charityId} />
         </div>
     )
 }

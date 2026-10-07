@@ -94,14 +94,16 @@ export function getZakatDisplayScores(area: AuditReviewLike) {
 
 export function computeOverallFromReviews(reviews: {
     core1: AuditReviewLike
-    core2: AuditReviewLike
-    core3: AuditReviewLike
+    // Null when this viewer's role can't see Financial/Zakah assessment info —
+    // the overall score then falls back to the precomputed overallScorePercent.
+    core2: AuditReviewLike | null
+    core3: AuditReviewLike | null
     core4: AuditReviewLike
 }): number | null {
     const parts = [
         getAreaDisplayScore(reviews.core1, AUDIT_DISPLAY_MAX.core1),
-        getAreaDisplayScore(reviews.core2, AUDIT_DISPLAY_MAX.core2),
-        getZakatDisplayScores(reviews.core3).weightageScore,
+        reviews.core2 ? getAreaDisplayScore(reviews.core2, AUDIT_DISPLAY_MAX.core2) : null,
+        reviews.core3 ? getZakatDisplayScores(reviews.core3).weightageScore : null,
         getAreaDisplayScore(reviews.core4, AUDIT_DISPLAY_MAX.core4),
     ]
 
@@ -113,8 +115,8 @@ export function computeOverallFromReviews(reviews: {
 export function getOverallDisplayScore(
     reviews: {
         core1: AuditReviewLike
-        core2: AuditReviewLike
-        core3: AuditReviewLike
+        core2: AuditReviewLike | null
+        core3: AuditReviewLike | null
         core4: AuditReviewLike
     },
     overallScorePercent?: number | null,

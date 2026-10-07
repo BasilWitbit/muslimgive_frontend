@@ -18,7 +18,8 @@ const PmDashboardPage = async () => {
     const isAllowed = roles.some((r: any) => {
         const slug = typeof r === 'string' ? r : r?.slug
         return ['operation-manager', 'operations-manager', 'project-manager', 'admin'].includes(String(slug).toLowerCase())
-    }) || Boolean(meRes.payload?.data?.isAdmin);
+    }) || Boolean(meRes.payload?.data?.isAdmin)
+        || Boolean(meRes.payload?.data?.canAccessPmDashboard);
 
     if (!isAllowed) {
         return <NotAuthorized />

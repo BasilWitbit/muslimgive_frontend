@@ -73,7 +73,13 @@ export const isAllowed = (
             const slug = typeof r === 'string' ? r : r?.slug;
             return requirement.roles?.includes(String(slug).toLowerCase());
         });
-        if (!hasRole) return false;
+        // A matching `anyOf` permission is an alternative route in alongside
+        // `roles`, not an additional requirement — it lets a per-user override
+        // (e.g. one-off PM Dashboard access) grant entry without the role.
+        const hasOverridePermission = Boolean(requirement.anyOf?.length) && hasAny(permissionSet, requirement.anyOf!);
+        if (!hasRole && !hasOverridePermission) return false;
+        if (requirement.allOf && !hasAll(permissionSet, requirement.allOf)) return false;
+        return true;
     }
 
     if (requirement.allOf && !hasAll(permissionSet, requirement.allOf)) return false;

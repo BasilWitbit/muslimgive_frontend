@@ -209,6 +209,7 @@ export type UpdateCharityPayload = {
     ukCharityCommissionUrl?: string | null;
     caCraUrl?: string | null;
     usIrsUrl?: string | null;
+    profilePublishedAt?: string | null;
 }
 
 export const updateCharityAction = async (id: string, payload: UpdateCharityPayload): Promise<ResponseType> => {

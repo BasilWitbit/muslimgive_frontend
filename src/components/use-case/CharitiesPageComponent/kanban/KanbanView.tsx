@@ -119,6 +119,7 @@ export type SingleCharityType = {
     caCraUrl?: string | null,
     usEin?: string | null,
     usIrsUrl?: string | null,
+    profilePublishedAt?: string | null,
     totalAssets?: number | null,
     totalLiabilities?: number | null,
     totalRevenue?: number | null,

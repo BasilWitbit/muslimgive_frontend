@@ -106,6 +106,7 @@ type AssessmentRow = {
         auditsTotal: number
     }
     nextAssessmentDueAt: string | null
+    profilePublishedAt: string | null
     reviews: {
         eligibility: string
         core1: CoreReview
@@ -689,8 +690,36 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                 },
             },
             {
+                id: 'profilePublished',
+                header: (
+                    <span className="block leading-tight tracking-normal" title="Profile published">
+                        Profile
+                        <br />
+                        published
+                    </span>
+                ),
+                toggleLabel: 'Profile published',
+                className: 'overflow-hidden whitespace-normal align-bottom',
+                widthWeight: 9,
+                toggleable: true,
+                cell: (row) =>
+                    row.profilePublishedAt ? (
+                        <span className="whitespace-nowrap text-[11px] text-[#475467]" title="Live on the ZA website since this date">
+                            {formatDateShort(row.profilePublishedAt)}
+                        </span>
+                    ) : (
+                        <span
+                            className="text-[11px] text-[#98A2B3]"
+                            title="Not yet published to the ZA website — set from Edit charity details"
+                        >
+                            —
+                        </span>
+                    ),
+            },
+            {
                 id: 'scorecard',
                 header: 'Card',
+                className: 'overflow-hidden text-center',
                 widthWeight: 5,
                 toggleable: true,
                 cell: () => (
@@ -1289,7 +1318,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                             key={col.id}
                                             style={{ width: `${(col.widthWeight / visibleColumnsTotalWeight) * 100}%` }}
                                             className={cn(
-                                                'h-10 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#98A2B3]',
+                                                'h-11 px-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]',
                                                 col.className,
                                             )}
                                         >

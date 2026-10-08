@@ -32,6 +32,7 @@ type EditCharityDetailsModalProps = {
     submittedByEmail?: string | null
     ukCharityCommissionUrl?: string | null
     caCraUrl?: string | null
+    profilePublishedAt?: string | null
     onCancel: () => void
     onUpdated: () => void
 }
@@ -49,6 +50,7 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
     submittedByEmail,
     ukCharityCommissionUrl,
     caCraUrl,
+    profilePublishedAt,
     onCancel,
     onUpdated,
 }) => {
@@ -65,6 +67,7 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
     const [website, setWebsite] = useState('')
     const [ukUrl, setUkUrl] = useState('')
     const [caUrl, setCaUrl] = useState('')
+    const [profilePublishedValue, setProfilePublishedValue] = useState<Date | undefined>(undefined)
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -80,6 +83,7 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         submittedByEmail: submittedByEmail ?? '',
         ukCharityCommissionUrl: ukCharityCommissionUrl ?? '',
         caCraUrl: caCraUrl ?? '',
+        profilePublishedAt: profilePublishedAt ?? '',
     }), [
         charityTitle,
         logoUrl,
@@ -92,6 +96,7 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         submittedByEmail,
         ukCharityCommissionUrl,
         caCraUrl,
+        profilePublishedAt,
     ])
 
     useEffect(() => {
@@ -107,6 +112,9 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         setSubmittedByEmailValue(initialValues.submittedByEmail)
         setUkUrl(initialValues.ukCharityCommissionUrl)
         setCaUrl(initialValues.caCraUrl)
+        setProfilePublishedValue(
+            initialValues.profilePublishedAt ? new Date(initialValues.profilePublishedAt) : undefined,
+        )
         setErrors({})
     }, [initialValues])
 
@@ -189,6 +197,11 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         const normalizedCaUrl = caUrl.trim()
         if (normalizedCaUrl !== initialValues.caCraUrl) {
             payload.caCraUrl = normalizedCaUrl || null
+        }
+
+        const nextProfilePublishedAt = toDateString(profilePublishedValue)
+        if (nextProfilePublishedAt !== initialValues.profilePublishedAt) {
+            payload.profilePublishedAt = nextProfilePublishedAt || null
         }
 
         const nextStartDate = toDateString(startDateValue)
@@ -300,18 +313,18 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
             />
 
             <ControlledTextFieldComponent
-                label="Submitted by name"
+                label="Created by name"
                 value={submittedByName}
                 onChange={(e) => setSubmittedByName(e.target.value)}
-                placeholder="Submitted by"
+                placeholder="Created by"
             />
 
             <ControlledTextFieldComponent
-                label="Submitted by email"
+                label="Created by email"
                 type="email"
                 value={submittedByEmailValue}
                 onChange={(e) => setSubmittedByEmailValue(e.target.value)}
-                placeholder="Submitted by email"
+                placeholder="Created by email"
             />
             {errors.submittedByEmail ? (
                 <p className="text-xs text-red-600">{errors.submittedByEmail}</p>
@@ -341,6 +354,19 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
                     placeholder="https://apps.cra-arc.gc.ca/..."
                 />
             ) : null}
+
+            <div className="flex flex-col gap-2">
+                <Label className="text-sm">Profile published on ZA website (optional)</Label>
+                <DatePicker
+                    value={profilePublishedValue}
+                    onChange={setProfilePublishedValue}
+                    placeholder="Select publish date"
+                />
+                <p className="text-xs text-[#667085]">
+                    Set this once the charity&apos;s profile has actually gone live on the website — there&apos;s no
+                    automatic feed yet, so it&apos;s tracked manually here.
+                </p>
+            </div>
 
             <div className="flex flex-col gap-2 pt-2">
                 <Button type="submit" variant="primary" loading={isSubmitting} disabled={isSubmitting}>

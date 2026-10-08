@@ -121,6 +121,7 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
         caCraUrl: c.caCraUrl ?? null,
         usEin: c.usEin ?? null,
         usIrsUrl: c.usIrsUrl ?? null,
+        profilePublishedAt: c.profilePublishedAt ?? null,
         totalAssets: c.totalAssets ?? null,
         totalLiabilities: c.totalLiabilities ?? null,
         totalRevenue: c.totalRevenue ?? null,

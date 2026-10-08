@@ -445,7 +445,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                 <div key={charity.id} className="flex flex-col gap-2 rounded-lg border border-[#E7EEF8] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="flex flex-col">
                                         <span className="text-sm font-semibold text-[#101928]">{charity.charityTitle}</span>
-                                        <span className="text-xs text-[#667085]">Submitted by {charity.charityOwnerName || '-'}</span>
+                                        <span className="text-xs text-[#667085]">Created by {charity.charityOwnerName || '-'}</span>
                                     </div>
                                     <Button
                                         variant="primary"

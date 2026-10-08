@@ -96,6 +96,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     caRegistrationNumber,
     caCraUrl,
     usEin,
+    profilePublishedAt,
     totalRevenue,
     fiscalYearEnd,
     ceoName,
@@ -676,7 +677,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 </div>
                             </div>
                             <p className="mt-2.5 text-sm text-[#667085]">
-                                Submitted by <span className="font-medium text-[#344054]">{charityOwnerName}</span>
+                                Created by <span className="font-medium text-[#344054]">{charityOwnerName}</span>
                             </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
@@ -1311,6 +1312,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         submittedByEmail={submittedByEmail ?? null}
                         ukCharityCommissionUrl={ukCharityCommissionUrl ?? null}
                         caCraUrl={caCraUrl ?? null}
+                        profilePublishedAt={profilePublishedAt ?? null}
                         onCancel={handleCloseModel}
                         onUpdated={() => {
                             handleCloseModel()

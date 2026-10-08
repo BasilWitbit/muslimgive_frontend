@@ -96,7 +96,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
     caRegistrationNumber,
     caCraUrl,
     usEin,
-    usIrsUrl,
     totalRevenue,
     fiscalYearEnd,
     ceoName,
@@ -916,43 +915,31 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 }
                             />
                             {resolvedCountry === 'united-kingdom' ? (
-                                <>
-                                    <InfoRow label="Charity No:" value={ukCharityNumber || '-'} />
-                                    <InfoRow
-                                        label="Charity Commission:"
-                                        value={
-                                            ukCharityCommissionUrl
-                                                ? <a href={ukCharityCommissionUrl} target="_blank" className="text-blue-600 underline text-sm font-medium">View profile</a>
-                                                : '-'
-                                        }
-                                    />
-                                </>
+                                <InfoRow
+                                    label="Charity No:"
+                                    value={
+                                        ukCharityNumber
+                                            ? (ukCharityCommissionUrl
+                                                ? <a href={ukCharityCommissionUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm font-medium" title="View on the Charity Commission">{ukCharityNumber}</a>
+                                                : ukCharityNumber)
+                                            : '-'
+                                    }
+                                />
                             ) : null}
                             {resolvedCountry === 'canada' ? (
-                                <>
-                                    <InfoRow label="Registration No:" value={caRegistrationNumber || '-'} />
-                                    <InfoRow
-                                        label="CRA Details:"
-                                        value={
-                                            caCraUrl
-                                                ? <a href={caCraUrl} target="_blank" className="text-blue-600 underline text-sm font-medium">View profile</a>
-                                                : '-'
-                                        }
-                                    />
-                                </>
+                                <InfoRow
+                                    label="Registration No:"
+                                    value={
+                                        caRegistrationNumber
+                                            ? (caCraUrl
+                                                ? <a href={caCraUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm font-medium" title="View on CRA">{caRegistrationNumber}</a>
+                                                : caRegistrationNumber)
+                                            : '-'
+                                    }
+                                />
                             ) : null}
                             {resolvedCountry === 'united-states' ? (
-                                <>
-                                    <InfoRow label="EIN:" value={usEin || '-'} />
-                                    <InfoRow
-                                        label="IRS Link:"
-                                        value={
-                                            usIrsUrl
-                                                ? <a href={usIrsUrl} target="_blank" className="text-blue-600 underline text-sm font-medium">View profile</a>
-                                                : <span className="text-[#98A2B3]">Not available</span>
-                                        }
-                                    />
-                                </>
+                                <InfoRow label="EIN:" value={usEin || '-'} />
                             ) : null}
                         </div>
                     </PremiumSectionCard>
@@ -1316,6 +1303,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         charityTitle={charityTitle}
                         charityOwnerName={charityOwnerName}
                         logoUrl={logoUrl}
+                        websiteUrl={website ?? null}
                         countryCode={country}
                         startDate={startDate ?? null}
                         startYear={startYear ?? null}
@@ -1323,7 +1311,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         submittedByEmail={submittedByEmail ?? null}
                         ukCharityCommissionUrl={ukCharityCommissionUrl ?? null}
                         caCraUrl={caCraUrl ?? null}
-                        usIrsUrl={usIrsUrl ?? null}
                         onCancel={handleCloseModel}
                         onUpdated={() => {
                             handleCloseModel()

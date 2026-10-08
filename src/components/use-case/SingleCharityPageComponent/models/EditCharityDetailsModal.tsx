@@ -24,6 +24,7 @@ type EditCharityDetailsModalProps = {
     charityTitle: string
     charityOwnerName?: string | null
     logoUrl?: string | null
+    websiteUrl?: string | null
     countryCode?: CountriesInKebab | null
     startDate?: string | null
     startYear?: number | null
@@ -31,7 +32,6 @@ type EditCharityDetailsModalProps = {
     submittedByEmail?: string | null
     ukCharityCommissionUrl?: string | null
     caCraUrl?: string | null
-    usIrsUrl?: string | null
     onCancel: () => void
     onUpdated: () => void
 }
@@ -41,6 +41,7 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
     charityTitle,
     charityOwnerName,
     logoUrl,
+    websiteUrl,
     countryCode,
     startDate,
     startYear,
@@ -48,7 +49,6 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
     submittedByEmail,
     ukCharityCommissionUrl,
     caCraUrl,
-    usIrsUrl,
     onCancel,
     onUpdated,
 }) => {
@@ -62,15 +62,16 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
     const [ceo, setCeo] = useState('')
     const [submittedByName, setSubmittedByName] = useState('')
     const [submittedByEmailValue, setSubmittedByEmailValue] = useState('')
+    const [website, setWebsite] = useState('')
     const [ukUrl, setUkUrl] = useState('')
     const [caUrl, setCaUrl] = useState('')
-    const [usUrl, setUsUrl] = useState('')
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const initialValues = useMemo(() => ({
         name: charityTitle ?? '',
         logoUrl: logoUrl ?? '',
+        websiteUrl: websiteUrl ?? '',
         countryCode: countryCode ?? '',
         startDate: startDate ?? '',
         startYear: startYear ? String(startYear) : '',
@@ -79,10 +80,10 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         submittedByEmail: submittedByEmail ?? '',
         ukCharityCommissionUrl: ukCharityCommissionUrl ?? '',
         caCraUrl: caCraUrl ?? '',
-        usIrsUrl: usIrsUrl ?? '',
     }), [
         charityTitle,
         logoUrl,
+        websiteUrl,
         countryCode,
         startDate,
         startYear,
@@ -91,12 +92,12 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         submittedByEmail,
         ukCharityCommissionUrl,
         caCraUrl,
-        usIrsUrl,
     ])
 
     useEffect(() => {
         setName(initialValues.name)
         setLogo(initialValues.logoUrl)
+        setWebsite(initialValues.websiteUrl)
         setCountry(initialValues.countryCode as CountriesInKebab | '')
         setStartDateType(initialValues.startDate ? 'date' : initialValues.startYear ? 'year' : 'date')
         setStartDateValue(initialValues.startDate ? new Date(initialValues.startDate) : undefined)
@@ -106,13 +107,11 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         setSubmittedByEmailValue(initialValues.submittedByEmail)
         setUkUrl(initialValues.ukCharityCommissionUrl)
         setCaUrl(initialValues.caCraUrl)
-        setUsUrl(initialValues.usIrsUrl)
         setErrors({})
     }, [initialValues])
 
     const isUk = country === 'united-kingdom'
     const isCa = country === 'canada'
-    const isUs = country === 'united-states'
 
     const handleLogoUpload = async (file: File) => {
         setIsUploadingLogo(true)
@@ -158,6 +157,11 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
             payload.logoUrl = logo || null
         }
 
+        const normalizedWebsite = website.trim()
+        if (normalizedWebsite !== initialValues.websiteUrl) {
+            payload.websiteUrl = normalizedWebsite || null
+        }
+
         if (country && country !== initialValues.countryCode) {
             payload.countryCode = country
         }
@@ -185,11 +189,6 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         const normalizedCaUrl = caUrl.trim()
         if (normalizedCaUrl !== initialValues.caCraUrl) {
             payload.caCraUrl = normalizedCaUrl || null
-        }
-
-        const normalizedUsUrl = usUrl.trim()
-        if (normalizedUsUrl !== initialValues.usIrsUrl) {
-            payload.usIrsUrl = normalizedUsUrl || null
         }
 
         const nextStartDate = toDateString(startDateValue)
@@ -318,9 +317,16 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
                 <p className="text-xs text-red-600">{errors.submittedByEmail}</p>
             ) : null}
 
+            <ControlledTextFieldComponent
+                label="Charity website (optional)"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://example.org"
+            />
+
             {isUk ? (
                 <ControlledTextFieldComponent
-                    label="UK Charity Commission URL"
+                    label="Charity Commission link (optional)"
                     value={ukUrl}
                     onChange={(e) => setUkUrl(e.target.value)}
                     placeholder="https://register-of-charities.charitycommission.gov.uk/..."
@@ -329,19 +335,10 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
 
             {isCa ? (
                 <ControlledTextFieldComponent
-                    label="Canada CRA URL"
+                    label="CRA link (optional)"
                     value={caUrl}
                     onChange={(e) => setCaUrl(e.target.value)}
                     placeholder="https://apps.cra-arc.gc.ca/..."
-                />
-            ) : null}
-
-            {isUs ? (
-                <ControlledTextFieldComponent
-                    label="US IRS URL"
-                    value={usUrl}
-                    onChange={(e) => setUsUrl(e.target.value)}
-                    placeholder="https://apps.irs.gov/..."
                 />
             ) : null}
 

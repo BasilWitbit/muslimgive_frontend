@@ -272,6 +272,11 @@ const CreateCharityStandalonePage = () => {
             toast.error(validationError)
             return
         }
+        const dc = duplicateChecks[key]
+        if (dc?.nameMatch || dc?.regNumberMatch) {
+            toast.error('Resolve the duplicate name/registration number flagged above before creating')
+            return
+        }
         const draft = rowToDraft(row)
         saveCharityCreateDraft(draft)
         router.push(
@@ -279,10 +284,19 @@ const CreateCharityStandalonePage = () => {
         )
     }
 
+    const hasDuplicateConflict = rows.some((row) => {
+        const dc = duplicateChecks[row.key]
+        return Boolean(dc?.nameMatch || dc?.regNumberMatch)
+    })
+
     const goToBulkPreview = () => {
         const firstError = rows.map((row) => validateRow(row)).find(Boolean)
         if (firstError) {
             toast.error(`Fix every row before previewing. First issue: ${firstError}`)
+            return
+        }
+        if (hasDuplicateConflict) {
+            toast.error('Resolve the duplicate name/registration number flagged below before previewing')
             return
         }
         // Rows are already kept in sync with sessionStorage as you type.
@@ -328,6 +342,12 @@ const CreateCharityStandalonePage = () => {
                             <Button
                                 type="button"
                                 className="h-9 rounded-xl bg-[#266DD3] text-sm hover:bg-[#1f5bb5]"
+                                disabled={hasDuplicateConflict}
+                                title={
+                                    hasDuplicateConflict
+                                        ? 'Resolve the duplicate name/registration number flagged below first'
+                                        : undefined
+                                }
                                 onClick={goToBulkPreview}
                             >
                                 <Layers className="mr-1.5 h-4 w-4" />
@@ -401,7 +421,7 @@ const CreateCharityStandalonePage = () => {
                                                         className={cn(cellInputClass, 'min-w-[140px]')}
                                                     />
                                                     {dupCheck?.nameMatch ? (
-                                                        <p className="mt-1 flex items-start gap-1 text-[9px] leading-snug text-amber-700">
+                                                        <p className="mt-1 flex items-start gap-1 text-[9px] leading-snug text-red-600">
                                                             <AlertTriangle className="mt-[1px] h-2.5 w-2.5 shrink-0" />
                                                             A charity named &ldquo;{dupCheck.nameMatch.name}&rdquo; already exists
                                                         </p>
@@ -515,7 +535,7 @@ const CreateCharityStandalonePage = () => {
                                                         className={cn(cellInputClass, 'min-w-[110px]')}
                                                     />
                                                     {dupCheck?.regNumberMatch ? (
-                                                        <p className="mt-1 flex items-start gap-1 text-[9px] leading-snug text-amber-700">
+                                                        <p className="mt-1 flex items-start gap-1 text-[9px] leading-snug text-red-600">
                                                             <AlertTriangle className="mt-[1px] h-2.5 w-2.5 shrink-0" />
                                                             Already used by &ldquo;{dupCheck.regNumberMatch.name}&rdquo;
                                                         </p>
@@ -688,6 +708,12 @@ const CreateCharityStandalonePage = () => {
                                                             type="button"
                                                             size="sm"
                                                             className="h-8 flex-1 rounded-lg bg-[#266DD3] hover:bg-[#1f5bb5]"
+                                                            disabled={Boolean(dupCheck?.nameMatch || dupCheck?.regNumberMatch)}
+                                                            title={
+                                                                dupCheck?.nameMatch || dupCheck?.regNumberMatch
+                                                                    ? 'Resolve the duplicate name/registration number flagged above before creating'
+                                                                    : undefined
+                                                            }
                                                             onClick={() => goToPreview(row.key)}
                                                         >
                                                             Create Charity

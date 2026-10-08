@@ -419,3 +419,30 @@ export const getDashboardAssessmentsAction = async (
     return await _get(`/admin/charities/dashboard-assessments?${query.toString()}`);
 }
 
+export type CheckCharityDuplicateParams = {
+    name?: string
+    countryCode?: CountriesInKebab | ''
+    regNumber?: string
+}
+
+export type CharityDuplicateMatch = { id: string; name: string }
+
+export type CheckCharityDuplicateResult = {
+    nameMatch: CharityDuplicateMatch | null
+    regNumberMatch: CharityDuplicateMatch | null
+}
+
+/**
+ * Live duplicate check for the create-charity form — flags an existing charity
+ * with the same name and/or the same registration number before submitting.
+ */
+export const checkCharityDuplicateAction = async (
+    params: CheckCharityDuplicateParams,
+): Promise<ResponseType> => {
+    const query = new URLSearchParams()
+    if (params.name?.trim()) query.append('name', params.name.trim())
+    if (params.countryCode) query.append('countryCode', params.countryCode)
+    if (params.regNumber?.trim()) query.append('regNumber', params.regNumber.trim())
+    return await _get(`/charities/check-duplicate?${query.toString()}`)
+}
+

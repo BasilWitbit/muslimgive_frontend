@@ -152,6 +152,7 @@ export type UpdateMePayload = {
     lastName?: string;
     countryName?: CountriesInKebab | null;
     postalCode?: string;
+    receiveDailyProgressEmail?: boolean;
 }
 
 /**

@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Layers, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,63 +17,26 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { CategoryEnum } from '@/components/use-case/CharitiesPageComponent/kanban/KanbanView'
-import type { CountriesInKebab } from '@/components/common/CountrySelectComponent/countries.types'
 import { AutoCompleteComponent } from '@/components/common/AutoCompleteComponent'
 import { buildEligibilitySuggestion } from '@/components/common/EligibilitySuggestionCard'
 import {
     clearCharityCreateDraft,
-    resolveCharityCreateCountryCode,
+    clearCharityCreateRows,
+    draftToRow,
+    emptyCharityRow,
+    loadCharityCreateRows,
     resolveCharityCreateDraft,
+    rowToDraft,
     saveCharityCreateDraft,
-    type CharityCreateDraft,
+    saveCharityCreateRows,
+    type CharityCreateCountryCode,
+    type CharityRow,
+    type RevenueBand,
 } from '@/lib/charity-create-draft'
 import { cn, getCurrencySymbol } from '@/lib/utils'
+import { checkCharityDuplicateAction, type CheckCharityDuplicateResult } from '@/app/actions/charities'
 
-type RevenueBand = 'above' | 'below' | 'unknown' | ''
-
-type CharityRow = {
-    key: string
-    name: string
-    countryCode: CountriesInKebab | ''
-    category: string
-    otherCategory: string
-    startYear: string
-    regNumber: string
-    profileUrl: string
-    ceoName: string
-    submittedByEmail: string
-    assessmentRequested: boolean
-    isIslamic: 'yes' | 'no' | ''
-    collectsZakah: 'yes' | 'no' | ''
-    revenueBand: RevenueBand
-    annualRevenue: string
-    eligibilityOverride: boolean
-    overrideReason: string
-    isEligible: 'yes' | 'no' | ''
-}
-
-const emptyRow = (): CharityRow => ({
-    key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: '',
-    countryCode: '',
-    category: '',
-    otherCategory: '',
-    startYear: '',
-    regNumber: '',
-    profileUrl: '',
-    ceoName: '',
-    submittedByEmail: '',
-    assessmentRequested: false,
-    isIslamic: '',
-    collectsZakah: '',
-    revenueBand: '',
-    annualRevenue: '',
-    eligibilityOverride: false,
-    overrideReason: '',
-    isEligible: '',
-})
-
-const COUNTRY_OPTIONS: Array<{ value: CountriesInKebab; label: string }> = [
+const COUNTRY_OPTIONS: Array<{ value: CharityCreateCountryCode; label: string }> = [
     { value: 'united-kingdom', label: 'UK' },
     { value: 'united-states', label: 'US' },
     { value: 'canada', label: 'CA' },
@@ -88,83 +51,6 @@ const START_YEAR_AUTOCOMPLETE_OPTIONS = START_YEAR_OPTIONS.map((year) => ({
 
 const cellInputClass =
     'h-9 min-w-0 rounded-lg border-[#E4E7EC] bg-white px-2 text-xs shadow-none focus-visible:ring-[#266DD3]/30'
-
-function rowToDraft(row: CharityRow): CharityCreateDraft {
-    const resolvedCategory = row.category === 'other' ? (row.otherCategory || 'other') : row.category
-    const isUk = row.countryCode === 'united-kingdom'
-    const isCa = row.countryCode === 'canada'
-    const isUs = row.countryCode === 'united-states'
-    const revenueNum = row.annualRevenue.trim() ? Number(row.annualRevenue) : null
-
-    return {
-        name: row.name.trim(),
-        assessmentRequested: row.assessmentRequested,
-        countryCode: row.countryCode || undefined,
-        category: resolvedCategory,
-        otherCategory: row.category === 'other' ? row.otherCategory : null,
-        startYear: row.startYear.trim() ? Number(row.startYear) : null,
-        startDate: null,
-        ukCharityNumber: isUk ? row.regNumber || null : null,
-        ukCharityCommissionUrl: isUk ? row.profileUrl || null : null,
-        caRegistrationNumber: isCa ? row.regNumber || null : null,
-        caCraUrl: isCa ? row.profileUrl || null : null,
-        usEin: isUs ? row.regNumber || null : null,
-        usIrsUrl: isUs ? row.profileUrl || null : null,
-        ceoName: row.ceoName.trim(),
-        submittedByEmail: row.submittedByEmail.trim() || null,
-        isIslamic: row.isIslamic === 'yes',
-        doesCharityGiveZakat: row.collectsZakah === 'yes',
-        annualRevenue: revenueNum != null && !Number.isNaN(revenueNum) ? revenueNum : null,
-        revenueThresholdBand: row.revenueBand || null,
-        eligibilityRevenueOverride: row.eligibilityOverride,
-        eligibilityRevenueOverrideReason: row.eligibilityOverride ? row.overrideReason.trim() : null,
-        isEligible: row.isEligible === 'yes',
-    }
-}
-
-function draftToRow(draft: CharityCreateDraft): CharityRow {
-    const countryCode = resolveCharityCreateCountryCode(draft.countryCode) ?? ''
-    const knownCategories = new Set(Object.keys(CategoryEnum))
-    const categoryValue = draft.category || ''
-    const isOther =
-        Boolean(draft.otherCategory) ||
-        (categoryValue !== '' && !knownCategories.has(categoryValue)) ||
-        categoryValue === 'other'
-
-    let regNumber = ''
-    let profileUrl = ''
-    if (countryCode === 'united-kingdom') {
-        regNumber = draft.ukCharityNumber || ''
-        profileUrl = draft.ukCharityCommissionUrl || ''
-    } else if (countryCode === 'canada') {
-        regNumber = draft.caRegistrationNumber || ''
-        profileUrl = draft.caCraUrl || ''
-    } else if (countryCode === 'united-states') {
-        regNumber = draft.usEin || ''
-        profileUrl = draft.usIrsUrl || ''
-    }
-
-    return {
-        ...emptyRow(),
-        name: draft.name || '',
-        countryCode,
-        category: isOther ? 'other' : categoryValue,
-        otherCategory: isOther ? draft.otherCategory || (knownCategories.has(categoryValue) ? '' : categoryValue) : '',
-        startYear: draft.startYear != null ? String(draft.startYear) : '',
-        regNumber,
-        profileUrl,
-        ceoName: draft.ceoName || '',
-        submittedByEmail: draft.submittedByEmail || '',
-        assessmentRequested: Boolean(draft.assessmentRequested),
-        isIslamic: draft.isIslamic === undefined ? '' : draft.isIslamic ? 'yes' : 'no',
-        collectsZakah: draft.doesCharityGiveZakat === undefined ? '' : draft.doesCharityGiveZakat ? 'yes' : 'no',
-        revenueBand: (draft.revenueThresholdBand as RevenueBand) || '',
-        annualRevenue: draft.annualRevenue != null ? String(draft.annualRevenue) : '',
-        eligibilityOverride: Boolean(draft.eligibilityRevenueOverride),
-        overrideReason: draft.eligibilityRevenueOverrideReason || '',
-        isEligible: draft.isEligible === undefined ? '' : draft.isEligible ? 'yes' : 'no',
-    }
-}
 
 function validateRow(row: CharityRow): string | null {
     if (!row.name.trim()) return 'Name is required'
@@ -208,21 +94,97 @@ function validateRow(row: CharityRow): string | null {
 const CreateCharityStandalonePage = () => {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const [rows, setRows] = useState<CharityRow[]>([emptyRow()])
+    const [rows, setRows] = useState<CharityRow[]>([emptyCharityRow()])
     const [hydrated, setHydrated] = useState(false)
+    const [duplicateChecks, setDuplicateChecks] = useState<Record<string, CheckCharityDuplicateResult>>({})
     const categories = useMemo(
         () => Object.entries(CategoryEnum).map(([id, label]) => ({ id, label })),
         [],
     )
 
+    // Restores the whole bulk-entry grid on mount — including after a round trip
+    // through /charities/preview to create one charity out of a multi-row batch,
+    // so the other, still-unsubmitted rows aren't lost.
     useEffect(() => {
         if (hydrated) return
-        const draft = resolveCharityCreateDraft(searchParams.get('data'))
-        if (draft) {
-            setRows([draftToRow(draft)])
+
+        const persistedRows = loadCharityCreateRows<CharityRow>()
+        const rawData = searchParams.get('data')
+        const rowKey = searchParams.get('rowKey')
+
+        if (rawData) {
+            const draft = resolveCharityCreateDraft(rawData)
+            if (draft) {
+                const editedRow = draftToRow(draft)
+                if (rowKey) editedRow.key = rowKey
+                const matchedExisting = Boolean(
+                    rowKey && persistedRows?.some((r) => r.key === rowKey),
+                )
+                if (persistedRows && persistedRows.length) {
+                    setRows(
+                        matchedExisting
+                            ? persistedRows.map((r) => (r.key === rowKey ? editedRow : r))
+                            : [...persistedRows, editedRow],
+                    )
+                } else {
+                    setRows([editedRow])
+                }
+                setHydrated(true)
+                return
+            }
+        }
+
+        if (persistedRows && persistedRows.length) {
+            setRows(persistedRows)
         }
         setHydrated(true)
     }, [hydrated, searchParams])
+
+    // Keep the persisted grid in sync with every edit, so it survives the
+    // preview round trip (and an accidental refresh) for every row, not just
+    // the one currently being previewed/submitted.
+    useEffect(() => {
+        if (!hydrated) return
+        saveCharityCreateRows(rows)
+    }, [hydrated, rows])
+
+    // Debounced "does this name / registration number already exist?" check,
+    // keyed off each row so bulk entry (multiple rows) flags independently.
+    const duplicateSignature = rows
+        .map((r) => `${r.key}:${r.name.trim()}:${r.countryCode}:${r.regNumber.trim()}`)
+        .join('|')
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            rows.forEach((row) => {
+                const name = row.name.trim()
+                const regNumber = row.regNumber.trim()
+                if (!name && !regNumber) {
+                    setDuplicateChecks((prev) => {
+                        if (!(row.key in prev)) return prev
+                        const next = { ...prev }
+                        delete next[row.key]
+                        return next
+                    })
+                    return
+                }
+                checkCharityDuplicateAction({
+                    name,
+                    countryCode: row.countryCode || undefined,
+                    regNumber,
+                }).then((res) => {
+                    if (!res.ok) return
+                    const result = res.payload?.data?.data as CheckCharityDuplicateResult | undefined
+                    setDuplicateChecks((prev) => ({
+                        ...prev,
+                        [row.key]: result || { nameMatch: null, regNumberMatch: null },
+                    }))
+                })
+            })
+        }, 500)
+        return () => window.clearTimeout(timer)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [duplicateSignature])
 
     const updateRow = (key: string, patch: Partial<CharityRow>) => {
         setRows((prev) =>
@@ -272,10 +234,16 @@ const CreateCharityStandalonePage = () => {
         )
     }
 
-    const addRow = () => setRows((prev) => [...prev, emptyRow()])
+    const addRow = () => setRows((prev) => [...prev, emptyCharityRow()])
 
     const removeRow = (key: string) => {
         setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)))
+        setDuplicateChecks((prev) => {
+            if (!(key in prev)) return prev
+            const next = { ...prev }
+            delete next[key]
+            return next
+        })
     }
 
     const goToPreview = (key: string) => {
@@ -288,7 +256,19 @@ const CreateCharityStandalonePage = () => {
         }
         const draft = rowToDraft(row)
         saveCharityCreateDraft(draft)
-        router.push(`/charities/preview?data=${encodeURIComponent(JSON.stringify(draft))}`)
+        router.push(
+            `/charities/preview?data=${encodeURIComponent(JSON.stringify(draft))}&rowKey=${encodeURIComponent(row.key)}`,
+        )
+    }
+
+    const goToBulkPreview = () => {
+        const firstError = rows.map((row) => validateRow(row)).find(Boolean)
+        if (firstError) {
+            toast.error(`Fix every row before previewing. First issue: ${firstError}`)
+            return
+        }
+        // Rows are already kept in sync with sessionStorage as you type.
+        router.push('/charities/preview-bulk')
     }
 
     return (
@@ -296,34 +276,46 @@ const CreateCharityStandalonePage = () => {
             <div className="pointer-events-none absolute inset-x-0 -top-4 h-40 rounded-[2rem] bg-[radial-gradient(ellipse_at_top,_rgba(38,109,211,0.07),_transparent_65%)]" />
 
             <div className="relative space-y-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div className="space-y-1">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="space-y-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                clearCharityCreateDraft()
+                                clearCharityCreateRows()
+                                router.push('/charities')
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#667085] transition-colors hover:text-[#266DD3]"
+                        >
+                            <ArrowLeft className="h-3.5 w-3.5" />
+                            Back to charities
+                        </button>
                         <h1 className="text-2xl font-bold tracking-tight text-[#101928]">Create Charity</h1>
                         <p className="max-w-2xl text-sm text-[#667085]">
-                            Spreadsheet-style entry for one or many charities. Fill a row, preview the details, then
-                            create — return here afterward to keep adding.
+                            Spreadsheet-style entry for one or many charities. Preview and create a row on its own,
+                            or fill several rows and use Create All to submit them in one go.
                         </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                         <Button
                             type="button"
                             variant="outline"
-                            className="h-10 rounded-xl border-[#E4E7EC]"
-                            onClick={() => {
-                                clearCharityCreateDraft()
-                                router.push('/charities')
-                            }}
-                        >
-                            Back to charities
-                        </Button>
-                        <Button
-                            type="button"
-                            className="h-10 rounded-xl bg-[#266DD3] hover:bg-[#1f5bb5]"
+                            className="h-9 rounded-xl border-[#E4E7EC] text-sm"
                             onClick={addRow}
                         >
                             <Plus className="mr-1.5 h-4 w-4" />
                             Add row
                         </Button>
+                        {rows.length > 1 ? (
+                            <Button
+                                type="button"
+                                className="h-9 rounded-xl bg-[#266DD3] text-sm hover:bg-[#1f5bb5]"
+                                onClick={goToBulkPreview}
+                            >
+                                <Layers className="mr-1.5 h-4 w-4" />
+                                Preview & Create All ({rows.length})
+                            </Button>
+                        ) : null}
                     </div>
                 </div>
 
@@ -340,7 +332,7 @@ const CreateCharityStandalonePage = () => {
                                         'Reg #',
                                         'Profile URL',
                                         'CEO',
-                                        'Islamic',
+                                        'Islamic Charity',
                                         'Collects Zakah',
                                         'Revenue',
                                         'Amount',
@@ -350,7 +342,10 @@ const CreateCharityStandalonePage = () => {
                                     ].map((label) => (
                                         <th
                                             key={label || 'actions'}
-                                            className="whitespace-nowrap px-2.5 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#98A2B3]"
+                                            className={cn(
+                                                'px-2.5 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#98A2B3]',
+                                                label === 'Islamic Charity' ? 'max-w-[80px] whitespace-normal leading-tight' : 'whitespace-nowrap',
+                                            )}
                                         >
                                             {label}
                                         </th>
@@ -360,6 +355,7 @@ const CreateCharityStandalonePage = () => {
                             <tbody>
                                 {rows.map((row) => {
                                     const currency = getCurrencySymbol(row.countryCode || undefined)
+                                    const dupCheck = duplicateChecks[row.key]
                                     const showOverride =
                                         row.revenueBand === 'below' ||
                                         (row.annualRevenue.trim() !== '' &&
@@ -376,6 +372,12 @@ const CreateCharityStandalonePage = () => {
                                                         placeholder="Name *"
                                                         className={cn(cellInputClass, 'min-w-[140px]')}
                                                     />
+                                                    {dupCheck?.nameMatch ? (
+                                                        <p className="mt-1 flex items-start gap-1 text-[9px] leading-snug text-amber-700">
+                                                            <AlertTriangle className="mt-[1px] h-2.5 w-2.5 shrink-0" />
+                                                            A charity named &ldquo;{dupCheck.nameMatch.name}&rdquo; already exists
+                                                        </p>
+                                                    ) : null}
                                                     <label className="mt-1.5 flex items-center gap-1.5 text-[10px] text-[#667085]">
                                                         <Checkbox
                                                             checked={row.assessmentRequested}
@@ -393,7 +395,7 @@ const CreateCharityStandalonePage = () => {
                                                         value={row.countryCode || undefined}
                                                         onValueChange={(v) =>
                                                             updateRow(row.key, {
-                                                                countryCode: v as CountriesInKebab,
+                                                                countryCode: v as CharityCreateCountryCode,
                                                             })
                                                         }
                                                     >
@@ -469,6 +471,12 @@ const CreateCharityStandalonePage = () => {
                                                         }
                                                         className={cn(cellInputClass, 'min-w-[110px]')}
                                                     />
+                                                    {dupCheck?.regNumberMatch ? (
+                                                        <p className="mt-1 flex items-start gap-1 text-[9px] leading-snug text-amber-700">
+                                                            <AlertTriangle className="mt-[1px] h-2.5 w-2.5 shrink-0" />
+                                                            Already used by &ldquo;{dupCheck.regNumberMatch.name}&rdquo;
+                                                        </p>
+                                                    ) : null}
                                                 </td>
                                                 <td className="px-2.5 py-2">
                                                     <Input
@@ -646,15 +654,11 @@ const CreateCharityStandalonePage = () => {
                             </tbody>
                         </table>
                     </div>
-                    <div className="flex items-center justify-between border-t border-[#EEF2F6] bg-[#FAFBFC]/80 px-4 py-3">
+                    <div className="border-t border-[#EEF2F6] bg-[#FAFBFC]/80 px-4 py-3">
                         <p className="text-xs text-[#667085]">
                             Revenue threshold is {getCurrencySymbol()}500k. If unknown, create now — Financial Assessment
                             will update the figure later. If Collects Zakah is No, Zakah scoring is excluded.
                         </p>
-                        <Button type="button" variant="outline" className="h-9 rounded-xl" onClick={addRow}>
-                            <Plus className="mr-1.5 h-4 w-4" />
-                            Add another charity
-                        </Button>
                     </div>
                 </div>
             </div>

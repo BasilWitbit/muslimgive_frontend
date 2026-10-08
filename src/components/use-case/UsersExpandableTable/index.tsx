@@ -35,6 +35,7 @@ export type Data = {
     requestingPasswordReset: boolean,
     profilePicture?: string,
     isDeleted?: boolean
+    receiveDailyProgressEmail?: boolean
 }
 
 type IProps = {

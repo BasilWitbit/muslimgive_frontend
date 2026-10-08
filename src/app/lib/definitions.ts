@@ -43,6 +43,7 @@ export type UserProfile = {
     profilePicture?: string;
     isDeleted?: boolean;
     canAccessPmDashboard?: boolean;
+    receiveDailyProgressEmail?: boolean;
 }
 
 export type ChangePasswordPayload = {

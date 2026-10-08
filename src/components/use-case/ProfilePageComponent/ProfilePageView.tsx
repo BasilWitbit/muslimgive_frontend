@@ -11,6 +11,7 @@ import ProfilePictureUpload from './ProfilePictureUpload'
 import type { Data } from '@/components/use-case/UsersExpandableTable'
 import { Copy, Mail, Pencil, Shield } from 'lucide-react'
 import { toast } from 'sonner'
+import { Switch } from '@/components/ui/switch'
 
 const premiumCardClass =
     'overflow-hidden border-[#E8EEF5]/90 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]'
@@ -20,6 +21,7 @@ type ProfilePageViewProps = Data & {
     onEditAddress?: () => void
     onChangePassword?: () => void
     onChangeEmail?: () => void
+    onToggleDailyProgressEmail?: (next: boolean) => void
 }
 
 type ProfileSectionProps = {
@@ -86,10 +88,12 @@ const ProfilePageView: FC<ProfilePageViewProps> = ({
     status,
     requestingPasswordReset,
     profilePicture,
+    receiveDailyProgressEmail,
     onEditPersonalInfo,
     onEditAddress,
     onChangePassword,
     onChangeEmail,
+    onToggleDailyProgressEmail,
 }) => {
     const country = location || '-'
     const displayCountry = country === '-' ? '—' : kebabToTitle(country)
@@ -243,6 +247,26 @@ const ProfilePageView: FC<ProfilePageViewProps> = ({
                             </div>
                         </div>
                     </ProfileSection>
+
+                    {onToggleDailyProgressEmail ? (
+                        <ProfileSection
+                            title="Notifications"
+                            description="Control which emails you receive"
+                        >
+                            <div className="flex items-center justify-between gap-4 rounded-xl border border-[#EEF2F6] bg-[#FAFBFD] px-4 py-3.5">
+                                <div>
+                                    <p className="text-sm font-semibold text-[#101928]">Daily progress emails</p>
+                                    <p className="mt-0.5 text-sm text-[#667085]">
+                                        A daily summary of your assigned charities — started, pending, and completed.
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={receiveDailyProgressEmail ?? true}
+                                    onCheckedChange={onToggleDailyProgressEmail}
+                                />
+                            </div>
+                        </ProfileSection>
+                    ) : null}
                 </div>
             </div>
         </div>

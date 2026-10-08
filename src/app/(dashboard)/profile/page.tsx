@@ -12,6 +12,8 @@ import { usePermissions } from '@/components/common/permissions-provider'
 import type { UserProfile } from '@/app/lib/definitions'
 import { usePageNavigationDismiss } from '@/hooks/use-page-navigation'
 import { useRouter } from 'next/navigation'
+import { updateMeAction } from '@/app/actions/users'
+import { toast } from 'sonner'
 
 const mapMeToProfile = (u: UserProfile): Data => ({
     id: u.id,
@@ -24,6 +26,7 @@ const mapMeToProfile = (u: UserProfile): Data => ({
     status: (u.isActive ? 'Active' : 'Inactive') as any,
     requestingPasswordReset: u.requestingPasswordReset,
     profilePicture: u.profilePicture,
+    receiveDailyProgressEmail: u.receiveDailyProgressEmail ?? true,
 })
 
 const MyProfile = () => {
@@ -65,6 +68,14 @@ const MyProfile = () => {
                 onEditAddress={() => setIsAddressModalOpen(true)}
                 onChangePassword={() => setIsPasswordModalOpen(true)}
                 onChangeEmail={() => setIsEmailModalOpen(true)}
+                onToggleDailyProgressEmail={async (next) => {
+                    setProfile((prev) => (prev ? { ...prev, receiveDailyProgressEmail: next } : null))
+                    const res = await updateMeAction({ receiveDailyProgressEmail: next })
+                    if (!res.ok) {
+                        setProfile((prev) => (prev ? { ...prev, receiveDailyProgressEmail: !next } : null))
+                        toast.error(res.message || 'Failed to update notification preference')
+                    }
+                }}
             />
 
             {/* Modals */}

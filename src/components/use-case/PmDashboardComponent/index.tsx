@@ -41,13 +41,16 @@ import {
     ChevronLeft,
     ChevronRight,
     Clock,
+    Columns3,
     Download,
     FileSpreadsheet,
     FileText,
     Loader2,
+    RotateCcw,
     Search,
     Sparkles,
     Users,
+    X,
     type LucideIcon,
 } from 'lucide-react'
 import {
@@ -56,6 +59,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Checkbox } from '@/components/ui/checkbox'
 
 type ActivitySnapshot = {
     avgCompletionDays: number | null
@@ -326,8 +331,29 @@ const STAT_TONES = {
 type ColumnDef = {
     id: string
     header: React.ReactNode
+    /** Short plain-text label for the Columns picker (defaults to `header` when it's a string). */
+    toggleLabel?: string
     className?: string
+    /** Relative width share among currently visible columns — widths are redistributed when columns are hidden. */
+    widthWeight: number
+    /** False for columns that can't be hidden (e.g. the Charity name/identity column). */
+    toggleable?: boolean
     cell: (row: AssessmentRow) => React.ReactNode
+}
+
+const COLUMN_VISIBILITY_STORAGE_KEY = 'muslimgive:pm-dashboard-hidden-columns'
+const COLUMN_VIEWS_STORAGE_KEY = 'muslimgive:pm-dashboard-column-views'
+
+type SavedColumnView = {
+    id: string
+    name: string
+    hiddenColumnIds: string[]
+}
+
+function sameColumnSet(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false
+    const sortedB = [...b].sort()
+    return [...a].sort().every((id, i) => id === sortedB[i])
 }
 
 const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: initialMetrics }) => {
@@ -536,7 +562,9 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'charity',
                 header: 'Charity',
-                className: 'w-[18%] min-w-0',
+                className: 'min-w-0',
+                widthWeight: 18,
+                toggleable: false,
                 cell: (row) => (
                     <div className="min-w-0 pr-1">
                         <Link
@@ -553,7 +581,8 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'createdAt',
                 header: 'Created',
-                className: 'w-[9%]',
+                widthWeight: 9,
+                toggleable: true,
                 cell: (row) => (
                     <span className="whitespace-nowrap text-[11px] text-[#475467]">
                         {formatDateShort(row.createdAt)}
@@ -563,7 +592,8 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'status',
                 header: 'Status',
-                className: 'w-[10%]',
+                widthWeight: 10,
+                toggleable: true,
                 cell: (row) => (
                     <StatusPill
                         label={CHARITY_STATUS_LABELS[row.status] ?? kebabToTitle(row.status)}
@@ -575,7 +605,8 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'completedAt',
                 header: 'Completed',
-                className: 'w-[9%]',
+                widthWeight: 9,
+                toggleable: true,
                 cell: (row) => (
                     <span className="whitespace-nowrap text-[11px] text-[#475467]">
                         {formatDateShort(row.auditTimeline?.completedAt)}
@@ -592,7 +623,9 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         <span className="whitespace-nowrap" title="Governance &amp; Leadership (out of 10)">G&amp;L (10)</span>
                     </div>
                 ),
-                className: 'w-[32%]',
+                toggleLabel: 'Scores (CL / FA / ZPT / G&L)',
+                widthWeight: 32,
+                toggleable: true,
                 cell: (row) => (
                     <div className="grid w-full grid-cols-4 gap-1.5">
                         <ScoreCell row={row} area="core1" compact />
@@ -605,7 +638,8 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'overall',
                 header: 'Overall',
-                className: 'w-[8%]',
+                widthWeight: 8,
+                toggleable: true,
                 cell: (row) => {
                     const score = getOverallDisplayScore(row.reviews, row.overallScorePercent)
                     return (
@@ -622,7 +656,8 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'nextDue',
                 header: 'Next due',
-                className: 'w-[10%]',
+                widthWeight: 10,
+                toggleable: true,
                 cell: (row) => {
                     const remaining = daysUntil(row.nextAssessmentDueAt)
                     if (!row.nextAssessmentDueAt) {
@@ -656,7 +691,8 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'scorecard',
                 header: 'Card',
-                className: 'w-[5%]',
+                widthWeight: 5,
+                toggleable: true,
                 cell: () => (
                     <span
                         className="inline-flex items-center rounded-full border border-dashed border-[#D0D5DD] bg-[#FAFBFC] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#98A2B3]"
@@ -668,6 +704,100 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             },
         ],
         [],
+    )
+
+    const TOGGLEABLE_COLUMNS = useMemo(
+        () => columns.filter((c) => c.toggleable !== false),
+        [columns],
+    )
+
+    const [hiddenColumnIds, setHiddenColumnIds] = useState<string[]>([])
+    const [savedColumnViews, setSavedColumnViews] = useState<SavedColumnView[]>([])
+    const [isSavingView, setIsSavingView] = useState(false)
+    const [newViewName, setNewViewName] = useState('')
+    const [columnsPopoverOpen, setColumnsPopoverOpen] = useState(false)
+
+    useEffect(() => {
+        try {
+            const rawHidden = window.localStorage.getItem(COLUMN_VISIBILITY_STORAGE_KEY)
+            if (rawHidden) {
+                const parsed = JSON.parse(rawHidden)
+                if (Array.isArray(parsed)) setHiddenColumnIds(parsed)
+            }
+            const rawViews = window.localStorage.getItem(COLUMN_VIEWS_STORAGE_KEY)
+            if (rawViews) {
+                const parsed = JSON.parse(rawViews)
+                if (Array.isArray(parsed)) setSavedColumnViews(parsed)
+            }
+        } catch {
+            // ignore malformed/unavailable localStorage — falls back to the default view
+        }
+    }, [])
+
+    const toggleColumn = useCallback((columnId: string, visible: boolean) => {
+        setHiddenColumnIds((prev) => {
+            const next = visible ? prev.filter((id) => id !== columnId) : [...prev, columnId]
+            try {
+                window.localStorage.setItem(COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(next))
+            } catch { /* ignore */ }
+            return next
+        })
+    }, [])
+
+    const resetToDefaultView = useCallback(() => {
+        setHiddenColumnIds([])
+        try {
+            window.localStorage.removeItem(COLUMN_VISIBILITY_STORAGE_KEY)
+        } catch { /* ignore */ }
+    }, [])
+
+    const applyColumnView = useCallback((view: SavedColumnView) => {
+        setHiddenColumnIds(view.hiddenColumnIds)
+        try {
+            window.localStorage.setItem(COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(view.hiddenColumnIds))
+        } catch { /* ignore */ }
+    }, [])
+
+    const persistSavedViews = useCallback((views: SavedColumnView[]) => {
+        setSavedColumnViews(views)
+        try {
+            window.localStorage.setItem(COLUMN_VIEWS_STORAGE_KEY, JSON.stringify(views))
+        } catch { /* ignore */ }
+    }, [])
+
+    const saveCurrentAsView = useCallback(() => {
+        const name = newViewName.trim()
+        if (!name) return
+        const view: SavedColumnView = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            name,
+            hiddenColumnIds,
+        }
+        persistSavedViews([...savedColumnViews, view])
+        setNewViewName('')
+        setIsSavingView(false)
+    }, [newViewName, hiddenColumnIds, savedColumnViews, persistSavedViews])
+
+    const deleteColumnView = useCallback(
+        (viewId: string) => {
+            persistSavedViews(savedColumnViews.filter((v) => v.id !== viewId))
+        },
+        [savedColumnViews, persistSavedViews],
+    )
+
+    const activeSavedViewId = useMemo(
+        () => savedColumnViews.find((v) => sameColumnSet(v.hiddenColumnIds, hiddenColumnIds))?.id ?? null,
+        [savedColumnViews, hiddenColumnIds],
+    )
+    const isDefaultViewActive = hiddenColumnIds.length === 0
+
+    const visibleColumns = useMemo(
+        () => columns.filter((c) => !hiddenColumnIds.includes(c.id)),
+        [columns, hiddenColumnIds],
+    )
+    const visibleColumnsTotalWeight = useMemo(
+        () => visibleColumns.reduce((sum, c) => sum + c.widthWeight, 0) || 1,
+        [visibleColumns],
     )
 
     if (!metrics) {
@@ -689,7 +819,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                             Dashboard
                         </h1>
                         <p className="max-w-xl text-sm leading-relaxed text-[#667085]">
-                            Track charity assessment progress. Click a metric card to filter the list below.
+                            Track assessment progress. Select a status below to filter the charity list.
                         </p>
                     </div>
                 </div>
@@ -845,6 +975,130 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                 <span className="inline-flex w-fit items-center rounded-full border border-[#E8EEF5] bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-semibold text-[#667085]">
                                     {isLoadingList ? 'Loading…' : meta ? `${meta.total} charities` : '—'}
                                 </span>
+                                <Popover open={columnsPopoverOpen} onOpenChange={setColumnsPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 gap-1.5 rounded-full border-[#E4E7EC] bg-white px-3 text-xs font-semibold text-[#344054] shadow-sm hover:bg-[#F8FAFC]"
+                                        >
+                                            <Columns3 className="h-3.5 w-3.5" />
+                                            Columns
+                                            <ChevronDown className="h-3 w-3 text-[#98A2B3]" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent align="end" className="w-72 p-3">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
+                                                Show columns
+                                            </p>
+                                            {!isDefaultViewActive ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={resetToDefaultView}
+                                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-[#266DD3] hover:underline"
+                                                >
+                                                    <RotateCcw className="h-3 w-3" />
+                                                    Reset to default
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                        <div className="mt-2 space-y-0.5">
+                                            {TOGGLEABLE_COLUMNS.map((col) => {
+                                                const visible = !hiddenColumnIds.includes(col.id)
+                                                return (
+                                                    <label
+                                                        key={col.id}
+                                                        className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1.5 text-sm text-[#344054] hover:bg-[#F8FAFC]"
+                                                    >
+                                                        <Checkbox
+                                                            checked={visible}
+                                                            onCheckedChange={(v) => toggleColumn(col.id, Boolean(v))}
+                                                        />
+                                                        {col.toggleLabel ?? (typeof col.header === 'string' ? col.header : col.id)}
+                                                    </label>
+                                                )
+                                            })}
+                                        </div>
+
+                                        <div className="mt-3 space-y-1 border-t border-[#EEF2F6] pt-3">
+                                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#98A2B3]">
+                                                Views
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={resetToDefaultView}
+                                                className={cn(
+                                                    'flex w-full items-center rounded-lg px-1.5 py-1.5 text-left text-sm',
+                                                    isDefaultViewActive
+                                                        ? 'bg-[#EEF4FD] font-semibold text-[#266DD3]'
+                                                        : 'text-[#344054] hover:bg-[#F8FAFC]',
+                                                )}
+                                            >
+                                                Default view
+                                            </button>
+                                            {savedColumnViews.map((view) => (
+                                                <div key={view.id} className="group flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => applyColumnView(view)}
+                                                        className={cn(
+                                                            'flex-1 truncate rounded-lg px-1.5 py-1.5 text-left text-sm',
+                                                            activeSavedViewId === view.id
+                                                                ? 'bg-[#EEF4FD] font-semibold text-[#266DD3]'
+                                                                : 'text-[#344054] hover:bg-[#F8FAFC]',
+                                                        )}
+                                                    >
+                                                        {view.name}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => deleteColumnView(view.id)}
+                                                        className="rounded-md p-1 text-[#C4CDD8] opacity-0 transition-opacity hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                                                        title={`Delete "${view.name}"`}
+                                                    >
+                                                        <X className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="mt-3 border-t border-[#EEF2F6] pt-3">
+                                            {isSavingView ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <Input
+                                                        autoFocus
+                                                        value={newViewName}
+                                                        onChange={(e) => setNewViewName(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') saveCurrentAsView()
+                                                            if (e.key === 'Escape') setIsSavingView(false)
+                                                        }}
+                                                        placeholder="e.g. Scores"
+                                                        className="h-8 text-xs"
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        className="h-8 shrink-0 rounded-lg bg-[#266DD3] text-xs hover:bg-[#1f5bb5]"
+                                                        disabled={!newViewName.trim()}
+                                                        onClick={saveCurrentAsView}
+                                                    >
+                                                        Save
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsSavingView(true)}
+                                                    className="text-xs font-medium text-[#266DD3] hover:underline"
+                                                >
+                                                    + Save current view as…
+                                                </button>
+                                            )}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
@@ -1030,9 +1284,10 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         <Table className="w-full table-fixed">
                             <TableHeader>
                                 <TableRow className="border-[#EEF2F6] bg-[#FAFBFC]/90 hover:bg-[#FAFBFC]/90">
-                                    {columns.map((col) => (
+                                    {visibleColumns.map((col) => (
                                         <TableHead
                                             key={col.id}
+                                            style={{ width: `${(col.widthWeight / visibleColumnsTotalWeight) * 100}%` }}
                                             className={cn(
                                                 'h-10 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#98A2B3]',
                                                 col.className,
@@ -1046,7 +1301,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                             <TableBody>
                                 {isLoadingList ? (
                                     <TableRow>
-                                        <TableCell colSpan={columns.length} className="h-44 text-center">
+                                        <TableCell colSpan={visibleColumns.length} className="h-44 text-center">
                                             <div className="inline-flex items-center gap-2 text-sm text-[#667085]">
                                                 <Loader2 className="h-4 w-4 animate-spin text-[#266DD3]" />
                                                 Loading assessments…
@@ -1055,7 +1310,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                     </TableRow>
                                 ) : rows.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={columns.length} className="h-44 text-center">
+                                        <TableCell colSpan={visibleColumns.length} className="h-44 text-center">
                                             <p className="text-sm font-semibold text-[#344054]">
                                                 No charities match these filters
                                             </p>
@@ -1070,9 +1325,10 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                             key={row.id}
                                             className="border-[#F2F4F7] transition-colors hover:bg-[#F8FBFF]/90"
                                         >
-                                            {columns.map((col) => (
+                                            {visibleColumns.map((col) => (
                                                 <TableCell
                                                     key={col.id}
+                                                    style={{ width: `${(col.widthWeight / visibleColumnsTotalWeight) * 100}%` }}
                                                     className={cn('px-2 py-2.5 align-middle', col.className)}
                                                 >
                                                     {col.cell(row)}

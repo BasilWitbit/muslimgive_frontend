@@ -34,7 +34,7 @@ import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
 import { addCharityCommentAction, approveCharityAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
-import { Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2, Table2 } from 'lucide-react'
+import { AlertTriangle, Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2, Table2 } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
 import ConfigureRoleModal from './models/ConfigureRoleModal'
 import { usePermissions } from '@/components/common/permissions-provider'
@@ -945,6 +945,23 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         </div>
                     </PremiumSectionCard>
                 </div>
+                {shouldHideAssessmentAndProgress ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5">
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                            <div>
+                                <p className="text-sm font-semibold text-amber-900">
+                                    Assessments aren&apos;t available yet
+                                </p>
+                                <p className="mt-1 text-sm text-amber-800">
+                                    {status === 'ineligible'
+                                        ? 'This charity has been marked not eligible for assessment. Any team members assigned to it won’t be able to begin their assessment until eligibility is reconsidered.'
+                                        : 'This charity’s eligibility hasn’t been confirmed yet. Complete the Eligibility Review to unlock the assessment areas for whoever is assigned.'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
                 {!shouldHideAssessmentAndProgress ? (
                     <PremiumSectionCard
                         heading="Assessment Summary"

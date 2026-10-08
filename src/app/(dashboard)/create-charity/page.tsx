@@ -52,6 +52,17 @@ const START_YEAR_AUTOCOMPLETE_OPTIONS = START_YEAR_OPTIONS.map((year) => ({
 const cellInputClass =
     'h-9 min-w-0 rounded-lg border-[#E4E7EC] bg-white px-2 text-xs shadow-none focus-visible:ring-[#266DD3]/30'
 
+/** Loose client-side mirror of the backend's `@IsUrl({ require_protocol: false })` check. */
+function isPlausibleUrl(value: string): boolean {
+    try {
+        const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`
+        const url = new URL(withProtocol)
+        return Boolean(url.hostname) && url.hostname.includes('.')
+    } catch {
+        return false
+    }
+}
+
 function validateRow(row: CharityRow): string | null {
     if (!row.name.trim()) return 'Name is required'
     if (!row.countryCode) return 'Country is required'
@@ -87,6 +98,13 @@ function validateRow(row: CharityRow): string | null {
     if (row.countryCode === 'united-kingdom' && !row.regNumber.trim()) return 'Charity number is required'
     if (row.countryCode === 'canada' && !row.regNumber.trim()) return 'Registration number is required'
     if (row.countryCode === 'united-states' && !row.regNumber.trim()) return 'EIN is required'
+
+    if (row.profileUrl.trim() && !isPlausibleUrl(row.profileUrl.trim())) {
+        return 'Commission/CRA link must be a valid web address'
+    }
+    if (row.websiteUrl.trim() && !isPlausibleUrl(row.websiteUrl.trim())) {
+        return 'Website must be a valid web address'
+    }
 
     return null
 }
@@ -330,7 +348,8 @@ const CreateCharityStandalonePage = () => {
                                         'Category',
                                         'Start yr',
                                         'Reg #',
-                                        'Profile URL',
+                                        'Commission/CRA Link',
+                                        'Website',
                                         'CEO',
                                         'Islamic Charity',
                                         'Collects Zakah',
@@ -361,6 +380,15 @@ const CreateCharityStandalonePage = () => {
                                         (row.annualRevenue.trim() !== '' &&
                                             !Number.isNaN(Number(row.annualRevenue)) &&
                                             Number(row.annualRevenue) < 500000)
+                                    const eligibilityRevenueNum = row.annualRevenue.trim() ? Number(row.annualRevenue) : null
+                                    const eligibilitySuggestion = buildEligibilitySuggestion({
+                                        annualRevenue: eligibilityRevenueNum,
+                                        isIslamic: row.isIslamic === 'yes',
+                                        category: row.category === 'other' ? row.otherCategory : row.category,
+                                        assessmentRequested: row.assessmentRequested,
+                                        startYear: row.startYear || null,
+                                        countryCode: row.countryCode || null,
+                                    })
 
                                     return (
                                         <React.Fragment key={row.key}>
@@ -384,11 +412,26 @@ const CreateCharityStandalonePage = () => {
                                                             onCheckedChange={(v) =>
                                                                 updateRow(row.key, {
                                                                     assessmentRequested: Boolean(v),
+                                                                    assessmentRequestedNote: v
+                                                                        ? row.assessmentRequestedNote
+                                                                        : '',
                                                                 })
                                                             }
                                                         />
                                                         Assessment requested
                                                     </label>
+                                                    {row.assessmentRequested ? (
+                                                        <Input
+                                                            value={row.assessmentRequestedNote}
+                                                            onChange={(e) =>
+                                                                updateRow(row.key, {
+                                                                    assessmentRequestedNote: e.target.value,
+                                                                })
+                                                            }
+                                                            placeholder="Requested by / note"
+                                                            className={cn(cellInputClass, 'mt-1 min-w-[140px] text-[10px]')}
+                                                        />
+                                                    ) : null}
                                                 </td>
                                                 <td className="px-2.5 py-2">
                                                     <Select
@@ -479,12 +522,34 @@ const CreateCharityStandalonePage = () => {
                                                     ) : null}
                                                 </td>
                                                 <td className="px-2.5 py-2">
+                                                    {row.countryCode === 'united-states' ? (
+                                                        <span className="text-[10px] text-[#C4CDD8]">
+                                                            Not applicable
+                                                        </span>
+                                                    ) : (
+                                                        <Input
+                                                            value={row.profileUrl}
+                                                            onChange={(e) =>
+                                                                updateRow(row.key, { profileUrl: e.target.value })
+                                                            }
+                                                            placeholder={
+                                                                row.countryCode === 'united-kingdom'
+                                                                    ? 'Charity Commission link'
+                                                                    : row.countryCode === 'canada'
+                                                                      ? 'CRA page link'
+                                                                      : 'Link (optional)'
+                                                            }
+                                                            className={cn(cellInputClass, 'min-w-[120px]')}
+                                                        />
+                                                    )}
+                                                </td>
+                                                <td className="px-2.5 py-2">
                                                     <Input
-                                                        value={row.profileUrl}
+                                                        value={row.websiteUrl}
                                                         onChange={(e) =>
-                                                            updateRow(row.key, { profileUrl: e.target.value })
+                                                            updateRow(row.key, { websiteUrl: e.target.value })
                                                         }
-                                                        placeholder="Link"
+                                                        placeholder="Website (optional)"
                                                         className={cn(cellInputClass, 'min-w-[120px]')}
                                                     />
                                                 </td>
@@ -587,6 +652,17 @@ const CreateCharityStandalonePage = () => {
                                                             <SelectItem value="no">No</SelectItem>
                                                         </SelectContent>
                                                     </Select>
+                                                    <p
+                                                        className="mt-1 max-w-[88px] cursor-help text-[9px] leading-snug text-[#98A2B3]"
+                                                        title={[
+                                                            `Suggested: ${eligibilitySuggestion.suggestedEligible ? 'Yes' : 'No'}`,
+                                                            ...eligibilitySuggestion.reasons.map(
+                                                                (r) => `${r.ok ? '✓' : '✗'} ${r.text}`,
+                                                            ),
+                                                        ].join('\n')}
+                                                    >
+                                                        Suggested: {eligibilitySuggestion.suggestedEligible ? 'Yes' : 'No'} (hover why)
+                                                    </p>
                                                 </td>
                                                 <td className="px-2.5 py-2">
                                                     {showOverride ? (

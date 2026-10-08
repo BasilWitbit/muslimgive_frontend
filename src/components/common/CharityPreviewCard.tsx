@@ -15,6 +15,7 @@ import { StatusTypeComp } from '@/components/use-case/CharitiesPageComponent/Bul
 import { kebabToTitle } from '@/lib/helpers'
 import { getCurrencySymbol } from '@/lib/utils'
 import { buildCharityPreviewView, type CharityCreateDraft } from '@/lib/charity-create-draft'
+import EligibilitySuggestionCard, { buildEligibilitySuggestion } from '@/components/common/EligibilitySuggestionCard'
 
 const REVENUE_BAND_LABEL: Record<string, string> = {
     above: 'Above threshold',
@@ -60,6 +61,14 @@ export default function CharityPreviewCard({
 }: CharityPreviewCardProps) {
     const preview = buildCharityPreviewView(draft)
     const currency = getCurrencySymbol(preview.country || undefined)
+    const eligibilitySuggestion = buildEligibilitySuggestion({
+        annualRevenue: draft.annualRevenue,
+        isIslamic: draft.isIslamic,
+        category: preview.category,
+        assessmentRequested: draft.assessmentRequested,
+        startYear: draft.startYear,
+        countryCode: draft.countryCode,
+    })
 
     return (
         <section
@@ -161,7 +170,32 @@ export default function CharityPreviewCard({
                 <h3 className="mb-3 text-base font-semibold text-[#101928]">Charity information</h3>
                 <div className="grid gap-3 sm:grid-cols-2">
                     <DetailItem label="Category" value={kebabToTitle(preview.category) || '—'} />
-                    <DetailItem label="Registration no." value={preview.registrationNumber || '—'} />
+                    <DetailItem
+                        label="Registration no."
+                        value={
+                            preview.registrationNumber ? (
+                                preview.regulatorUrl ? (
+                                    <a
+                                        href={
+                                            preview.regulatorUrl.startsWith('http')
+                                                ? preview.regulatorUrl
+                                                : `https://${preview.regulatorUrl}`
+                                        }
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[#266DD3] underline decoration-dotted underline-offset-2 hover:text-[#1f5bb5]"
+                                        title={`View on ${preview.regulatorLabel}`}
+                                    >
+                                        {preview.registrationNumber}
+                                    </a>
+                                ) : (
+                                    preview.registrationNumber
+                                )
+                            ) : (
+                                '—'
+                            )
+                        }
+                    />
                     <DetailItem
                         label="Start year"
                         value={preview.startYear != null ? String(preview.startYear) : '—'}
@@ -185,7 +219,16 @@ export default function CharityPreviewCard({
                     <DetailItem label="Eligible" value={<BoolValue yes={preview.isEligible} />} />
                     <DetailItem
                         label="Assessment requested"
-                        value={<BoolValue yes={preview.assessmentRequested} />}
+                        value={
+                            <div className="space-y-1">
+                                <BoolValue yes={preview.assessmentRequested} />
+                                {preview.assessmentRequested && preview.assessmentRequestedNote ? (
+                                    <p className="text-xs font-normal leading-relaxed text-[#667085]">
+                                        {preview.assessmentRequestedNote}
+                                    </p>
+                                ) : null}
+                            </div>
+                        }
                     />
                     <DetailItem label="Islamic charity" value={<BoolValue yes={preview.isIslamic} />} />
                     <DetailItem label="Collects Zakah" value={<BoolValue yes={preview.collectsZakah} />} />
@@ -205,6 +248,8 @@ export default function CharityPreviewCard({
                         />
                     ) : null}
                 </div>
+
+                <EligibilitySuggestionCard suggestion={eligibilitySuggestion} className="mt-4" />
             </div>
         </section>
     )

@@ -107,11 +107,7 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
         overallScorePercent: c.overallScorePercent ?? null,
         overallScoreResult: c.overallScoreResult ?? null,
         country: c.countryCode || c.country,
-        website: c.countryCode === 'united-kingdom'
-            ? (c.ukCharityCommissionUrl || c.charityCommissionWebsiteUrl)
-            : c.countryCode === 'canada'
-                ? (c.caCraUrl || c.charityCommissionWebsiteUrl)
-                : (c.usIrsUrl || c.charityCommissionWebsiteUrl),
+        website: c.websiteUrl ?? undefined,
         isThisMuslimCharity: c.isIslamic,
         doTheyPayZakat: c.doesCharityGiveZakat,
         assessmentRequested: c.assessmentRequested,

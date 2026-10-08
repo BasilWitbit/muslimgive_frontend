@@ -16,7 +16,9 @@ const ALLOWED_COUNTRY_CODES: readonly CharityCreateCountryCode[] = [
 export type CharityCreateDraft = {
     name?: string
     logoUrl?: string | null
+    websiteUrl?: string | null
     assessmentRequested?: boolean
+    assessmentRequestedNote?: string | null
     countryCode?: CharityCreateCountryCode | string
     category?: string
     otherCategory?: string | null
@@ -51,10 +53,14 @@ export type CharityRow = {
     otherCategory: string
     startYear: string
     regNumber: string
+    /** Country regulator link (Charity Commission / CRA) — not applicable for US. */
     profileUrl: string
+    /** The charity's own general website — optional, any country. */
+    websiteUrl: string
     ceoName: string
     submittedByEmail: string
     assessmentRequested: boolean
+    assessmentRequestedNote: string
     isIslamic: 'yes' | 'no' | ''
     collectsZakah: 'yes' | 'no' | ''
     revenueBand: RevenueBand
@@ -73,9 +79,11 @@ export const emptyCharityRow = (): CharityRow => ({
     startYear: '',
     regNumber: '',
     profileUrl: '',
+    websiteUrl: '',
     ceoName: '',
     submittedByEmail: '',
     assessmentRequested: false,
+    assessmentRequestedNote: '',
     isIslamic: '',
     collectsZakah: '',
     revenueBand: '',
@@ -94,7 +102,9 @@ export function rowToDraft(row: CharityRow): CharityCreateDraft {
 
     return {
         name: row.name.trim(),
+        websiteUrl: row.websiteUrl.trim() || null,
         assessmentRequested: row.assessmentRequested,
+        assessmentRequestedNote: row.assessmentRequested ? row.assessmentRequestedNote.trim() || null : null,
         countryCode: row.countryCode || undefined,
         category: resolvedCategory,
         otherCategory: row.category === 'other' ? row.otherCategory : null,
@@ -105,7 +115,8 @@ export function rowToDraft(row: CharityRow): CharityCreateDraft {
         caRegistrationNumber: isCa ? row.regNumber || null : null,
         caCraUrl: isCa ? row.profileUrl || null : null,
         usEin: isUs ? row.regNumber || null : null,
-        usIrsUrl: isUs ? row.profileUrl || null : null,
+        // US charities don't collect a regulator link (the IRS site doesn't allow deep links).
+        usIrsUrl: null,
         ceoName: row.ceoName.trim(),
         submittedByEmail: row.submittedByEmail.trim() || null,
         isIslamic: row.isIslamic === 'yes',
@@ -149,9 +160,11 @@ export function draftToRow(draft: CharityCreateDraft): CharityRow {
         startYear: draft.startYear != null ? String(draft.startYear) : '',
         regNumber,
         profileUrl,
+        websiteUrl: draft.websiteUrl || '',
         ceoName: draft.ceoName || '',
         submittedByEmail: draft.submittedByEmail || '',
         assessmentRequested: Boolean(draft.assessmentRequested),
+        assessmentRequestedNote: draft.assessmentRequestedNote || '',
         isIslamic: draft.isIslamic === undefined ? '' : draft.isIslamic ? 'yes' : 'no',
         collectsZakah: draft.doesCharityGiveZakat === undefined ? '' : draft.doesCharityGiveZakat ? 'yes' : 'no',
         revenueBand: (draft.revenueThresholdBand as RevenueBand) || '',
@@ -301,7 +314,9 @@ export function buildCreateCharityPayload(
     return {
         name: draft.name,
         logoUrl: draft.logoUrl ?? null,
+        websiteUrl: draft.websiteUrl ?? null,
         assessmentRequested: Boolean(draft.assessmentRequested),
+        assessmentRequestedNote: draft.assessmentRequestedNote ?? null,
         countryCode,
         category: resolvedCategory,
         startDate: draft.startDate ? new Date(draft.startDate).toISOString().split('T')[0] : null,
@@ -335,12 +350,16 @@ export type CharityPreviewView = {
     startYear: number | null
     totalDuration: string | undefined
     website: string | null
+    /** Charity Commission (UK) / CRA (Canada) link — not applicable for US. */
+    regulatorUrl: string | null
+    regulatorLabel: string | null
     registrationNumber: string | null
     annualRevenue: number | null
     revenueBand: 'above' | 'below' | 'unknown' | null
     isIslamic: boolean
     collectsZakah: boolean
     assessmentRequested: boolean
+    assessmentRequestedNote: string | null
     isEligible: boolean
     eligibilityOverride: boolean
     overrideReason: string | null
@@ -364,12 +383,18 @@ export function buildCharityPreviewView(draft: CharityCreateDraft): CharityPrevi
     }
 
     const country = resolveCharityCreateCountryCode(draft.countryCode)
-    const website =
+    const regulatorUrl =
         draft.countryCode === 'united-kingdom'
             ? draft.ukCharityCommissionUrl
             : draft.countryCode === 'canada'
               ? draft.caCraUrl
-              : draft.usIrsUrl
+              : null
+    const regulatorLabel =
+        draft.countryCode === 'united-kingdom'
+            ? 'Charity Commission'
+            : draft.countryCode === 'canada'
+              ? 'CRA'
+              : null
 
     const registrationNumber =
         draft.countryCode === 'united-kingdom'
@@ -390,13 +415,16 @@ export function buildCharityPreviewView(draft: CharityCreateDraft): CharityPrevi
         status: draft.isEligible ? 'unassigned' : 'ineligible',
         startYear,
         totalDuration,
-        website: website || null,
+        website: draft.websiteUrl || null,
+        regulatorUrl: regulatorUrl || null,
+        regulatorLabel,
         registrationNumber: registrationNumber || null,
         annualRevenue: typeof draft.annualRevenue === 'number' ? draft.annualRevenue : null,
         revenueBand: draft.revenueThresholdBand || null,
         isIslamic: Boolean(draft.isIslamic),
         collectsZakah: Boolean(draft.doesCharityGiveZakat),
         assessmentRequested: Boolean(draft.assessmentRequested),
+        assessmentRequestedNote: draft.assessmentRequestedNote || null,
         isEligible: Boolean(draft.isEligible),
         eligibilityOverride: Boolean(draft.eligibilityRevenueOverride),
         overrideReason: draft.eligibilityRevenueOverrideReason || null,

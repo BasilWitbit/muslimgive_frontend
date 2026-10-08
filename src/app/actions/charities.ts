@@ -32,7 +32,9 @@ export type ListCharitiesParams = {
 export type CreateCharityPayload = {
     name: string;
     logoUrl?: string | null;
+    websiteUrl?: string | null;
     assessmentRequested: boolean;
+    assessmentRequestedNote?: string | null;
     isIslamic: boolean;
     doesCharityGiveZakat: boolean;
     startDate?: string | null;
@@ -197,6 +199,7 @@ export const createCharityAction = async (payload: CreateCharityPayload): Promis
 export type UpdateCharityPayload = {
     name?: string | null;
     logoUrl?: string | null;
+    websiteUrl?: string | null;
     countryCode?: CountriesInKebab | null;
     startDate?: string | null;
     startYear?: number | null;

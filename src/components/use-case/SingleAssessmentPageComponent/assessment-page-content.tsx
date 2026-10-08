@@ -157,9 +157,9 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
             </div>
             {isEditable === false ? (
                 <div className="rounded-2xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-4 py-8 text-center">
-                    <p className="text-sm font-semibold text-[#344054]">You're not assigned to this assessment</p>
+                    <p className="text-sm font-semibold text-[#344054]">You&apos;re not assigned to this assessment</p>
                     <p className="mt-1 text-xs text-[#667085]">
-                        Only the assessor(s) assigned to this charity's assessment can start it. Once it's been completed, any assessor in this area can view and edit it.
+                        Only the assessor(s) assigned to this charity&apos;s assessment can start it. Once it&apos;s been completed, any assessor in this area can view and edit it.
                     </p>
                 </div>
             ) : (

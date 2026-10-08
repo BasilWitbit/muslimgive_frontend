@@ -25,7 +25,7 @@ const PmDashboardPage = async () => {
         return <NotAuthorized />
     }
 
-    const metricsRes = await getDashboardMetricsAction('current')
+    const metricsRes = await getDashboardMetricsAction({ periodType: 'month' })
     const metrics = metricsRes.payload?.data?.data || null
 
     return (

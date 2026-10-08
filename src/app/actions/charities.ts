@@ -12,7 +12,7 @@ export type ListCharitiesParams = {
     page?: number;
     limit?: number;
     search?: string;
-    sortBy?: 'createdAt' | 'name' | 'updatedAt';
+    sortBy?: 'createdAt' | 'name' | 'updatedAt' | 'auditsCompleted';
     order?: 'ASC' | 'DESC';
     status?: string[];
     isActive?: boolean;
@@ -297,6 +297,14 @@ export const updateCharityEligibilityAction = async (charityId: string, payload:
 }
 
 /**
+ * PATCH /charities/{id}/approve
+ * Final step of the status flow: Pending Approval → Approved.
+ */
+export const approveCharityAction = async (charityId: string): Promise<ResponseType> => {
+    return await _patch(`/charities/${charityId}/approve`, {});
+}
+
+/**
  * GET /charities/{id}/report
  * Returns report data for a charity
  */
@@ -349,11 +357,20 @@ export const sendBulkEmailReportAction = async (payload: SendBulkEmailPayload): 
  * GET /admin/charities/dashboard-metrics
  * Fetches aggregated KPI metrics for the PM dashboard.
  */
+export type DashboardMetricsPeriod = {
+    periodType?: 'month' | 'year';
+    year?: number;
+    /** 1-12, only relevant when periodType is 'month'. */
+    month?: number;
+}
+
 export const getDashboardMetricsAction = async (
-    period: 'current' | 'previous-month' = 'current',
+    period: DashboardMetricsPeriod = {},
 ): Promise<ResponseType> => {
     const query = new URLSearchParams();
-    if (period) query.append('period', period);
+    if (period.periodType) query.append('periodType', period.periodType);
+    if (period.year) query.append('year', String(period.year));
+    if (period.month) query.append('month', String(period.month));
     return await _get(`/admin/charities/dashboard-metrics?${query.toString()}`);
 }
 
@@ -370,10 +387,11 @@ export type DashboardAssessmentsParams = {
     completedFrom?: string;
     completedTo?: string;
     minOverall?: number;
-    minCore1?: number;
-    minCore2?: number;
-    minCore3?: number;
-    minCore4?: number;
+    /** Outcome bands per area — Charity Legitimacy has no "Needs Improvement", Financial Accountability has no "Moderate". */
+    outcomeCore1?: 'Strong' | 'Moderate' | 'Concern';
+    outcomeCore2?: 'Strong' | 'Needs Improvement' | 'Concern';
+    outcomeCore3?: 'Strong' | 'Moderate' | 'Needs Improvement' | 'Concern';
+    outcomeCore4?: 'Strong' | 'Moderate' | 'Needs Improvement' | 'Concern';
     sortBy?: 'createdAt' | 'updatedAt' | 'overallScorePercent' | 'completedAt' | 'name';
     order?: 'ASC' | 'DESC';
     topRated?: boolean;
@@ -391,10 +409,10 @@ export const getDashboardAssessmentsAction = async (
     if (params.completedFrom) query.append('completedFrom', params.completedFrom);
     if (params.completedTo) query.append('completedTo', params.completedTo);
     if (params.minOverall != null) query.append('minOverall', String(params.minOverall));
-    if (params.minCore1 != null) query.append('minCore1', String(params.minCore1));
-    if (params.minCore2 != null) query.append('minCore2', String(params.minCore2));
-    if (params.minCore3 != null) query.append('minCore3', String(params.minCore3));
-    if (params.minCore4 != null) query.append('minCore4', String(params.minCore4));
+    if (params.outcomeCore1) query.append('outcomeCore1', params.outcomeCore1);
+    if (params.outcomeCore2) query.append('outcomeCore2', params.outcomeCore2);
+    if (params.outcomeCore3) query.append('outcomeCore3', params.outcomeCore3);
+    if (params.outcomeCore4) query.append('outcomeCore4', params.outcomeCore4);
     if (params.sortBy) query.append('sortBy', params.sortBy);
     if (params.order) query.append('order', params.order);
     if (params.topRated != null) query.append('topRated', String(params.topRated));

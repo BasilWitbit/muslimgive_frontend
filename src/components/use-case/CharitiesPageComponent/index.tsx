@@ -48,6 +48,21 @@ const CATEGORY_KEYS = [
     { id: 'other', label: 'Other' },
 ]
 
+type SortOptionId = 'most-recent' | 'oldest' | 'highest-progress' | 'lowest-progress'
+
+const SORT_OPTIONS: Array<{
+    id: SortOptionId
+    label: string
+    description?: string
+    sortBy: 'createdAt' | 'auditsCompleted'
+    order: 'ASC' | 'DESC'
+}> = [
+    { id: 'most-recent', label: 'Most recent', description: 'newest submission first', sortBy: 'createdAt', order: 'DESC' },
+    { id: 'oldest', label: 'Oldest', description: 'oldest submission first', sortBy: 'createdAt', order: 'ASC' },
+    { id: 'highest-progress', label: 'Highest progress', sortBy: 'auditsCompleted', order: 'DESC' },
+    { id: 'lowest-progress', label: 'Lowest progress', sortBy: 'auditsCompleted', order: 'ASC' },
+]
+
 type CharitiesPageComponentProps = {
     assignmentCandidatesByRole?: AssignmentCandidatesByRole
 }
@@ -73,9 +88,9 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
     const [islamicFilter, setIslamicFilter] = useState<boolean | undefined>(undefined)
     const [openFilterPopover, setOpenFilterPopover] = useState(false)
 
-    // Sort states
-    const [sortBy, setSortBy] = useState<'createdAt' | 'name' | 'updatedAt'>('createdAt')
-    const [order, setOrder] = useState<'ASC' | 'DESC'>('DESC')
+    // Sort state — each option bundles a field + direction into one named choice.
+    const [sortOption, setSortOption] = useState<SortOptionId>('most-recent')
+    const { sortBy, order } = SORT_OPTIONS.find((o) => o.id === sortOption) ?? SORT_OPTIONS[0]
 
     const mapCharity = (c: any): SingleCharityType => ({
         id: c.id,
@@ -325,24 +340,23 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                             className="h-11 rounded-xl border-[#DDE7F3] bg-[#F8FAFC]"
                         />
                         <div className="flex items-center gap-2 md:ml-auto">
-                            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-                                <SelectTrigger className="h-11 w-[140px] rounded-xl border-[#DDE7F3] bg-white">
-                                    <SelectValue placeholder="Sort By" />
+                            <Select value={sortOption} onValueChange={(v: SortOptionId) => setSortOption(v)}>
+                                <SelectTrigger className="h-11 w-[180px] rounded-xl border-[#DDE7F3] bg-white">
+                                    <SelectValue placeholder="Sort by" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="createdAt">Created At</SelectItem>
-                                    <SelectItem value="name">Name</SelectItem>
-                                    <SelectItem value="updatedAt">Updated At</SelectItem>
+                                    {SORT_OPTIONS.map((option) => (
+                                        <SelectItem key={option.id} value={option.id}>
+                                            <div className="flex flex-col">
+                                                <span>{option.label}</span>
+                                                {option.description ? (
+                                                    <span className="text-xs text-[#98A2B3]">{option.description}</span>
+                                                ) : null}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-11 w-11 rounded-xl border-[#DDE7F3] bg-white"
-                                onClick={() => setOrder(order === 'ASC' ? 'DESC' : 'ASC')}
-                            >
-                                {order === 'ASC' ? "↑" : "↓"}
-                            </Button>
                         </div>
                     </div>
                 </div>

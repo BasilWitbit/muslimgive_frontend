@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label"
 import { TypographyComponent } from "@/components/common/TypographyComponent"
 import { Button } from "@/components/ui/button"
 import AvatarComponent from "@/components/common/AvatarComponent"
+import CopyCharityLinkButton from "@/components/common/CopyCharityLinkButton"
 
 type IProps = {
     onSelection: (ids: string[]) => void;
@@ -16,6 +17,8 @@ type IProps = {
     /** Allow saving with zero selected — e.g. revoking access from everyone. */
     allowEmpty?: boolean;
     emptyMessage?: string;
+    /** When this assignment is for a charity (not e.g. a dashboard-access grant), shows a "Copy link" action so whoever is assigning can pass it straight on. */
+    charityId?: string;
 }
 
 const AssignProjectManager: React.FC<IProps> = ({
@@ -28,6 +31,7 @@ const AssignProjectManager: React.FC<IProps> = ({
     initialSelectedIds = [],
     allowEmpty = false,
     emptyMessage,
+    charityId,
 }) => {
     const [selectedManagers, setSelectedManagers] = React.useState<string[]>(initialSelectedIds)
     const [searchQuery, setSearchQuery] = React.useState("")
@@ -60,7 +64,10 @@ const AssignProjectManager: React.FC<IProps> = ({
 
     return (
         <div className="max-w-md flex flex-col gap-4">
-            <Label className="text-sm font-medium">{`Assign ${roleLabel}s`}</Label>
+            <div className="flex items-center justify-between gap-3">
+                <Label className="text-sm font-medium">{`Assign ${roleLabel}s`}</Label>
+                {charityId ? <CopyCharityLinkButton charityId={charityId} variant="label" /> : null}
+            </div>
             <AutoCompleteComponent
                 options={options.filter(opt => !selectedManagers.includes(opt.value))}
                 value={null}

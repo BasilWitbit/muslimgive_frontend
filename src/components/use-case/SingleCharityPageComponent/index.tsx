@@ -32,7 +32,7 @@ import { capitalizeWords, kebabToTitle } from '@/lib/helpers'
 import { getCurrencyCode, getCurrencySymbol } from '@/lib/utils'
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
-import { addCharityCommentAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
+import { addCharityCommentAction, approveCharityAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
 import { Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2, Table2 } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
@@ -46,6 +46,7 @@ import { Progress } from '@/components/ui/progress'
 import { AUDIT_DEFINITIONS } from '../SingleAssessmentPageComponent/ASSESSMENT_DEFINITIONS'
 import EditCharityDetailsModal from './models/EditCharityDetailsModal'
 import StatusPill from '@/components/common/StatusPill'
+import CopyCharityLinkButton from '@/components/common/CopyCharityLinkButton'
 import { getCharityStatusColor } from '@/lib/chip-styles'
 import {
     AssessmentItemCard,
@@ -129,6 +130,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     const [showReassessModal, setShowReassessModal] = useState(false)
     const [isReassessing, setIsReassessing] = useState(false)
     const [isSendingReportEmail, setIsSendingReportEmail] = useState(false)
+    const [isApproving, setIsApproving] = useState(false)
     const { isAllowed, me } = usePermissions()
     const effectiveUserId = currentUserId ?? me?.id ?? null
     const projectManagerCandidates = assignmentCandidatesByRole?.projectManager ?? []
@@ -535,6 +537,25 @@ const SingleCharityPageComponent: FC<IProps> = ({
         }
     }
 
+    const handleApprove = async () => {
+        if (!canManageCharity) return
+        setIsApproving(true)
+        try {
+            const res = await approveCharityAction(charityId)
+            if (res.ok) {
+                toast.success('Charity approved.')
+                router.refresh()
+            } else {
+                toast.error(res.message || 'Failed to approve charity.')
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error('An unexpected error occurred.')
+        } finally {
+            setIsApproving(false)
+        }
+    }
+
     const handleDropdownSelect = (selection: string) => {
         if (selection === 'edit-charity-details') {
             handleOpenModel('edit-charity-details')
@@ -659,13 +680,16 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 Submitted by <span className="font-medium text-[#344054]">{charityOwnerName}</span>
                             </p>
                         </div>
-                        <IconDropdownMenuComponent
-                            variant="premium"
-                            destructiveValues={['delete-charity']}
-                            icon={<ThreeDotIcon />}
-                            options={dropdownOptions}
-                            onSelect={handleDropdownSelect}
-                        />
+                        <div className="flex shrink-0 items-center gap-2">
+                            <CopyCharityLinkButton charityId={charityId} variant="label" />
+                            <IconDropdownMenuComponent
+                                variant="premium"
+                                destructiveValues={['delete-charity']}
+                                icon={<ThreeDotIcon />}
+                                options={dropdownOptions}
+                                onSelect={handleDropdownSelect}
+                            />
+                        </div>
                     </div>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -805,6 +829,17 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 <InfoRow label="Overall Score:" value={overallScoreLabel ?? '-'} />
                                 <InfoRow label="Pass / Fail:" value={passFailValue} />
                                 <div className="flex flex-col gap-2">
+                                    {canManageCharity ? (
+                                        <Button
+                                            variant="primary"
+                                            className="w-full rounded-xl"
+                                            onClick={handleApprove}
+                                            loading={isApproving}
+                                            disabled={isApproving}
+                                        >
+                                            {isApproving ? 'Approving...' : 'Approve'}
+                                        </Button>
+                                    ) : null}
                                     <LinkComponent to={`/reports/${charityId}`} openInNewTab>
                                         <Button variant="outline" className="w-full rounded-xl">View Report</Button>
                                     </LinkComponent>
@@ -1174,7 +1209,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         await handleRoleSelection(userIds, 'project-manager')
                     }} users={projectManagerCandidates} initialSelectedIds={members.filter(m => roleAliasesByCanonical['project-manager'].includes(m.role)).map(m => m.id)} onCancel={() => {
                         handleCloseModel()
-                    }} isSubmitting={isAssigningRole} />
+                    }} isSubmitting={isAssigningRole} charityId={charityId} />
                 ) : null}
             </ModelComponentWithExternalControl>
 
@@ -1194,6 +1229,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         }}
                         onCancel={handleCloseModel}
                         isSubmitting={isAssigningRole}
+                        charityId={charityId}
                     />
                 ) : null}
             </ModelComponentWithExternalControl>
@@ -1214,6 +1250,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         }}
                         onCancel={handleCloseModel}
                         isSubmitting={isAssigningRole}
+                        charityId={charityId}
                     />
                 ) : null}
             </ModelComponentWithExternalControl>
@@ -1234,6 +1271,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         }}
                         onCancel={handleCloseModel}
                         isSubmitting={isAssigningRole}
+                        charityId={charityId}
                     />
                 ) : null}
             </ModelComponentWithExternalControl>

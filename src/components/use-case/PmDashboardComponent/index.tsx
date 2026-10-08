@@ -15,6 +15,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePageNavigationDismiss } from '@/hooks/use-page-navigation'
 import { cn } from '@/lib/utils'
+import StatusPill from '@/components/common/StatusPill'
+import { CHARITY_STATUS_LABELS } from '@/components/use-case/SingleCharityPageComponent/CharityDetailPremium'
+import { getCharityStatusColor } from '@/lib/chip-styles'
+import { kebabToTitle } from '@/lib/helpers'
 import {
     getDashboardAssessmentsAction,
     getDashboardMetricsAction,
@@ -29,12 +33,16 @@ import {
     getZakatDisplayScores,
     type AuditCoreAreaKey,
 } from '@/lib/audit-score-display'
+import { RATING_BAND_STYLES, type RatingBand } from '@/lib/audit-scoring'
 import {
     ArrowUpRight,
     CheckCircle,
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     Clock,
+    Download,
+    FileSpreadsheet,
     FileText,
     Loader2,
     Search,
@@ -42,13 +50,21 @@ import {
     Users,
     type LucideIcon,
 } from 'lucide-react'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 type ActivitySnapshot = {
     avgCompletionDays: number | null
     assessmentsCompletedThisWeek: number
-    assessmentsCompletedThisMonth: number
-    period: 'current' | 'previous-month'
-    monthLabel: string
+    assessmentsCompletedInPeriod: number
+    periodType: 'month' | 'year'
+    year: number
+    month: number | null
+    periodLabel: string
 }
 
 type DashboardMetrics = {
@@ -63,6 +79,7 @@ type CoreReview = {
     score: number | null
     totalScore: number
     result: 'pass' | 'fail' | null
+    ratingBand: RatingBand | null
 }
 
 type AssessmentRow = {
@@ -130,38 +147,47 @@ const COUNTRY_OPTIONS = [
     { value: 'canada', label: 'Canada' },
 ] as const
 
-const ASSESSMENT_STATUS_META: Record<
-    AssessmentRow['assessmentStatus'],
-    { label: string; shortLabel: string; className: string }
-> = {
-    completed: {
-        label: 'Completed',
-        shortLabel: 'Done',
-        className: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    },
-    in_progress: {
-        label: 'In progress',
-        shortLabel: 'Active',
-        className: 'bg-sky-50 text-sky-700 border-sky-100',
-    },
-    assigned: {
-        label: 'Assigned',
-        shortLabel: 'Assigned',
-        className: 'bg-violet-50 text-violet-700 border-violet-100',
-    },
-    not_started: {
-        label: 'Not started',
-        shortLabel: 'New',
-        className: 'bg-slate-50 text-slate-600 border-slate-100',
-    },
-}
-
 const CORE_AREA_SLUG: Record<AuditCoreAreaKey, string> = {
     core1: 'core-area-1',
     core2: 'core-area-2',
     core3: 'core-area-3',
     core4: 'core-area-4',
 }
+
+const MONTH_OPTIONS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+/** Current year plus the last 5 — covers "previous months" and "previous years" browsing. */
+const SNAPSHOT_YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i)
+
+/**
+ * Per-area outcome filters. Each area's option list matches its own rating
+ * bands exactly — Charity Legitimacy has no "Needs Improvement" tier, and
+ * Financial Accountability has no "Moderate" tier.
+ */
+const AREA_OUTCOME_FILTERS: Array<{
+    paramKey: 'outcomeCore1' | 'outcomeCore2' | 'outcomeCore3' | 'outcomeCore4'
+    label: string
+    shortLabel: string
+    options: string[]
+}> = [
+    { paramKey: 'outcomeCore1', label: 'Charity Legitimacy', shortLabel: 'CL', options: ['Strong', 'Moderate', 'Concern'] },
+    { paramKey: 'outcomeCore2', label: 'Financial Accountability', shortLabel: 'FA', options: ['Strong', 'Needs Improvement', 'Concern'] },
+    { paramKey: 'outcomeCore3', label: 'Zakah Policy Transparency', shortLabel: 'ZPT', options: ['Strong', 'Moderate', 'Needs Improvement', 'Concern'] },
+    { paramKey: 'outcomeCore4', label: 'Governance & Leadership', shortLabel: 'G&L', options: ['Strong', 'Moderate', 'Needs Improvement', 'Concern'] },
+]
+
+/** Compact labels for the outcome shown inside the small scores-column pills. */
+const RATING_BAND_SHORT_LABELS: Record<RatingBand, string> = {
+    Strong: 'Strong',
+    Moderate: 'Moderate',
+    'Needs Improvement': 'Needs Impr.',
+    Concern: 'Concern',
+}
+
+const NEUTRAL_SCORE_STYLE = { bg: '#EEF4FD', text: '#266DD3' }
 
 function formatDateShort(value?: string | null) {
     if (!value) return '—'
@@ -316,6 +342,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     const [isLoadingList, setIsLoadingList] = useState(true)
     const [isRefreshingMetrics, startMetricsTransition] = useTransition()
     const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '')
+    const [exportingFormat, setExportingFormat] = useState<'xlsx' | 'pdf' | null>(null)
 
     usePageNavigationDismiss(!metrics)
 
@@ -326,12 +353,18 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     const topRated = searchParams.get('topRated') === 'true'
     const completedFrom = searchParams.get('completedFrom') || ''
     const completedTo = searchParams.get('completedTo') || ''
-    const minCore1 = searchParams.get('minCore1') || ''
-    const minCore2 = searchParams.get('minCore2') || ''
-    const minCore3 = searchParams.get('minCore3') || ''
-    const minCore4 = searchParams.get('minCore4') || ''
+    const outcomeCore1 = searchParams.get('outcomeCore1') as DashboardAssessmentsParams['outcomeCore1'] | null
+    const outcomeCore2 = searchParams.get('outcomeCore2') as DashboardAssessmentsParams['outcomeCore2'] | null
+    const outcomeCore3 = searchParams.get('outcomeCore3') as DashboardAssessmentsParams['outcomeCore3'] | null
+    const outcomeCore4 = searchParams.get('outcomeCore4') as DashboardAssessmentsParams['outcomeCore4'] | null
+    const outcomeValues: Record<string, string | null | undefined> = {
+        outcomeCore1, outcomeCore2, outcomeCore3, outcomeCore4,
+    }
     const page = Math.max(1, Number(searchParams.get('page') || '1'))
-    const period = (searchParams.get('period') as 'current' | 'previous-month') || 'current'
+    const now = new Date()
+    const periodType = (searchParams.get('periodType') as 'month' | 'year') || 'month'
+    const periodYear = Number(searchParams.get('periodYear')) || now.getFullYear()
+    const periodMonth = Number(searchParams.get('periodMonth')) || now.getMonth() + 1
     const search = searchParams.get('search') || ''
 
     useEffect(() => {
@@ -369,6 +402,56 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
 
     const activeCardProgress = progress === 'all' ? 'total' : progress
 
+    const handleExport = useCallback(
+        async (format: 'xlsx' | 'pdf') => {
+            setExportingFormat(format)
+            try {
+                const query = new URLSearchParams()
+                query.set('format', format)
+                query.set('progress', progress && progress !== 'all' ? progress : 'all')
+                query.set('sortBy', sortBy)
+                query.set('order', 'DESC')
+                if (search) query.set('search', search)
+                if (countryCode !== 'all') query.set('countryCode', countryCode)
+                if (completedFrom) query.set('completedFrom', completedFrom)
+                if (completedTo) query.set('completedTo', completedTo)
+                if (topRated) query.set('topRated', 'true')
+                if (outcomeCore1) query.set('outcomeCore1', outcomeCore1)
+                if (outcomeCore2) query.set('outcomeCore2', outcomeCore2)
+                if (outcomeCore3) query.set('outcomeCore3', outcomeCore3)
+                if (outcomeCore4) query.set('outcomeCore4', outcomeCore4)
+
+                const res = await fetch(`/api/export/dashboard-assessments?${query.toString()}`)
+                if (!res.ok) {
+                    let message = 'Export failed. Please try again.'
+                    try {
+                        const data = await res.json()
+                        message = data?.message || message
+                    } catch { /* noop */ }
+                    window.alert(message)
+                    return
+                }
+
+                const blob = await res.blob()
+                const disposition = res.headers.get('content-disposition') || ''
+                const match = disposition.match(/filename="?([^"]+)"?/)
+                const filename = match?.[1] || `charity-assessments.${format}`
+
+                const url = window.URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                link.href = url
+                link.download = filename
+                document.body.appendChild(link)
+                link.click()
+                link.remove()
+                window.URL.revokeObjectURL(url)
+            } finally {
+                setExportingFormat(null)
+            }
+        },
+        [progress, sortBy, search, countryCode, completedFrom, completedTo, topRated, outcomeCore1, outcomeCore2, outcomeCore3, outcomeCore4],
+    )
+
     useEffect(() => {
         setSearchInput(search)
     }, [search])
@@ -390,10 +473,10 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                 if (completedFrom) params.completedFrom = completedFrom
                 if (completedTo) params.completedTo = completedTo
                 if (topRated) params.topRated = true
-                if (minCore1) params.minCore1 = Number(minCore1)
-                if (minCore2) params.minCore2 = Number(minCore2)
-                if (minCore3) params.minCore3 = Number(minCore3)
-                if (minCore4) params.minCore4 = Number(minCore4)
+                if (outcomeCore1) params.outcomeCore1 = outcomeCore1
+                if (outcomeCore2) params.outcomeCore2 = outcomeCore2
+                if (outcomeCore3) params.outcomeCore3 = outcomeCore3
+                if (outcomeCore4) params.outcomeCore4 = outcomeCore4
 
                 const res = await getDashboardAssessmentsAction(params)
                 if (cancelled) return
@@ -426,21 +509,25 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
         topRated,
         completedFrom,
         completedTo,
-        minCore1,
-        minCore2,
-        minCore3,
-        minCore4,
+        outcomeCore1,
+        outcomeCore2,
+        outcomeCore3,
+        outcomeCore4,
         search,
     ])
 
     useEffect(() => {
         startMetricsTransition(async () => {
-            const res = await getDashboardMetricsAction(period)
+            const res = await getDashboardMetricsAction({
+                periodType,
+                year: periodYear,
+                month: periodType === 'month' ? periodMonth : undefined,
+            })
             if (res.ok) {
                 setMetrics(res.payload?.data?.data ?? null)
             }
         })
-    }, [period])
+    }, [periodType, periodYear, periodMonth])
 
     const snapshot = metrics?.activitySnapshot
 
@@ -477,19 +564,13 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                 id: 'status',
                 header: 'Status',
                 className: 'w-[10%]',
-                cell: (row) => {
-                    const meta = ASSESSMENT_STATUS_META[row.assessmentStatus]
-                    return (
-                        <span
-                            className={cn(
-                                'inline-flex max-w-full truncate rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
-                                meta.className,
-                            )}
-                        >
-                            {meta.shortLabel}
-                        </span>
-                    )
-                },
+                cell: (row) => (
+                    <StatusPill
+                        label={CHARITY_STATUS_LABELS[row.status] ?? kebabToTitle(row.status)}
+                        color={getCharityStatusColor(row.status)}
+                        className="px-1.5 py-0.5 text-[10px] font-semibold"
+                    />
+                ),
             },
             {
                 id: 'completedAt',
@@ -504,11 +585,11 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'scores',
                 header: (
-                    <div className="grid w-full grid-cols-4 gap-1.5 text-center">
-                        <span>CA1</span>
-                        <span>CA2</span>
-                        <span>CA3</span>
-                        <span>CA4</span>
+                    <div className="grid w-full grid-cols-4 gap-1.5 text-center tracking-normal">
+                        <span className="whitespace-nowrap" title="Charity Legitimacy (out of 10)">CL (10)</span>
+                        <span className="whitespace-nowrap" title="Financial Accountability (out of 40)">FA (40)</span>
+                        <span className="whitespace-nowrap" title="Zakah Policy Transparency (out of 40)">ZPT (40)</span>
+                        <span className="whitespace-nowrap" title="Governance &amp; Leadership (out of 10)">G&amp;L (10)</span>
                     </div>
                 ),
                 className: 'w-[32%]',
@@ -659,38 +740,68 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                 Assessment Activity Snapshot
                             </h2>
                             <p className="mt-0.5 text-sm text-[#667085]">
-                                Review throughput for {snapshot?.monthLabel ?? 'this period'}
+                                Review throughput for {snapshot?.periodLabel ?? 'this period'}
                             </p>
                         </div>
-                        <div className="inline-flex rounded-full border border-[#E4E7EC] bg-[#F8FAFC] p-1 shadow-inner">
-                            <button
-                                type="button"
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="inline-flex rounded-full border border-[#E4E7EC] bg-[#F8FAFC] p-1 shadow-inner">
+                                <button
+                                    type="button"
+                                    disabled={isRefreshingMetrics}
+                                    onClick={() => updateParams({ periodType: 'month' }, { resetPage: false })}
+                                    className={cn(
+                                        'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all',
+                                        periodType === 'month'
+                                            ? 'bg-white text-[#266DD3] shadow-sm'
+                                            : 'text-[#667085] hover:text-[#101928]',
+                                    )}
+                                >
+                                    Month
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isRefreshingMetrics}
+                                    onClick={() => updateParams({ periodType: 'year' }, { resetPage: false })}
+                                    className={cn(
+                                        'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all',
+                                        periodType === 'year'
+                                            ? 'bg-white text-[#266DD3] shadow-sm'
+                                            : 'text-[#667085] hover:text-[#101928]',
+                                    )}
+                                >
+                                    Year
+                                </button>
+                            </div>
+                            {periodType === 'month' ? (
+                                <Select
+                                    value={String(periodMonth)}
+                                    disabled={isRefreshingMetrics}
+                                    onValueChange={(value) => updateParams({ periodMonth: value }, { resetPage: false })}
+                                >
+                                    <SelectTrigger className="h-8 w-[130px] rounded-full border-[#E4E7EC] bg-white px-3 text-xs font-semibold text-[#344054] shadow-sm">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {MONTH_OPTIONS.map((label, idx) => (
+                                            <SelectItem key={label} value={String(idx + 1)}>{label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            ) : null}
+                            <Select
+                                value={String(periodYear)}
                                 disabled={isRefreshingMetrics}
-                                onClick={() => updateParams({ period: 'current' }, { resetPage: false })}
-                                className={cn(
-                                    'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all',
-                                    period === 'current'
-                                        ? 'bg-white text-[#266DD3] shadow-sm'
-                                        : 'text-[#667085] hover:text-[#101928]',
-                                )}
+                                onValueChange={(value) => updateParams({ periodYear: value }, { resetPage: false })}
                             >
-                                This month
-                            </button>
-                            <button
-                                type="button"
-                                disabled={isRefreshingMetrics}
-                                onClick={() =>
-                                    updateParams({ period: 'previous-month' }, { resetPage: false })
-                                }
-                                className={cn(
-                                    'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all',
-                                    period === 'previous-month'
-                                        ? 'bg-white text-[#266DD3] shadow-sm'
-                                        : 'text-[#667085] hover:text-[#101928]',
-                                )}
-                            >
-                                Previous month
-                            </button>
+                                <SelectTrigger className="h-8 w-[90px] rounded-full border-[#E4E7EC] bg-white px-3 text-xs font-semibold text-[#344054] shadow-sm">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {SNAPSHOT_YEAR_OPTIONS.map((y) => (
+                                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-3">
@@ -709,9 +820,9 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                             hint="Core-area assessments marked completed"
                         />
                         <SnapshotStat
-                            label="Assessments completed this month"
-                            value={String(snapshot?.assessmentsCompletedThisMonth ?? 0)}
-                            hint={snapshot?.monthLabel ?? 'Selected month'}
+                            label="Assessments completed"
+                            value={String(snapshot?.assessmentsCompletedInPeriod ?? 0)}
+                            hint={`for ${snapshot?.periodLabel ?? 'selected period'}`}
                             loading={isRefreshingMetrics}
                         />
                     </div>
@@ -730,9 +841,39 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                         : 'Status, scores, and next assessment due. Combine filters as needed.'}
                                 </p>
                             </div>
-                            <span className="inline-flex w-fit items-center rounded-full border border-[#E8EEF5] bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-semibold text-[#667085]">
-                                {isLoadingList ? 'Loading…' : meta ? `${meta.total} charities` : '—'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="inline-flex w-fit items-center rounded-full border border-[#E8EEF5] bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-semibold text-[#667085]">
+                                    {isLoadingList ? 'Loading…' : meta ? `${meta.total} charities` : '—'}
+                                </span>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={exportingFormat !== null}
+                                            className="h-8 gap-1.5 rounded-full border-[#E4E7EC] bg-white px-3 text-xs font-semibold text-[#344054] shadow-sm hover:bg-[#F8FAFC]"
+                                        >
+                                            {exportingFormat ? (
+                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            ) : (
+                                                <Download className="h-3.5 w-3.5" />
+                                            )}
+                                            Export
+                                            <ChevronDown className="h-3 w-3 text-[#98A2B3]" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-44">
+                                        <DropdownMenuItem onClick={() => handleExport('xlsx')} disabled={exportingFormat !== null}>
+                                            <FileSpreadsheet className="mr-2 h-4 w-4 text-[#16794F]" />
+                                            Export as Excel
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleExport('pdf')} disabled={exportingFormat !== null}>
+                                            <FileText className="mr-2 h-4 w-4 text-[#B42318]" />
+                                            Export as PDF
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
 
                         <div className="rounded-2xl border border-[#EEF2F6] bg-[#F8FAFC]/80 p-3">
@@ -824,37 +965,30 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                     />
                                 </div>
 
-                                <Select
-                                    value={minCore1 || 'any'}
-                                    onValueChange={(value) =>
-                                        updateParams({ minCore1: value === 'any' ? null : value })
-                                    }
-                                >
-                                    <SelectTrigger className={filterControlClass}>
-                                        <SelectValue placeholder="CA1 score" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="any">CA1 any</SelectItem>
-                                        <SelectItem value="8">CA1 ≥ 8/10</SelectItem>
-                                        <SelectItem value="10">CA1 = 10/10</SelectItem>
-                                    </SelectContent>
-                                </Select>
-
-                                <Select
-                                    value={minCore2 || 'any'}
-                                    onValueChange={(value) =>
-                                        updateParams({ minCore2: value === 'any' ? null : value })
-                                    }
-                                >
-                                    <SelectTrigger className={filterControlClass}>
-                                        <SelectValue placeholder="CA2 score" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="any">CA2 any</SelectItem>
-                                        <SelectItem value="26">CA2 ≥ 26/40</SelectItem>
-                                        <SelectItem value="33">CA2 ≥ 33/40</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                {AREA_OUTCOME_FILTERS.map((area) => {
+                                    const value = outcomeValues[area.paramKey] || 'any'
+                                    return (
+                                        <Select
+                                            key={area.paramKey}
+                                            value={value}
+                                            onValueChange={(next) =>
+                                                updateParams({ [area.paramKey]: next === 'any' ? null : next })
+                                            }
+                                        >
+                                            <SelectTrigger className={filterControlClass}>
+                                                <SelectValue placeholder={area.label} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="any">{area.label} — any outcome</SelectItem>
+                                                {area.options.map((outcome) => (
+                                                    <SelectItem key={outcome} value={outcome}>
+                                                        {area.shortLabel} {outcome}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )
+                                })}
 
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Button
@@ -1058,19 +1192,41 @@ function ScoreCell({
         )
     }
 
+    const ratingBand = review.ratingBand
+    const style = ratingBand ? RATING_BAND_STYLES[ratingBand] : NEUTRAL_SCORE_STYLE
+    const outcomeLabel = ratingBand ? RATING_BAND_SHORT_LABELS[ratingBand] : null
+    const tooltip = `View ${AUDIT_AREA_LABELS[area]} details — ${ratingBand ?? 'outcome pending'} (${formatAuditScore(score)}/${displayMax})`
+
+    if (compact) {
+        return (
+            <Link
+                href={href}
+                className="inline-flex h-9 w-full flex-col items-center justify-center gap-0 rounded-md px-1 py-1 font-mono text-[11px] font-semibold tabular-nums transition-opacity hover:opacity-80"
+                style={{ backgroundColor: style.bg, color: style.text }}
+                title={tooltip}
+            >
+                <span>{formatAuditScore(score)}</span>
+                {outcomeLabel ? (
+                    <span className="whitespace-nowrap text-[8px] font-semibold uppercase leading-none tracking-wide opacity-80">
+                        {outcomeLabel}
+                    </span>
+                ) : null}
+            </Link>
+        )
+    }
+
     return (
         <Link
             href={href}
-            className={cn(
-                'inline-flex items-center justify-center font-mono font-semibold tabular-nums text-[#266DD3] transition-colors hover:bg-[#E0ECFF]',
-                compact
-                    ? 'h-7 w-full rounded-md bg-[#EEF4FD] px-1 text-[11px]'
-                    : 'rounded-lg bg-[#EEF4FD]/70 px-2 py-1 text-xs',
-            )}
-            title={`View ${AUDIT_AREA_LABELS[area]} details (${formatAuditScore(score)}/${displayMax})`}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1 text-xs font-mono font-semibold tabular-nums transition-opacity hover:opacity-80"
+            style={{ backgroundColor: style.bg, color: style.text }}
+            title={tooltip}
         >
-            {formatAuditScore(score)}
-            {!compact ? <span className="text-[#98A2B3]">/{displayMax}</span> : null}
+            <span>
+                {formatAuditScore(score)}
+                <span className="opacity-60">/{displayMax}</span>
+            </span>
+            {outcomeLabel ? <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">{outcomeLabel}</span> : null}
         </Link>
     )
 }

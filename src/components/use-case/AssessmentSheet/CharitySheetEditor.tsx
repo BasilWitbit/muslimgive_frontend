@@ -37,6 +37,7 @@ const GROUP_ORDER: SheetColumnGroup[] = [
   'documentation',
   'derived',
   'scores',
+  'app',
 ]
 
 type CharitySheetEditorProps = {

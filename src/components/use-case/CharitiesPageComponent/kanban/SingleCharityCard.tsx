@@ -185,6 +185,7 @@ const SingleCharityCard: FC<IProps> = ({
                 <AssignProjectManager
                     users={projectManagers}
                     isSubmitting={isAssigning}
+                    charityId={id}
                     onSelection={async (userIds) => {
                     try {
                         setIsAssigning(true)

@@ -10,7 +10,7 @@ export const AUDIT_DISPLAY_MAX = {
 export const AUDIT_AREA_LABELS = {
     core1: 'Charity Legitimacy',
     core2: 'Financial Accountability',
-    core3: 'Zakat Policy Transparency',
+    core3: 'Zakah Policy Transparency',
     core4: 'G&L',
 } as const
 

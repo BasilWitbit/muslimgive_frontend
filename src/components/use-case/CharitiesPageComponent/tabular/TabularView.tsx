@@ -5,6 +5,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Mail, ExternalLink, ChevronLeft, ChevronRight, Trash2, ChevronDown, Loader2, History } from 'lucide-react'
+import CopyCharityLinkButton from '@/components/common/CopyCharityLinkButton'
 import {
     Select,
     SelectTrigger,
@@ -556,6 +557,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                             >
                                                 <ExternalLink className="h-3.5 w-3.5" />
                                             </Button>
+                                            <CopyCharityLinkButton charityId={c.id} />
                                             {canDeleteCharity && (
                                                 <Button
                                                     variant="ghost"
@@ -845,6 +847,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                         initialSelectedIds={getMembersForRole(assignRoleState.members, assignRoleState.role).map((m) => m.id)}
                         onSelection={handleAssignRole}
                         onCancel={() => setAssignRoleState(null)}
+                        charityId={assignRoleState.charityId}
                     />
                 </ModelComponentWithExternalControl>
             ) : null}

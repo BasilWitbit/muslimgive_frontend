@@ -242,7 +242,11 @@ const CreateCharityStandalonePage = () => {
                     const belowBlocked = effectiveBand === 'below' && !next.eligibilityOverride
                     if (belowBlocked) {
                         next.isEligible = 'no'
-                    } else if (patch.isEligible === undefined && next.isEligible === '') {
+                    } else if (patch.isEligible === undefined && !next.isEligibleTouched) {
+                        // Keep re-suggesting (not just filling a blank field) until the user
+                        // explicitly picks a value themselves — otherwise a "No" forced by an
+                        // earlier below-threshold state never corrects itself once the
+                        // criteria actually pass (e.g. switching back to "Above threshold").
                         next.isEligible = suggestion.suggestedEligible ? 'yes' : 'no'
                     }
                 }
@@ -661,6 +665,7 @@ const CreateCharityStandalonePage = () => {
                                                         onValueChange={(v) =>
                                                             updateRow(row.key, {
                                                                 isEligible: v as 'yes' | 'no',
+                                                                isEligibleTouched: true,
                                                             })
                                                         }
                                                     >

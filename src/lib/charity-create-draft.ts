@@ -68,6 +68,8 @@ export type CharityRow = {
     eligibilityOverride: boolean
     overrideReason: string
     isEligible: 'yes' | 'no' | ''
+    /** True once the user has explicitly picked a value in the Eligible dropdown — stops the auto-suggestion from overwriting their choice. */
+    isEligibleTouched: boolean
 }
 
 export const emptyCharityRow = (): CharityRow => ({
@@ -91,6 +93,7 @@ export const emptyCharityRow = (): CharityRow => ({
     eligibilityOverride: false,
     overrideReason: '',
     isEligible: '',
+    isEligibleTouched: false,
 })
 
 export function rowToDraft(row: CharityRow): CharityCreateDraft {
@@ -172,6 +175,7 @@ export function draftToRow(draft: CharityCreateDraft): CharityRow {
         eligibilityOverride: Boolean(draft.eligibilityRevenueOverride),
         overrideReason: draft.eligibilityRevenueOverrideReason || '',
         isEligible: draft.isEligible === undefined ? '' : draft.isEligible ? 'yes' : 'no',
+        isEligibleTouched: draft.isEligible !== undefined,
     }
 }
 

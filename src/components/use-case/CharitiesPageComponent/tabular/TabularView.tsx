@@ -358,7 +358,8 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                         const status = statusMeta[c.status] || { title: c.status }
                         const percent = Math.round((Number(c.assessmentsCompleted || 0) / 4) * 100)
                         const months = parseMonths(c.totalDuration)
-                        const withinTwoYears = typeof months === 'number' ? months <= 24 : undefined
+                        // "2y" column = meets the 2-year-or-older age requirement (✓ when established, ✗ when newer).
+                        const meetsTwoYearAge = typeof months === 'number' ? months >= 24 : undefined
 
                         const isExpanded = expandedId === c.id
                         const isLoading = loadingId === c.id
@@ -464,12 +465,12 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                     </TableCell>
 
                                     <TableCell className={cn(bodyCell, 'hidden text-center xl:table-cell')}>
-                                        {withinTwoYears === undefined ? (
+                                        {meetsTwoYearAge === undefined ? (
                                             <span className="text-muted-foreground">-</span>
-                                        ) : withinTwoYears ? (
-                                            <span className="text-green-500">✓</span>
+                                        ) : meetsTwoYearAge ? (
+                                            <span className="text-green-500" title="Operating for 2+ years">✓</span>
                                         ) : (
-                                            <span className="text-red-500">✕</span>
+                                            <span className="text-red-500" title="Under 2 years old">✕</span>
                                         )}
                                     </TableCell>
 

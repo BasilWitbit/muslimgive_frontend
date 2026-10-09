@@ -111,6 +111,7 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
         isThisMuslimCharity: c.isIslamic,
         doTheyPayZakat: c.doesCharityGiveZakat,
         assessmentRequested: c.assessmentRequested,
+        assessmentRequestedNote: c.assessmentRequestedNote ?? null,
         annualRevenue: c.annualRevenue ?? null,
         startDate: c.startDate ?? null,
         startYear: c.startYear ?? null,

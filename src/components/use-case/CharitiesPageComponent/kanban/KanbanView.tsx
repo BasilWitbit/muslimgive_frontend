@@ -109,6 +109,7 @@ export type SingleCharityType = {
     isThisMuslimCharity?: boolean,
     doTheyPayZakat?: boolean,
     assessmentRequested?: boolean,
+    assessmentRequestedNote?: string | null,
     annualRevenue?: number | null,
     startDate?: string | null,
     startYear?: number | null,

@@ -88,6 +88,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     doTheyPayZakat,
     verificationSummary,
     assessmentRequested,
+    assessmentRequestedNote,
     annualRevenue,
     startDate,
     startYear,
@@ -892,7 +893,21 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             <InfoRow label="Category:" value={category ? kebabToTitle(category) : '-'} />
                             <InfoRow label="Start Date:" value={startDate ? formatStableDate(startDate) : '-'} />
                             {!startDate ? <InfoRow label="Start Year:" value={startYear ?? '-'} /> : null}
-                            <InfoRow label="Assessment Requested:" value={assessmentRequested ? 'Yes' : 'No'} />
+                            <InfoRow
+                                label="Assessment Requested:"
+                                value={
+                                    assessmentRequested && assessmentRequestedNote ? (
+                                        <div className="flex flex-col items-end gap-0.5">
+                                            <span className="font-semibold text-[#101928]">Yes</span>
+                                            <span className="max-w-[260px] text-xs font-normal leading-relaxed text-[#667085]">
+                                                {assessmentRequestedNote}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        assessmentRequested ? 'Yes' : 'No'
+                                    )
+                                }
+                            />
                             <InfoRow label={`Total Revenue (${getCurrencyCode(country)}):`} value={formatLocalAmount(country, totalRevenue ?? annualRevenue)} />
                             <InfoRow label="Fiscal Year End:" value={fiscalYearEnd ? String(fiscalYearEnd).slice(0, 10) : '-'} />
                             <InfoRow label="Muslim Charity:" value={isThisMuslimCharity ? 'Yes' : 'No'} />

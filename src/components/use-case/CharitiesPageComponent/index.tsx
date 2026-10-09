@@ -57,8 +57,8 @@ const SORT_OPTIONS: Array<{
     sortBy: 'createdAt' | 'auditsCompleted'
     order: 'ASC' | 'DESC'
 }> = [
-    { id: 'most-recent', label: 'Most recent', description: 'newest submission first', sortBy: 'createdAt', order: 'DESC' },
-    { id: 'oldest', label: 'Oldest', description: 'oldest submission first', sortBy: 'createdAt', order: 'ASC' },
+    { id: 'most-recent', label: 'Date Created: Newest First', sortBy: 'createdAt', order: 'DESC' },
+    { id: 'oldest', label: 'Date Created: Oldest First', sortBy: 'createdAt', order: 'ASC' },
     { id: 'highest-progress', label: 'Highest progress', sortBy: 'auditsCompleted', order: 'DESC' },
     { id: 'lowest-progress', label: 'Lowest progress', sortBy: 'auditsCompleted', order: 'ASC' },
 ]

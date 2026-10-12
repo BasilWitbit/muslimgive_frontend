@@ -14,6 +14,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Check, Link } from 'lucide-react';
 import {
     DONOR_SUPPORT_SECTION_ID,
+    computeDonorSupportProfile,
+    computeMandatoryGateStatus,
+    computeZakatProportionalBand,
     formatScore,
     getDiscretionaryRating,
     getEarnedScoreForCriterion,
@@ -36,6 +39,70 @@ const ScoreBadge = ({ earned, max, className }: { earned: number | null; max: nu
         {earned != null ? `${formatScore(earned)}/${max}` : `—/${max}`}
     </span>
 );
+
+const MANDATORY_SECTION_ID = 'mandatory';
+
+const ZAKAT_BAND_STYLES: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+    strong: { label: 'Strong', bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
+    moderate: { label: 'Moderate', bg: 'bg-sky-50', text: 'text-sky-800', dot: 'bg-sky-500' },
+    needs_improvement: { label: 'Needs Improvement', bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
+    concern: { label: 'Concern', bg: 'bg-rose-50', text: 'text-rose-800', dot: 'bg-rose-500' },
+};
+
+const MANDATORY_GATE_STYLES: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+    clean: { label: 'Requirement Met', bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
+    caution: { label: 'Caution', bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
+    concern: { label: 'Concern', bg: 'bg-rose-50', text: 'text-rose-800', dot: 'bg-rose-500' },
+};
+
+const OutcomeBadge = ({ style }: { style: { label: string; bg: string; text: string; dot: string } }) => (
+    <span className={cn('inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', style.bg, style.text)}>
+        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', style.dot)} />
+        {style.label}
+    </span>
+);
+
+/**
+ * Live outcome preview for the section currently on screen — mirrors the bands the
+ * backend computes once the assessment is submitted (see Preview.tsx / the scoring
+ * engines). Only computed where the backend actually defines a band for that section:
+ * Mandatory Metrics has its own pass-gate, Donor Support has its own profile scale,
+ * and the other v15 sections use the proportional Strong/Moderate/NI/Concern band.
+ * The legacy (v3.2) rubric never defines per-section bands outside Mandatory, so
+ * those sections intentionally show no outcome.
+ */
+const SectionOutcomeBadge = ({
+    sectionId,
+    earned,
+    max,
+    isV15,
+}: {
+    sectionId: string;
+    earned: number | null;
+    max: number;
+    isV15: boolean;
+}) => {
+    if (earned == null) return null;
+
+    if (sectionId === MANDATORY_SECTION_ID) {
+        const status = computeMandatoryGateStatus(earned, isV15);
+        return <OutcomeBadge style={MANDATORY_GATE_STYLES[status]} />;
+    }
+
+    if (sectionId === DONOR_SUPPORT_SECTION_ID) {
+        if (!isV15) return null;
+        return (
+            <span className="shrink-0 rounded-md bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">
+                {computeDonorSupportProfile(earned)}
+            </span>
+        );
+    }
+
+    if (!isV15) return null;
+
+    const band = computeZakatProportionalBand(earned, max);
+    return <OutcomeBadge style={ZAKAT_BAND_STYLES[band]} />;
+};
 
 type RubricSection = {
     id: string;
@@ -549,9 +616,17 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="text-sm font-medium text-gray-500">Page {step + 1} of {sections.length}</div>
                         {sectionScoreSummary && (
-                            <div className="flex items-center gap-2 text-sm">
-                                <span className="text-gray-500">Section score</span>
-                                <ScoreBadge earned={sectionScoreSummary.earned} max={sectionScoreSummary.max} />
+                            <div className="flex flex-col items-end gap-1 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-500">Section score</span>
+                                    <ScoreBadge earned={sectionScoreSummary.earned} max={sectionScoreSummary.max} />
+                                </div>
+                                <SectionOutcomeBadge
+                                    sectionId={currentSection.id}
+                                    earned={sectionScoreSummary.earned}
+                                    max={sectionScoreSummary.max}
+                                    isV15={rubric.version === 'v15'}
+                                />
                             </div>
                         )}
                     </div>

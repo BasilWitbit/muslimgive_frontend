@@ -113,6 +113,7 @@ export type SingleCharityType = {
     annualRevenue?: number | null,
     revenueThresholdBand?: 'above' | 'below' | 'unknown' | null,
     startDate?: string | null,
+    startDateFromFinancialAssessment?: boolean,
     startYear?: number | null,
     isEligible?: boolean | null,
     ukCharityNumber?: string | null,

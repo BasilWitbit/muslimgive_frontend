@@ -1333,30 +1333,32 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                     />
                                 </div>
 
-                                {AREA_OUTCOME_FILTERS.map((area) => {
-                                    const value = outcomeValues[area.paramKey] || 'any'
-                                    return (
-                                        <Select
-                                            key={area.paramKey}
-                                            value={value}
-                                            onValueChange={(next) =>
-                                                updateParams({ [area.paramKey]: next === 'any' ? null : next })
-                                            }
-                                        >
-                                            <SelectTrigger className={filterControlClass}>
-                                                <SelectValue placeholder={area.label} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="any">{area.label} — any outcome</SelectItem>
-                                                {area.options.map((outcome) => (
-                                                    <SelectItem key={outcome} value={outcome}>
-                                                        {area.shortLabel} {outcome}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )
-                                })}
+                                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:col-span-2">
+                                    {AREA_OUTCOME_FILTERS.map((area) => {
+                                        const value = outcomeValues[area.paramKey] || 'any'
+                                        return (
+                                            <Select
+                                                key={area.paramKey}
+                                                value={value}
+                                                onValueChange={(next) =>
+                                                    updateParams({ [area.paramKey]: next === 'any' ? null : next })
+                                                }
+                                            >
+                                                <SelectTrigger className={filterControlClass}>
+                                                    <SelectValue placeholder={area.label} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="any">{area.label} — any outcome</SelectItem>
+                                                    {area.options.map((outcome) => (
+                                                        <SelectItem key={outcome} value={outcome}>
+                                                            {area.shortLabel} {outcome}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )
+                                    })}
+                                </div>
 
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Button

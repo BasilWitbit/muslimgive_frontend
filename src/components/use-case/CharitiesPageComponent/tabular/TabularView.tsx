@@ -73,9 +73,9 @@ const ASSIGN_ROLE_MODAL_CONFIG: Record<
         candidatesKey: 'financeAssessor',
     },
     'zakat-assessor': {
-        title: 'Add Zakat Assessor',
+        title: 'Assign Zakat Assessor',
         roleLabel: 'zakat assessor',
-        actionLabel: 'Add Zakat Assessor',
+        actionLabel: 'Assign Zakat Assessor',
         successLabel: 'Zakat assessor assigned successfully!',
         candidatesKey: 'zakatAssessor',
     },

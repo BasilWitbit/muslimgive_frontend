@@ -92,6 +92,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     annualRevenue,
     revenueThresholdBand,
     startDate,
+    startDateFromFinancialAssessment,
     startYear,
     ukCharityNumber,
     ukCharityCommissionUrl,
@@ -921,7 +922,19 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 </Button>
                             ) : null}
                             <InfoRow label="Category:" value={category ? kebabToTitle(category) : '-'} />
-                            <InfoRow label="Start Date:" value={startDate ? formatStableDate(startDate) : '-'} />
+                            <InfoRow
+                                label="Start Date:"
+                                value={(
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span>{startDate ? formatStableDate(startDate) : '-'}</span>
+                                        {startDateFromFinancialAssessment ? (
+                                            <span className="max-w-[240px] text-right text-[10px] font-normal leading-snug text-[#667085]">
+                                                Updated from Financial Assessment input
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                )}
+                            />
                             {!startDate ? <InfoRow label="Start Year:" value={startYear ?? '-'} /> : null}
                             <InfoRow
                                 label="Assessment Requested:"
@@ -1139,7 +1152,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                             }
                                                             : needsZakatAssessor
                                                                 ? {
-                                                                    label: 'Add Zakat Assessor',
+                                                                    label: 'Assign Zakat Assessor',
                                                                     onClick: () => openAssignmentModal('zakat-assessor', 'assign'),
                                                                     disabled: !canAssignAssessorRole,
                                                                     roleType: 'assessor' as const
@@ -1294,14 +1307,14 @@ const SingleCharityPageComponent: FC<IProps> = ({
             </ModelComponentWithExternalControl>
 
             <ModelComponentWithExternalControl
-                title="Add Zakat Assessor"
+                title="Assign Zakat Assessor"
                 onOpenChange={handleCloseModel}
                 open={modelState.nameOfModel === 'assign-zakat-assessor'}
             >
                 {canAssignAssessorRole ? (
                     <AssignProjectManager
                         roleLabel="zakat assessor"
-                        actionLabel="Add Zakat Assessor"
+                        actionLabel="Assign Zakat Assessor"
                         users={zakatAssessorCandidates}
                         initialSelectedIds={members.filter(m => roleAliasesByCanonical['zakat-auditor'].includes(m.role)).map(m => m.id)}
                         onSelection={async (userIds) => {

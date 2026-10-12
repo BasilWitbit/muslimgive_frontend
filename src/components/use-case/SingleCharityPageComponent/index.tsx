@@ -1,7 +1,7 @@
 'use client'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
 import { Button } from '@/components/ui/button'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import React, { FC, useEffect, useState, useTransition } from 'react'
 import { useCharityDetailNavigationDismiss } from '@/hooks/use-page-navigation'
 import { useCharityNavigation } from '@/hooks/use-charity-navigation'
@@ -111,7 +111,8 @@ const SingleCharityPageComponent: FC<IProps> = ({
     currentUserRoles = [],
 }) => {
     const router = useRouter();
-    const { navigateToAssessments, navigateToAssessment } = useCharityNavigation()
+    const searchParams = useSearchParams()
+    const { navigateToAssessment } = useCharityNavigation()
     const [modelState, setModelState] = useState<ModelControl>({ nameOfModel: null });
     const { startNavigation } = useRouteLoader()
     useCharityDetailNavigationDismiss()
@@ -181,6 +182,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
             return
         }
         handleOpenModel('assign-zakat-assessor')
+    }
+
+    const openAssessmentScores = (assessmentId: string) => {
+        router.push(`/charities/${charityId}/assessments?assessment=${encodeURIComponent(assessmentId)}`)
     }
 
     useEffect(() => {
@@ -354,6 +359,23 @@ const SingleCharityPageComponent: FC<IProps> = ({
 
     const completedAssessments = assessmentMeta.filter(item => isAssessmentComplete(getAssessmentStatus(item.statusKey, item.reviewKey)))
     const pendingAssessments = assessmentMeta.filter(item => !isAssessmentComplete(getAssessmentStatus(item.statusKey, item.reviewKey)))
+    const focusedAssessmentId = searchParams.get('assessmentSection')
+    const focusedAssessmentIsComplete = focusedAssessmentId
+        ? completedAssessments.some((item) => item.id === focusedAssessmentId)
+        : false
+
+    useEffect(() => {
+        if (!focusedAssessmentId) return
+        setAssessmentTab(focusedAssessmentIsComplete ? 'completed' : 'pending')
+    }, [focusedAssessmentId, focusedAssessmentIsComplete])
+
+    useEffect(() => {
+        if (!focusedAssessmentId) return
+        const frame = window.requestAnimationFrame(() => {
+            document.getElementById(`assessment-${focusedAssessmentId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        })
+        return () => window.cancelAnimationFrame(frame)
+    }, [focusedAssessmentId, assessmentTab])
 
     const getAssignedNamesForAssessment = (assessmentId: typeof assessmentMeta[number]['id']) => {
         const role = roleByAssessment[assessmentId]
@@ -635,7 +657,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
             <Button
                 onClick={() => {
                     startNavigation()
-                    startBackTransition(() => router.push('/charities'))
+                    startBackTransition(() => router.push(`/charities?focusCharity=${encodeURIComponent(charityId)}#charity-${encodeURIComponent(charityId)}`))
                 }}
                 variant="ghost"
                 className="h-10 rounded-xl border border-[#E8EEF5] bg-white px-4 text-[#344054] shadow-sm hover:bg-[#F8FBFF] hover:text-[#266DD3]"
@@ -979,7 +1001,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 ) : null}
                 {!shouldHideAssessmentAndProgress ? (
                     <PremiumSectionCard
-                        heading="Assessment Summary"
+                        heading="Assessments"
                         description="Completed and pending audit areas for this charity."
                         accent="from-[#12B76A] via-[#10B981] to-[#5CD9F2]"
                         bodyClassName="pt-2"
@@ -1005,7 +1027,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                     const assignedNames = getAssignedNamesForAssessment(item.id)
                                                     const isAssigned = assignedNames !== 'Unassigned'
                                                     return (
-                                                        <AssessmentItemCard key={item.id}>
+                                                        <AssessmentItemCard key={item.id} id={`assessment-${item.id}`}>
                                                             <div className="flex flex-col gap-1">
                                                                 <TypographyComponent variant="body2" className="font-medium text-[#101928]">
                                                                     {AUDIT_DEFINITIONS[item.id].title}
@@ -1033,13 +1055,16 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                     </TypographyComponent>
                                                                 ) : null}
                                                             </div>
-                                                            <div className="flex gap-2">
+                                                            <div className="flex flex-wrap gap-2">
                                                                 <Button
                                                                     variant="outline"
                                                                     className="rounded-xl"
-                                                                    onClick={() => navigateToAssessments(charityId, charityTitle)}
+                                                                    onClick={() => openAssessmentScores(item.id)}
                                                                 >
-                                                                    View
+                                                                    View Scores
+                                                                </Button>
+                                                                <Button variant="ghost" className="rounded-xl" onClick={() => router.push(`/charities/${charityId}/assessments?section=edit-history#edit-history`)}>
+                                                                    Edit History
                                                                 </Button>
                                                                 {(() => {
                                                                     const hasManagerRole = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase())) || (me?.roles || []).some(r => typeof r === 'string' && ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
@@ -1113,7 +1138,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                 }
                                                                 : null
                                                     return (
-                                                        <AssessmentItemCard key={item.id}>
+                                                        <AssessmentItemCard key={item.id} id={`assessment-${item.id}`}>
                                                             <div className="flex flex-col gap-1">
                                                                 <TypographyComponent variant="body2" className="font-medium text-[#101928]">
                                                                     {AUDIT_DEFINITIONS[item.id].title}
@@ -1137,7 +1162,13 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                                     Status: {assessmentStatusLabel(status)}
                                                                 </TypographyComponent>
                                                             </div>
-                                                            <div className="flex gap-2">
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <Button variant="outline" className="rounded-xl" onClick={() => openAssessmentScores(item.id)}>
+                                                                    View Scores
+                                                                </Button>
+                                                                <Button variant="ghost" className="rounded-xl" onClick={() => router.push(`/charities/${charityId}/assessments?section=edit-history#edit-history`)}>
+                                                                    Edit History
+                                                                </Button>
                                                                 {assignmentAction && (assignmentAction.roleType === 'pm' ? canAssignPMRole : canAssignAssessorRole) ? (
                                                                     <Button
                                                                         variant="outline"

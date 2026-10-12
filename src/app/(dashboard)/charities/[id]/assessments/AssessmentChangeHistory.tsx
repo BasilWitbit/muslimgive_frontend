@@ -38,6 +38,7 @@ function formatDateTime(value: string): string {
 
 type Props = {
     charityId: string
+    openInitially?: boolean
 }
 
 /**
@@ -45,10 +46,14 @@ type Props = {
  * and when — including edits made after the original submission, since any
  * assessor in that area can now edit a completed assessment.
  */
-const AssessmentChangeHistory: React.FC<Props> = ({ charityId }) => {
+const AssessmentChangeHistory: React.FC<Props> = ({ charityId, openInitially = false }) => {
     const [entries, setEntries] = React.useState<ChangeLogEntry[] | null>(null)
     const [isLoading, setIsLoading] = React.useState(false)
-    const [isOpen, setIsOpen] = React.useState(false)
+    const [isOpen, setIsOpen] = React.useState(openInitially)
+
+    React.useEffect(() => {
+        if (openInitially) setIsOpen(true)
+    }, [openInitially])
 
     React.useEffect(() => {
         if (!isOpen || entries !== null) return
@@ -73,7 +78,7 @@ const AssessmentChangeHistory: React.FC<Props> = ({ charityId }) => {
     }, [isOpen, entries, charityId])
 
     return (
-        <section className="relative overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
+        <section id="edit-history" className="relative scroll-mt-6 overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
             <button
                 type="button"
                 onClick={() => setIsOpen((v) => !v)}

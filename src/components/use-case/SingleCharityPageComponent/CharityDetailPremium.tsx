@@ -181,11 +181,13 @@ export const PremiumProgressStepRow: FC<ProgressStepRowProps> = ({
     )
 }
 
-export const AssessmentItemCard: FC<{ children: ReactNode; className?: string }> = ({
+export const AssessmentItemCard: FC<{ children: ReactNode; className?: string; id?: string }> = ({
     children,
     className,
+    id,
 }) => (
     <div
+        id={id}
         className={cn(
             'flex flex-col gap-3 rounded-2xl border border-[#E8EEF5] bg-gradient-to-br from-white to-[#FAFBFC] p-4 shadow-[0_4px_18px_rgba(15,23,42,0.03)] sm:flex-row sm:items-center sm:justify-between',
             className,

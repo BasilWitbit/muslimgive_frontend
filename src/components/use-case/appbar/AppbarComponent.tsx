@@ -37,7 +37,7 @@ const TITLE_RESOLVERS: TitleResolver[] = [
     },
     {
         match: (segments) => segments[0] === 'charities' && segments[2] === 'assessments' && !segments[3],
-        getTitle: () => 'Assessment History',
+        getTitle: () => 'Assessment Scores',
     },
     {
         match: () => true,

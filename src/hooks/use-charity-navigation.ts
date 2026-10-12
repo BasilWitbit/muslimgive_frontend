@@ -23,6 +23,13 @@ export function useCharityNavigation() {
         router.push(target)
     }, [pathname, startNavigation, router])
 
+    const navigateToCharitySection = useCallback((charityId: string, assessmentId: string, charityTitle?: string) => {
+        const target = `/charities/${charityId}?assessmentSection=${encodeURIComponent(assessmentId)}#assessment-${encodeURIComponent(assessmentId)}`
+        const message = charityTitle ? `Opening ${charityTitle} assessment` : 'Opening Charity Assessment'
+        startNavigation(message, { awaitReady: true, destination: target })
+        router.push(target)
+    }, [startNavigation, router])
+
     const navigateToAssessments = useCallback((charityId: string, charityTitle?: string) => {
         const target = `/charities/${charityId}/assessments`
         if (normalizePath(pathname) === normalizePath(target)) return
@@ -52,5 +59,5 @@ export function useCharityNavigation() {
         router.push(target)
     }, [pathname, startNavigation, router])
 
-    return { navigateToCharity, navigateToAssessments, navigateToAssessment }
+    return { navigateToCharity, navigateToCharitySection, navigateToAssessments, navigateToAssessment }
 }

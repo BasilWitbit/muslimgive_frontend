@@ -11,7 +11,7 @@ import AccordionHeader from './AccordionHeader'
 import AssessmentChangeHistory from './AssessmentChangeHistory'
 import Preview from '@/components/use-case/SingleAssessmentPageComponent/Assessments/Preview'
 import { AUDIT_DEFINITIONS } from '@/components/use-case/SingleAssessmentPageComponent/ASSESSMENT_DEFINITIONS'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { kebabToTitle } from '@/lib/helpers'
 import { getCharityAction } from '@/app/actions/charities'
 import { useCharityAssessmentNavigationDismiss } from '@/hooks/use-page-navigation'
@@ -87,6 +87,9 @@ const overallStatusMeta = {
 } as const
 
 const AssessmentHistoryPage = () => {
+    const searchParams = useSearchParams()
+    const openEditHistory = searchParams.get('section') === 'edit-history'
+    const focusedAssessment = searchParams.get('assessment')
     const [reviews, setReviews] = useState<CharityReviews | null>(null)
     const [charityTitle, setCharityTitle] = useState('')
     const [overallScorePercent, setOverallScorePercent] = useState<number | null>(null)
@@ -229,7 +232,7 @@ const AssessmentHistoryPage = () => {
             <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-3xl border border-dashed border-[#DDE7F3] bg-[#FAFBFC] p-8 text-center">
                 <ClipboardList className="mb-3 h-10 w-10 text-[#98A2B3]" />
                 <p className="text-sm font-semibold text-[#344054]">No assessment data available</p>
-                <p className="mt-1 text-xs text-[#667085]">Assessment history will appear here once reviews are recorded.</p>
+                <p className="mt-1 text-xs text-[#667085]">Assessment scores will appear here once reviews are recorded.</p>
             </div>
         )
     }
@@ -262,7 +265,7 @@ const AssessmentHistoryPage = () => {
                             <div className="mb-2 flex flex-wrap items-center gap-2">
                                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D9E8FB] bg-white/80 px-3 py-1 text-xs font-semibold text-[#266DD3] shadow-sm">
                                     <ClipboardList className="h-3.5 w-3.5" />
-                                    Assessment History
+                                    Assessment Scores
                                 </span>
                                 <span className="inline-flex items-center rounded-full border border-[#D9E8FB] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#266DD3] shadow-sm">
                                     {reviews.summary.completed} of {reviews.summary.total} completed
@@ -290,7 +293,7 @@ const AssessmentHistoryPage = () => {
                         <span className="text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Status</span>
                     </div>
 
-                    <Accordion type="single" collapsible className="w-full">
+                    <Accordion type="single" collapsible defaultValue={focusedAssessment || undefined} className="w-full">
                         {assessmentKeys.map((eachAssessment) => {
                             const assessmentData = getCoreAreaData(eachAssessment)
                             const areaMeta = ASSESSMENT_AREA_META[eachAssessment]
@@ -300,6 +303,7 @@ const AssessmentHistoryPage = () => {
                             return (
                                 <AccordionItem
                                     key={eachAssessment}
+                                    id={`score-${eachAssessment}`}
                                     value={eachAssessment}
                                     className="border-0 border-b border-[#EEF2F6]"
                                 >
@@ -415,7 +419,7 @@ const AssessmentHistoryPage = () => {
                 </div>
             </section>
 
-            <AssessmentChangeHistory charityId={charityId} />
+            <AssessmentChangeHistory charityId={charityId} openInitially={openEditHistory} />
         </div>
     )
 }

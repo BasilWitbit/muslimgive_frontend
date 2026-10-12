@@ -21,7 +21,7 @@ import { assignRolesByRoleToCharityAction, deleteCharityAction, getCharityAction
 import ModelComponentWithExternalControl from '@/components/common/ModelComponent/ModelComponentWithExternalControl'
 import AssignProjectManager from '@/components/use-case/SingleCharityPageComponent/models/AssignProjectManager'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { usePermissions } from '@/components/common/permissions-provider'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
 import StatusPill from '@/components/common/StatusPill'
@@ -193,6 +193,11 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     }
     const [page, setPage] = React.useState(1)
     const [rowsPerPage, setRowsPerPage] = React.useState(10)
+    const searchParams = useSearchParams()
+    const focusCharityId = searchParams.get('focusCharity')
+    const [rowsPerPageLoaded, setRowsPerPageLoaded] = React.useState(false)
+    const focusAppliedRef = React.useRef<string | null>(null)
+    const focusScrollPendingRef = React.useRef<string | null>(null)
 
     // Delete states
     const [showDeleteModal, setShowDeleteModal] = React.useState<string | null>(null)
@@ -211,8 +216,48 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     const [sendingEmailId, setSendingEmailId] = React.useState<string | null>(null)
 
     const router = useRouter()
-    const { navigateToCharity, navigateToAssessments } = useCharityNavigation()
+    const { navigateToCharity, navigateToCharitySection, navigateToAssessments } = useCharityNavigation()
     const { isAllowed, me } = usePermissions()
+
+    React.useEffect(() => {
+        const savedRowsPerPage = window.localStorage.getItem('charities.rowsPerPage')
+        if (savedRowsPerPage && ['10', '25', '50', '100'].includes(savedRowsPerPage)) {
+            setRowsPerPage(Number(savedRowsPerPage))
+        }
+        setRowsPerPageLoaded(true)
+    }, [])
+
+    React.useEffect(() => {
+        if (!rowsPerPageLoaded || !focusCharityId || focusAppliedRef.current === focusCharityId || charities.length === 0) return
+        const charityIndex = charities.findIndex((charity) => charity.id === focusCharityId)
+        if (charityIndex < 0) return
+        focusAppliedRef.current = focusCharityId
+        setPage(Math.floor(charityIndex / rowsPerPage) + 1)
+        setExpandedId(focusCharityId)
+        focusScrollPendingRef.current = focusCharityId
+        setLoadingId(focusCharityId)
+        getCharityAction(focusCharityId)
+            .then((res) => {
+                if (res.ok && res.payload?.data?.data) {
+                    setReviewsCache((current) => ({ ...current, [focusCharityId]: res.payload?.data?.data?.reviews || null }))
+                } else {
+                    setReviewsCache((current) => ({ ...current, [focusCharityId]: null }))
+                }
+            })
+            .catch(() => setReviewsCache((current) => ({ ...current, [focusCharityId]: null })))
+            .finally(() => setLoadingId(null))
+    }, [charities, focusCharityId, rowsPerPage, rowsPerPageLoaded])
+
+    React.useEffect(() => {
+        const charityId = focusScrollPendingRef.current
+        if (!charityId || expandedId !== charityId) return
+        const frame = window.requestAnimationFrame(() => {
+            (document.getElementById(`charity-info-${charityId}`) ?? document.getElementById(`charity-${charityId}`))
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            focusScrollPendingRef.current = null
+        })
+        return () => window.cancelAnimationFrame(frame)
+    }, [page, expandedId, rowsPerPage, charities])
     const currentUserRoles = me?.roles?.map((r: any) => r.slug || r) || []
     const canDeleteCharity = isAllowed({ anyOf: [PERMISSIONS.DELETE_CHARITY] }) || currentUserRoles.includes('operation-manager')
     const canAssignPM = isAllowed({ anyOf: [PERMISSIONS.ASSIGN_PM_CHARITY] }) || currentUserRoles.includes('operation-manager')
@@ -381,6 +426,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                             <React.Fragment key={`${c.id}-${globalIdx}`}>
                                 {/* Main row – clickable to expand */}
                                 <TableRow
+                                    id={`charity-${c.id}`}
                                     className="cursor-pointer border-b border-[#EEF2F6] transition-colors hover:bg-[#F8FBFF]"
                                     onClick={(e) => {
                                         const target = e.target as HTMLElement | null
@@ -575,7 +621,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
 
                                 {/* Expanded audit scores row */}
                                 {isExpanded && (
-                                    <TableRow className="bg-gradient-to-br from-[#F8FBFF] to-[#FAFBFC] hover:bg-gradient-to-br hover:from-[#F8FBFF] hover:to-[#FAFBFC]">
+                                    <TableRow id={`charity-info-${c.id}`} className="bg-gradient-to-br from-[#F8FBFF] to-[#FAFBFC] hover:bg-gradient-to-br hover:from-[#F8FBFF] hover:to-[#FAFBFC]">
                                         <TableCell colSpan={colCount} className="max-w-0 p-0">
                                             <div className="relative overflow-hidden border-t border-[#E8EEF5] bg-gradient-to-br from-[#F8FBFF] via-white to-[#F4FBFD] px-5 py-5">
                                                 <div className="pointer-events-none absolute -right-12 top-0 h-28 w-28 rounded-full bg-[#266DD3]/8 blur-2xl" />
@@ -607,7 +653,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                 }}
                                                             >
                                                                 <History className="h-3.5 w-3.5 text-[#266DD3]" />
-                                                                View Assessment History
+                                                                    Assessment Scores
                                                             </Button>
                                                         </div>
 
@@ -634,7 +680,17 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                 return (
                                                                     <div
                                                                         key={key}
-                                                                        className="relative min-w-0 overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white p-4 shadow-[0_4px_18px_rgba(15,23,42,0.04)]"
+                                                                        role="link"
+                                                                        tabIndex={0}
+                                                                        aria-label={`Open ${meta.label} section on ${c.charityTitle} profile`}
+                                                                        onClick={() => navigateToCharitySection(c.id, `core-area-${key === 'core1' ? '1' : key === 'core2' ? '2' : key === 'core3' ? '3' : '4'}`, c.charityTitle)}
+                                                                        onKeyDown={(event) => {
+                                                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                                                event.preventDefault()
+                                                                                navigateToCharitySection(c.id, `core-area-${key === 'core1' ? '1' : key === 'core2' ? '2' : key === 'core3' ? '3' : '4'}`, c.charityTitle)
+                                                                            }
+                                                                        }}
+                                                                        className="relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white p-4 text-left shadow-[0_4px_18px_rgba(15,23,42,0.04)] transition hover:border-[#BFD6F5] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#266DD3]"
                                                                     >
                                                                         <div
                                                                             className="absolute inset-x-0 top-0 h-1"
@@ -722,6 +778,9 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                                 </div>
                                                                             </div>
                                                                         )}
+                                                                        <div className="mt-3 border-t border-[#EEF2F6] pt-2 text-[10px] font-semibold text-[#266DD3]">
+                                                                            Open assessment section <span aria-hidden="true">→</span>
+                                                                        </div>
                                                                     </div>
                                                                 )
                                                             })}
@@ -740,6 +799,17 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">
                                                                                 Overall Score
                                                                             </div>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                className="mt-3 h-8 rounded-lg border-[#DDE7F3] bg-white text-xs font-semibold text-[#266DD3]"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation()
+                                                                                    navigateToAssessments(c.id, c.charityTitle)
+                                                                                }}
+                                                                            >
+                                                                                View Assessment Scores
+                                                                            </Button>
                                                                             <div className="mt-1 font-mono text-2xl font-bold tabular-nums text-[#101928]">
                                                                                 {overallScore !== null
                                                                                     ? `${formatAuditScore(overallScore)}/${AUDIT_DISPLAY_MAX.overall}`
@@ -783,7 +853,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                             }}
                                                         >
                                                             <History className="h-3.5 w-3.5 text-[#266DD3]" />
-                                                            View Assessment History
+                                                            Assessment Scores
                                                         </Button>
                                                     </div>
                                                 )}
@@ -800,7 +870,12 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E8EEF5] bg-[#FAFBFC] px-4 py-3 text-sm text-[#667085]">
                 <div className="flex items-center gap-2">
                     <span className="font-medium">Rows per page:</span>
-                    <Select value={String(rowsPerPage)} onValueChange={(v) => { setRowsPerPage(Number(v)); setPage(1) }}>
+                    <Select value={String(rowsPerPage)} onValueChange={(v) => {
+                        const nextRowsPerPage = Number(v)
+                        setRowsPerPage(nextRowsPerPage)
+                        window.localStorage.setItem('charities.rowsPerPage', String(nextRowsPerPage))
+                        setPage(1)
+                    }}>
                         <SelectTrigger size="sm" className="h-9 rounded-xl border-[#DDE7F3] bg-white">
                             <SelectValue />
                         </SelectTrigger>

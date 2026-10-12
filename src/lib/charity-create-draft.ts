@@ -22,6 +22,7 @@ export type CharityCreateDraft = {
     countryCode?: CharityCreateCountryCode | string
     category?: string
     otherCategory?: string | null
+    startDateType?: 'year' | 'date'
     startDate?: string | null
     startYear?: number | null
     ukCharityNumber?: string | null
@@ -51,7 +52,9 @@ export type CharityRow = {
     countryCode: CharityCreateCountryCode | ''
     category: string
     otherCategory: string
+    startDateType: 'year' | 'date'
     startYear: string
+    startDate: string
     regNumber: string
     /** Country regulator link (Charity Commission / CRA) — not applicable for US. */
     profileUrl: string
@@ -78,7 +81,9 @@ export const emptyCharityRow = (): CharityRow => ({
     countryCode: '',
     category: '',
     otherCategory: '',
+    startDateType: 'year',
     startYear: '',
+    startDate: '',
     regNumber: '',
     profileUrl: '',
     websiteUrl: '',
@@ -111,8 +116,8 @@ export function rowToDraft(row: CharityRow): CharityCreateDraft {
         countryCode: row.countryCode || undefined,
         category: resolvedCategory,
         otherCategory: row.category === 'other' ? row.otherCategory : null,
-        startYear: row.startYear.trim() ? Number(row.startYear) : null,
-        startDate: null,
+        startYear: row.startDateType === 'year' && row.startYear.trim() ? Number(row.startYear) : null,
+        startDate: row.startDateType === 'date' && row.startDate ? row.startDate : null,
         ukCharityNumber: isUk ? row.regNumber || null : null,
         ukCharityCommissionUrl: isUk ? row.profileUrl || null : null,
         caRegistrationNumber: isCa ? row.regNumber || null : null,
@@ -160,7 +165,9 @@ export function draftToRow(draft: CharityCreateDraft): CharityRow {
         countryCode,
         category: isOther ? 'other' : categoryValue,
         otherCategory: isOther ? draft.otherCategory || (knownCategories.has(categoryValue) ? '' : categoryValue) : '',
+        startDateType: draft.startDateType || (draft.startDate ? 'date' : 'year'),
         startYear: draft.startYear != null ? String(draft.startYear) : '',
+        startDate: draft.startDate || '',
         regNumber,
         profileUrl,
         websiteUrl: draft.websiteUrl || '',
@@ -323,8 +330,12 @@ export function buildCreateCharityPayload(
         assessmentRequestedNote: draft.assessmentRequestedNote ?? null,
         countryCode,
         category: resolvedCategory,
-        startDate: draft.startDate ? new Date(draft.startDate).toISOString().split('T')[0] : null,
-        startYear: draft.startYear ? Number(draft.startYear) : null,
+        startDate: (draft.startDateType === 'date' || (!draft.startDateType && draft.startDate)) && draft.startDate
+            ? new Date(draft.startDate).toISOString().split('T')[0]
+            : null,
+        startYear: draft.startDateType === 'year' || !draft.startDateType
+            ? (draft.startYear ? Number(draft.startYear) : null)
+            : null,
         ukCharityNumber: draft.ukCharityNumber ?? null,
         ukCharityCommissionUrl: draft.ukCharityCommissionUrl ?? null,
         caRegistrationNumber: draft.caRegistrationNumber ?? null,
@@ -351,6 +362,8 @@ export type CharityPreviewView = {
     country: CharityCreateCountryCode | undefined
     category: string
     status: 'unassigned' | 'ineligible'
+    startDateType: 'year' | 'date'
+    startDate: string | null
     startYear: number | null
     totalDuration: string | undefined
     website: string | null
@@ -376,7 +389,8 @@ export type CharityPreviewView = {
  */
 export function buildCharityPreviewView(draft: CharityCreateDraft): CharityPreviewView {
     const start = draft.startDate ? new Date(draft.startDate) : null
-    const startYear = draft.startYear ? Number(draft.startYear) : null
+    const startDateType = draft.startDateType || (draft.startDate ? 'date' : 'year')
+    const startYear = startDateType === 'year' && draft.startYear ? Number(draft.startYear) : null
     let totalDuration: string | undefined
     if (start && !Number.isNaN(start.getTime())) {
         const years = Math.max(1, Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24 * 365)))
@@ -417,6 +431,8 @@ export function buildCharityPreviewView(draft: CharityCreateDraft): CharityPrevi
         country,
         category: resolvedCategory,
         status: draft.isEligible ? 'unassigned' : 'ineligible',
+        startDateType,
+        startDate: startDateType === 'date' && draft.startDate ? draft.startDate : null,
         startYear,
         totalDuration,
         website: draft.websiteUrl || null,

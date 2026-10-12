@@ -113,6 +113,7 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
         assessmentRequested: c.assessmentRequested,
         assessmentRequestedNote: c.assessmentRequestedNote ?? null,
         annualRevenue: c.annualRevenue ?? null,
+        revenueThresholdBand: c.revenueThresholdBand ?? null,
         startDate: c.startDate ?? null,
         startYear: c.startYear ?? null,
         isEligible: c.isEligible ?? null,

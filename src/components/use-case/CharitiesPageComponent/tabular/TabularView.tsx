@@ -390,8 +390,8 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                         <TableHead className={cn(headCell, 'w-[4%] text-center')}>Assess</TableHead>
                         <TableHead className={cn(headCell, 'w-[6%] text-center')}>Progress</TableHead>
                         <TableHead className={cn(headCell, 'hidden w-[4%] text-center xl:table-cell')}>2y</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Email</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>E.Status</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Scorecard Sent</TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>Scorecard Review Email</TableHead>
                         <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Start</TableHead>
                         <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>Completed</TableHead>
                         <TableHead className={cn(headCell, 'w-[8%] text-center')}>Actions</TableHead>
@@ -520,7 +520,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         )}
                                     </TableCell>
 
-                                    {/* Email Sent Date */}
+                                    {/* Scorecard email sent date */}
                                     <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
                                         {comm?.lastEmailSentAt ? (
                                             <span className="block truncate text-[11px] text-[#344054]" title={formatDate(comm?.lastEmailSentAt)}>
@@ -531,7 +531,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         )}
                                     </TableCell>
 
-                                    {/* Email Status */}
+                                    {/* Scorecard email status */}
                                     <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
                                         {emailMeta ? (
                                             <Badge

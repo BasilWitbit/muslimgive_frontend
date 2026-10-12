@@ -206,6 +206,13 @@ export const createCharityAction = async (payload: CreateCharityPayload): Promis
  */
 export type UpdateCharityPayload = {
     name?: string | null;
+    category?: string | null;
+    isIslamic?: boolean | null;
+    doesCharityGiveZakat?: boolean | null;
+    assessmentRequested?: boolean;
+    assessmentRequestedNote?: string | null;
+    annualRevenue?: number | null;
+    revenueThresholdBand?: 'above' | 'below' | 'unknown' | null;
     logoUrl?: string | null;
     websiteUrl?: string | null;
     countryCode?: CountriesInKebab | null;
@@ -217,6 +224,9 @@ export type UpdateCharityPayload = {
     ukCharityCommissionUrl?: string | null;
     caCraUrl?: string | null;
     usIrsUrl?: string | null;
+    usEin?: string | null;
+    ukCharityNumber?: string | null;
+    caRegistrationNumber?: string | null;
     profilePublishedAt?: string | null;
 }
 

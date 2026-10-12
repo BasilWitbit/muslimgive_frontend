@@ -90,6 +90,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     assessmentRequested,
     assessmentRequestedNote,
     annualRevenue,
+    revenueThresholdBand,
     startDate,
     startYear,
     ukCharityNumber,
@@ -97,6 +98,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     caRegistrationNumber,
     caCraUrl,
     usEin,
+    usIrsUrl,
     profilePublishedAt,
     totalRevenue,
     fiscalYearEnd,
@@ -705,6 +707,12 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                             <CopyCharityLinkButton charityId={charityId} variant="label" />
+                            {canEditCharity ? (
+                                <Button variant="outline" className="rounded-xl" onClick={() => handleOpenModel('edit-charity-details')}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Edit details
+                                </Button>
+                            ) : null}
                             <IconDropdownMenuComponent
                                 variant="premium"
                                 destructiveValues={['delete-charity']}
@@ -1366,6 +1374,13 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         charityId={charityId}
                         charityTitle={charityTitle}
                         charityOwnerName={charityOwnerName}
+                        category={category}
+                        isIslamic={isThisMuslimCharity}
+                        doesCharityGiveZakat={doTheyPayZakat}
+                        assessmentRequested={assessmentRequested}
+                        assessmentRequestedNote={assessmentRequestedNote}
+                        annualRevenue={annualRevenue}
+                        revenueThresholdBand={revenueThresholdBand}
                         logoUrl={logoUrl}
                         websiteUrl={website ?? null}
                         countryCode={country}
@@ -1374,7 +1389,11 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         ceoName={ceoName ?? null}
                         submittedByEmail={submittedByEmail ?? null}
                         ukCharityCommissionUrl={ukCharityCommissionUrl ?? null}
+                        ukCharityNumber={ukCharityNumber ?? null}
+                        caRegistrationNumber={caRegistrationNumber ?? null}
                         caCraUrl={caCraUrl ?? null}
+                        usEin={usEin ?? null}
+                        usIrsUrl={usIrsUrl ?? null}
                         profilePublishedAt={profilePublishedAt ?? null}
                         onCancel={handleCloseModel}
                         onUpdated={() => {

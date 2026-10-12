@@ -71,8 +71,11 @@ function validateRow(row: CharityRow): string | null {
     if (!row.ceoName.trim()) return 'CEO name is required'
     if (!row.isIslamic) return 'Islamic charity selection is required'
     if (!row.collectsZakah) return 'Collects Zakah selection is required'
-    if (row.startYear.trim() && !START_YEAR_OPTIONS.includes(row.startYear.trim())) {
+    if (row.startDateType === 'year' && row.startYear.trim() && !START_YEAR_OPTIONS.includes(row.startYear.trim())) {
         return 'Start year is invalid'
+    }
+    if (row.startDateType === 'date' && row.startDate && Number.isNaN(Date.parse(row.startDate))) {
+        return 'Start date is invalid'
     }
     if (row.annualRevenue.trim() && (Number.isNaN(Number(row.annualRevenue)) || Number(row.annualRevenue) < 0)) {
         return 'Annual revenue must be a valid number'
@@ -222,6 +225,8 @@ const CreateCharityStandalonePage = () => {
                     patch.isIslamic !== undefined ||
                     patch.category !== undefined ||
                     patch.startYear !== undefined ||
+                    patch.startDate !== undefined ||
+                    patch.startDateType !== undefined ||
                     patch.assessmentRequested !== undefined ||
                     patch.eligibilityOverride !== undefined
                 ) {
@@ -235,7 +240,8 @@ const CreateCharityStandalonePage = () => {
                         isIslamic: next.isIslamic === 'yes',
                         category: next.category,
                         assessmentRequested: next.assessmentRequested,
-                        startYear: next.startYear || null,
+                        startYear: next.startDateType === 'year' ? next.startYear || null : null,
+                        startDate: next.startDateType === 'date' ? next.startDate || null : null,
                         countryCode: next.countryCode || null,
                     })
 
@@ -370,7 +376,7 @@ const CreateCharityStandalonePage = () => {
                                         'Charity',
                                         'Country',
                                         'Category',
-                                        'Start yr',
+                                        'Start year/date',
                                         'Reg #',
                                         'Commission/CRA Link',
                                         'Website',
@@ -410,7 +416,8 @@ const CreateCharityStandalonePage = () => {
                                         isIslamic: row.isIslamic === 'yes',
                                         category: row.category === 'other' ? row.otherCategory : row.category,
                                         assessmentRequested: row.assessmentRequested,
-                                        startYear: row.startYear || null,
+                                        startYear: row.startDateType === 'year' ? row.startYear || null : null,
+                                        startDate: row.startDateType === 'date' ? row.startDate || null : null,
                                         countryCode: row.countryCode || null,
                                     })
 
@@ -506,22 +513,43 @@ const CreateCharityStandalonePage = () => {
                                                     ) : null}
                                                 </td>
                                                 <td className="px-2.5 py-2">
-                                                    <AutoCompleteComponent
-                                                        options={START_YEAR_AUTOCOMPLETE_OPTIONS}
-                                                        value={row.startYear || null}
-                                                        onValueChange={(v) =>
-                                                            updateRow(row.key, { startYear: v ?? '' })
-                                                        }
-                                                        placeholder="Year"
-                                                        inputPlaceholder="Search year…"
-                                                        emptyMessage="No year found."
-                                                        className="w-[108px]"
-                                                        triggerClassName={cn(
-                                                            cellInputClass,
-                                                            'h-9 justify-between px-2 font-normal shadow-none',
-                                                        )}
-                                                        contentClassName="w-[140px] p-0"
-                                                    />
+                                                    <Select
+                                                        value={row.startDateType}
+                                                        onValueChange={(value: 'year' | 'date') => updateRow(row.key, {
+                                                            startDateType: value,
+                                                            startYear: value === 'year' ? row.startYear : '',
+                                                            startDate: value === 'date' ? row.startDate : '',
+                                                        })}
+                                                    >
+                                                        <SelectTrigger className={cn(cellInputClass, 'mb-1 w-[108px]')}>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="year">Start year</SelectItem>
+                                                            <SelectItem value="date">Start date</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    {row.startDateType === 'date' ? (
+                                                        <Input
+                                                            type="date"
+                                                            value={row.startDate}
+                                                            max={new Date().toISOString().slice(0, 10)}
+                                                            onChange={(e) => updateRow(row.key, { startDate: e.target.value, startYear: '' })}
+                                                            className={cn(cellInputClass, 'w-[140px]')}
+                                                        />
+                                                    ) : (
+                                                        <AutoCompleteComponent
+                                                            options={START_YEAR_AUTOCOMPLETE_OPTIONS}
+                                                            value={row.startYear || null}
+                                                            onValueChange={(v) => updateRow(row.key, { startYear: v ?? '', startDate: '' })}
+                                                            placeholder="Year"
+                                                            inputPlaceholder="Search year…"
+                                                            emptyMessage="No year found."
+                                                            className="w-[108px]"
+                                                            triggerClassName={cn(cellInputClass, 'h-9 justify-between px-2 font-normal shadow-none')}
+                                                            contentClassName="w-[140px] p-0"
+                                                        />
+                                                    )}
                                                 </td>
                                                 <td className="px-2.5 py-2">
                                                     <Input

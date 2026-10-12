@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { ControlledTextFieldComponent } from '@/components/common/TextFieldComponent/ControlledTextFieldComponent'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import CountrySelectComponent from '@/components/common/CountrySelectComponent'
 import type { CountriesInKebab } from '@/components/common/CountrySelectComponent/countries.types'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -23,6 +24,13 @@ type EditCharityDetailsModalProps = {
     charityId: string
     charityTitle: string
     charityOwnerName?: string | null
+    category?: string | null
+    isIslamic?: boolean | null
+    doesCharityGiveZakat?: boolean | null
+    assessmentRequested?: boolean
+    assessmentRequestedNote?: string | null
+    annualRevenue?: number | null
+    revenueThresholdBand?: 'above' | 'below' | 'unknown' | null
     logoUrl?: string | null
     websiteUrl?: string | null
     countryCode?: CountriesInKebab | null
@@ -31,7 +39,11 @@ type EditCharityDetailsModalProps = {
     ceoName?: string | null
     submittedByEmail?: string | null
     ukCharityCommissionUrl?: string | null
+    ukCharityNumber?: string | null
+    caRegistrationNumber?: string | null
     caCraUrl?: string | null
+    usEin?: string | null
+    usIrsUrl?: string | null
     profilePublishedAt?: string | null
     onCancel: () => void
     onUpdated: () => void
@@ -41,6 +53,13 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
     charityId,
     charityTitle,
     charityOwnerName,
+    category,
+    isIslamic,
+    doesCharityGiveZakat,
+    assessmentRequested,
+    assessmentRequestedNote,
+    annualRevenue,
+    revenueThresholdBand,
     logoUrl,
     websiteUrl,
     countryCode,
@@ -49,7 +68,11 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
     ceoName,
     submittedByEmail,
     ukCharityCommissionUrl,
+    ukCharityNumber,
+    caRegistrationNumber,
     caCraUrl,
+    usEin,
+    usIrsUrl,
     profilePublishedAt,
     onCancel,
     onUpdated,
@@ -68,11 +91,29 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
     const [ukUrl, setUkUrl] = useState('')
     const [caUrl, setCaUrl] = useState('')
     const [profilePublishedValue, setProfilePublishedValue] = useState<Date | undefined>(undefined)
+    const [categoryValue, setCategoryValue] = useState('')
+    const [isIslamicValue, setIsIslamicValue] = useState('')
+    const [doesGiveZakatValue, setDoesGiveZakatValue] = useState('')
+    const [assessmentRequestedValue, setAssessmentRequestedValue] = useState(false)
+    const [assessmentRequestedNoteValue, setAssessmentRequestedNoteValue] = useState('')
+    const [annualRevenueValue, setAnnualRevenueValue] = useState('')
+    const [revenueThresholdBandValue, setRevenueThresholdBandValue] = useState('')
+    const [ukNumber, setUkNumber] = useState('')
+    const [caNumber, setCaNumber] = useState('')
+    const [ein, setEin] = useState('')
+    const [usUrl, setUsUrl] = useState('')
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const initialValues = useMemo(() => ({
         name: charityTitle ?? '',
+        category: category ?? '',
+        isIslamic: isIslamic == null ? '' : String(isIslamic),
+        doesCharityGiveZakat: doesCharityGiveZakat == null ? '' : String(doesCharityGiveZakat),
+        assessmentRequested: Boolean(assessmentRequested),
+        assessmentRequestedNote: assessmentRequestedNote ?? '',
+        annualRevenue: annualRevenue == null ? '' : String(annualRevenue),
+        revenueThresholdBand: revenueThresholdBand ?? '',
         logoUrl: logoUrl ?? '',
         websiteUrl: websiteUrl ?? '',
         countryCode: countryCode ?? '',
@@ -82,10 +123,21 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         submittedByName: charityOwnerName ?? '',
         submittedByEmail: submittedByEmail ?? '',
         ukCharityCommissionUrl: ukCharityCommissionUrl ?? '',
+        ukCharityNumber: ukCharityNumber ?? '',
+        caRegistrationNumber: caRegistrationNumber ?? '',
         caCraUrl: caCraUrl ?? '',
+        usEin: usEin ?? '',
+        usIrsUrl: usIrsUrl ?? '',
         profilePublishedAt: profilePublishedAt ?? '',
     }), [
         charityTitle,
+        category,
+        isIslamic,
+        doesCharityGiveZakat,
+        assessmentRequested,
+        assessmentRequestedNote,
+        annualRevenue,
+        revenueThresholdBand,
         logoUrl,
         websiteUrl,
         countryCode,
@@ -95,12 +147,23 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         charityOwnerName,
         submittedByEmail,
         ukCharityCommissionUrl,
+        ukCharityNumber,
+        caRegistrationNumber,
         caCraUrl,
+        usEin,
+        usIrsUrl,
         profilePublishedAt,
     ])
 
     useEffect(() => {
         setName(initialValues.name)
+        setCategoryValue(initialValues.category)
+        setIsIslamicValue(initialValues.isIslamic)
+        setDoesGiveZakatValue(initialValues.doesCharityGiveZakat)
+        setAssessmentRequestedValue(initialValues.assessmentRequested)
+        setAssessmentRequestedNoteValue(initialValues.assessmentRequestedNote)
+        setAnnualRevenueValue(initialValues.annualRevenue)
+        setRevenueThresholdBandValue(initialValues.revenueThresholdBand)
         setLogo(initialValues.logoUrl)
         setWebsite(initialValues.websiteUrl)
         setCountry(initialValues.countryCode as CountriesInKebab | '')
@@ -112,6 +175,10 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         setSubmittedByEmailValue(initialValues.submittedByEmail)
         setUkUrl(initialValues.ukCharityCommissionUrl)
         setCaUrl(initialValues.caCraUrl)
+        setUkNumber(initialValues.ukCharityNumber)
+        setCaNumber(initialValues.caRegistrationNumber)
+        setEin(initialValues.usEin)
+        setUsUrl(initialValues.usIrsUrl)
         setProfilePublishedValue(
             initialValues.profilePublishedAt ? new Date(initialValues.profilePublishedAt) : undefined,
         )
@@ -150,6 +217,9 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         if (startDateType === 'year' && startYearValue.trim() && !/^\d{4}$/.test(startYearValue.trim())) {
             nextErrors.startYear = 'Start year must be a 4-digit year'
         }
+        if (annualRevenueValue.trim() && (!Number.isFinite(Number(annualRevenueValue)) || Number(annualRevenueValue) < 0)) {
+            nextErrors.annualRevenue = 'Annual revenue must be a non-negative number'
+        }
 
         setErrors(nextErrors)
         if (Object.keys(nextErrors).length > 0) return
@@ -159,6 +229,18 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         const normalizedName = name.trim()
         if (normalizedName !== initialValues.name) {
             payload.name = normalizedName || null
+        }
+
+        if (categoryValue.trim() !== initialValues.category) payload.category = categoryValue.trim() || null
+        if (isIslamicValue !== initialValues.isIslamic && isIslamicValue) payload.isIslamic = isIslamicValue === 'true'
+        if (doesGiveZakatValue !== initialValues.doesCharityGiveZakat && doesGiveZakatValue) payload.doesCharityGiveZakat = doesGiveZakatValue === 'true'
+        if (assessmentRequestedValue !== initialValues.assessmentRequested) payload.assessmentRequested = assessmentRequestedValue
+        if (assessmentRequestedNoteValue.trim() !== initialValues.assessmentRequestedNote) payload.assessmentRequestedNote = assessmentRequestedNoteValue.trim() || null
+
+        const nextAnnualRevenue = annualRevenueValue.trim() ? Number(annualRevenueValue) : null
+        if (nextAnnualRevenue !== (annualRevenue ?? null)) payload.annualRevenue = nextAnnualRevenue
+        if ((revenueThresholdBandValue || '') !== initialValues.revenueThresholdBand) {
+            payload.revenueThresholdBand = (revenueThresholdBandValue || null) as UpdateCharityPayload['revenueThresholdBand']
         }
 
         if (logo !== initialValues.logoUrl) {
@@ -193,6 +275,11 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
         if (normalizedUkUrl !== initialValues.ukCharityCommissionUrl) {
             payload.ukCharityCommissionUrl = normalizedUkUrl || null
         }
+
+        if (ukNumber.trim() !== initialValues.ukCharityNumber) payload.ukCharityNumber = ukNumber.trim() || null
+        if (caNumber.trim() !== initialValues.caRegistrationNumber) payload.caRegistrationNumber = caNumber.trim() || null
+        if (ein.trim() !== initialValues.usEin) payload.usEin = ein.trim() || null
+        if (usUrl.trim() !== initialValues.usIrsUrl) payload.usIrsUrl = usUrl.trim() || null
 
         const normalizedCaUrl = caUrl.trim()
         if (normalizedCaUrl !== initialValues.caCraUrl) {
@@ -259,6 +346,60 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Charity name"
             />
+
+            <ControlledTextFieldComponent
+                label="Category"
+                value={categoryValue}
+                onChange={(e) => setCategoryValue(e.target.value)}
+                placeholder="Charity category"
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                    <Label className="text-sm">Islamic charity</Label>
+                    <RadioGroup value={isIslamicValue} onValueChange={setIsIslamicValue} className="flex gap-4">
+                        <div className="flex items-center gap-2"><RadioGroupItem value="true" id="edit-islamic-yes" /><Label htmlFor="edit-islamic-yes">Yes</Label></div>
+                        <div className="flex items-center gap-2"><RadioGroupItem value="false" id="edit-islamic-no" /><Label htmlFor="edit-islamic-no">No</Label></div>
+                    </RadioGroup>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <Label className="text-sm">Collects Zakah</Label>
+                    <RadioGroup value={doesGiveZakatValue} onValueChange={setDoesGiveZakatValue} className="flex gap-4">
+                        <div className="flex items-center gap-2"><RadioGroupItem value="true" id="edit-zakat-yes" /><Label htmlFor="edit-zakat-yes">Yes</Label></div>
+                        <div className="flex items-center gap-2"><RadioGroupItem value="false" id="edit-zakat-no" /><Label htmlFor="edit-zakat-no">No</Label></div>
+                    </RadioGroup>
+                </div>
+            </div>
+
+            <div className="rounded-xl border border-[#E8EEF5] p-3">
+                <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="edit-assessment-requested" className="text-sm">Assessment requested</Label>
+                    <Switch id="edit-assessment-requested" checked={assessmentRequestedValue} onCheckedChange={setAssessmentRequestedValue} />
+                </div>
+                {assessmentRequestedValue ? (
+                    <ControlledTextFieldComponent
+                        label="Request note"
+                        value={assessmentRequestedNoteValue}
+                        onChange={(e) => setAssessmentRequestedNoteValue(e.target.value)}
+                        placeholder="Requested by / note"
+                    />
+                ) : null}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <ControlledTextFieldComponent label="Annual revenue (optional)" type="number" value={annualRevenueValue} onChange={(e) => setAnnualRevenueValue(e.target.value)} placeholder="Annual revenue" />
+                    {errors.annualRevenue ? <p className="mt-1 text-xs text-red-600">{errors.annualRevenue}</p> : null}
+                </div>
+                <div className="flex flex-col gap-2">
+                    <Label className="text-sm">Revenue threshold</Label>
+                    <RadioGroup value={revenueThresholdBandValue} onValueChange={setRevenueThresholdBandValue} className="flex flex-wrap gap-3">
+                        <div className="flex items-center gap-2"><RadioGroupItem value="above" id="edit-revenue-above" /><Label htmlFor="edit-revenue-above">Above</Label></div>
+                        <div className="flex items-center gap-2"><RadioGroupItem value="below" id="edit-revenue-below" /><Label htmlFor="edit-revenue-below">Below</Label></div>
+                        <div className="flex items-center gap-2"><RadioGroupItem value="unknown" id="edit-revenue-unknown" /><Label htmlFor="edit-revenue-unknown">Unknown</Label></div>
+                    </RadioGroup>
+                </div>
+            </div>
 
             <div className="flex flex-col gap-2">
                 <Label className="text-sm">Registered country</Label>
@@ -338,21 +479,24 @@ const EditCharityDetailsModal: React.FC<EditCharityDetailsModalProps> = ({
             />
 
             {isUk ? (
-                <ControlledTextFieldComponent
-                    label="Charity Commission link (optional)"
-                    value={ukUrl}
-                    onChange={(e) => setUkUrl(e.target.value)}
-                    placeholder="https://register-of-charities.charitycommission.gov.uk/..."
-                />
+                <>
+                    <ControlledTextFieldComponent label="Charity number" value={ukNumber} onChange={(e) => setUkNumber(e.target.value)} placeholder="Charity number" />
+                    <ControlledTextFieldComponent label="Charity Commission link (optional)" value={ukUrl} onChange={(e) => setUkUrl(e.target.value)} placeholder="https://register-of-charities.charitycommission.gov.uk/..." />
+                </>
             ) : null}
 
             {isCa ? (
-                <ControlledTextFieldComponent
-                    label="CRA link (optional)"
-                    value={caUrl}
-                    onChange={(e) => setCaUrl(e.target.value)}
-                    placeholder="https://apps.cra-arc.gc.ca/..."
-                />
+                <>
+                    <ControlledTextFieldComponent label="Registration number" value={caNumber} onChange={(e) => setCaNumber(e.target.value)} placeholder="CRA registration number" />
+                    <ControlledTextFieldComponent label="CRA link (optional)" value={caUrl} onChange={(e) => setCaUrl(e.target.value)} placeholder="https://apps.cra-arc.gc.ca/..." />
+                </>
+            ) : null}
+
+            {country === 'united-states' ? (
+                <>
+                    <ControlledTextFieldComponent label="EIN" value={ein} onChange={(e) => setEin(e.target.value)} placeholder="EIN" />
+                    <ControlledTextFieldComponent label="IRS link (optional)" value={usUrl} onChange={(e) => setUsUrl(e.target.value)} placeholder="https://www.irs.gov/..." />
+                </>
             ) : null}
 
             <div className="flex flex-col gap-2">

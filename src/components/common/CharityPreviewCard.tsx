@@ -66,6 +66,7 @@ export default function CharityPreviewCard({
         isIslamic: draft.isIslamic,
         category: preview.category,
         assessmentRequested: draft.assessmentRequested,
+        startDate: draft.startDate,
         startYear: draft.startYear,
         countryCode: draft.countryCode,
     })
@@ -197,8 +198,10 @@ export default function CharityPreviewCard({
                         }
                     />
                     <DetailItem
-                        label="Start year"
-                        value={preview.startYear != null ? String(preview.startYear) : '—'}
+                        label={preview.startDateType === 'date' ? 'Start date' : 'Start year'}
+                        value={preview.startDateType === 'date' && preview.startDate
+                            ? new Date(`${preview.startDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : preview.startYear != null ? String(preview.startYear) : '—'}
                     />
                     <DetailItem
                         label="Annual revenue"

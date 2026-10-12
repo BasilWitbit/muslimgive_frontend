@@ -111,6 +111,7 @@ export type SingleCharityType = {
     assessmentRequested?: boolean,
     assessmentRequestedNote?: string | null,
     annualRevenue?: number | null,
+    revenueThresholdBand?: 'above' | 'below' | 'unknown' | null,
     startDate?: string | null,
     startYear?: number | null,
     isEligible?: boolean | null,

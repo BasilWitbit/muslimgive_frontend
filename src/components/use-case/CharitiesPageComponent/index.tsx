@@ -48,6 +48,15 @@ const CATEGORY_KEYS = [
     { id: 'other', label: 'Other' },
 ]
 
+const ASSESSMENT_PROGRESS_FILTERS = [
+    { key: 'coreArea1Status', label: 'Charity Legitimacy' },
+    { key: 'coreArea2Status', label: 'Financial Accountability' },
+    { key: 'coreArea3Status', label: 'Zakah Policy' },
+    { key: 'coreArea4Status', label: 'Governance & Leadership (G&L)' },
+] as const
+type AssessmentProgressKey = typeof ASSESSMENT_PROGRESS_FILTERS[number]['key']
+type AssessmentProgress = 'completed' | 'not-completed'
+
 type SortOptionId = 'most-recent' | 'oldest' | 'highest-progress' | 'lowest-progress'
 
 const SORT_OPTIONS: Array<{
@@ -86,6 +95,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
     const [categoryFilters, setCategoryFilters] = useState<string[]>([])
     const [zakatFilter, setZakatFilter] = useState<boolean | undefined>(undefined)
     const [islamicFilter, setIslamicFilter] = useState<boolean | undefined>(undefined)
+    const [assessmentProgressFilters, setAssessmentProgressFilters] = useState<Partial<Record<AssessmentProgressKey, AssessmentProgress>>>({})
     const [openFilterPopover, setOpenFilterPopover] = useState(false)
 
     // Sort state — each option bundles a field + direction into one named choice.
@@ -149,6 +159,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                 categories: filters.categories,
                 doesCharityGiveZakat: filters.zakat,
                 isIslamic: filters.islamic,
+                ...filters.assessmentProgress,
                 sortBy: filters.sortBy,
                 order: filters.order,
                 limit: 100 // High limit for Kanban
@@ -212,6 +223,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                     categories: categoryFilters,
                     zakat: zakatFilter,
                     islamic: islamicFilter,
+                    assessmentProgress: assessmentProgressFilters,
                     sortBy,
                     order,
                 })
@@ -232,6 +244,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
             categories: categoryFilters,
             zakat: zakatFilter,
             islamic: islamicFilter,
+            assessmentProgress: assessmentProgressFilters,
             sortBy,
             order
         })
@@ -244,7 +257,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
 
         const handler = setTimeout(loadCharities, 800)
         return () => clearTimeout(handler)
-    }, [queryInput, statusFilters, categoryFilters, zakatFilter, islamicFilter, sortBy, order])
+    }, [queryInput, statusFilters, categoryFilters, zakatFilter, islamicFilter, assessmentProgressFilters, sortBy, order])
 
     // Fuzzy search is now server-side, but we keep the searchedRows variable name to avoid breaking JSX
     const searchedRows = charities
@@ -274,6 +287,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                             setCategoryFilters([])
                                             setZakatFilter(undefined)
                                             setIslamicFilter(undefined)
+                                            setAssessmentProgressFilters({})
                                         }}>Clear all</Button>
                                     </div>
                                 </div>
@@ -310,6 +324,33 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                                     setStatusFilters(prev => checked ? [...prev, s.id] : prev.filter(x => x !== s.id))
                                                 }}
                                             />
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Assessment progress</span>
+                                    {ASSESSMENT_PROGRESS_FILTERS.map(({ key, label }) => (
+                                        <div key={key} className="flex items-center justify-between gap-3 rounded-xl border border-[#EEF2F6] bg-[#FBFCFE] px-3 py-2">
+                                            <Label htmlFor={`assessment-${key}`} className="text-sm font-medium text-[#344054]">{label}</Label>
+                                            <Select
+                                                value={assessmentProgressFilters[key] ?? 'all'}
+                                                onValueChange={(value) => setAssessmentProgressFilters((previous) => {
+                                                    const next = { ...previous }
+                                                    if (value === 'all') delete next[key]
+                                                    else next[key] = value as AssessmentProgress
+                                                    return next
+                                                })}
+                                            >
+                                                <SelectTrigger id={`assessment-${key}`} className="h-9 w-[138px] shrink-0 rounded-lg bg-white">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All</SelectItem>
+                                                    <SelectItem value="completed">Completed</SelectItem>
+                                                    <SelectItem value="not-completed">Not completed</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     ))}
                                 </div>
@@ -404,7 +445,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                         {view === "kanban" ? (
                             <KanbanView charities={searchedRows} projectManagers={assignmentCandidatesByRole?.projectManager ?? []} />
                         ) : null}
-                        {view === "tabular" ? <TabularView charities={searchedRows} assignmentCandidatesByRole={assignmentCandidatesByRole} onRefresh={() => fetchCharities(queryInput, { status: statusFilters.length ? statusFilters : undefined, categories: categoryFilters.length ? categoryFilters : undefined, zakat: zakatFilter, islamic: islamicFilter, sortBy, order })} /> : null}
+                        {view === "tabular" ? <TabularView charities={searchedRows} assignmentCandidatesByRole={assignmentCandidatesByRole} onRefresh={() => fetchCharities(queryInput, { status: statusFilters.length ? statusFilters : undefined, categories: categoryFilters.length ? categoryFilters : undefined, zakat: zakatFilter, islamic: islamicFilter, assessmentProgress: assessmentProgressFilters, sortBy, order })} /> : null}
                     </>
                 ) : null}
             </div>

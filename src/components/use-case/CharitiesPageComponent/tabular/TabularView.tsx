@@ -657,13 +657,15 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                             </Button>
                                                         </div>
 
-                                                        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                                        <div className="grid min-w-0 auto-rows-fr grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                                             {(['core1', 'core2', 'core3', 'core4'] as const).map((key) => {
                                                                 const area = reviews[key]
                                                                 // Financial/Zakah info is siloed to that area's assessors —
                                                                 // the backend returns null when this viewer can't see it.
                                                                 if (!area) return null
-                                                                const assessorRole = CORE_AREA_ASSESSOR_ROLE[key]
+                                                                const assessorRole = key === 'core1' || key === 'core4'
+                                                                    ? 'project-manager'
+                                                                    : CORE_AREA_ASSESSOR_ROLE[key]
                                                                 const meta = CORE_AREA_META[key]
                                                                 const statusStyle = getCoreAreaStatusMeta(area.status)
                                                                 const coreAreaBand = key === 'core1'
@@ -690,19 +692,19 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                                 navigateToCharitySection(c.id, `core-area-${key === 'core1' ? '1' : key === 'core2' ? '2' : key === 'core3' ? '3' : '4'}`, c.charityTitle)
                                                                             }
                                                                         }}
-                                                                        className="relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white p-4 text-left shadow-[0_4px_18px_rgba(15,23,42,0.04)] transition hover:border-[#BFD6F5] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#266DD3]"
+                                                                        className="relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white p-4 text-left shadow-[0_4px_18px_rgba(15,23,42,0.04)] transition hover:border-[#BFD6F5] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#266DD3]"
                                                                     >
                                                                         <div
                                                                             className="absolute inset-x-0 top-0 h-1"
                                                                             style={{ backgroundColor: meta.color }}
                                                                         />
-                                                                        <div className="mb-3 flex items-start justify-between gap-2">
+                                                                        <div className="mb-2 flex min-h-8 items-start justify-between gap-2">
                                                                             <div className="flex min-w-0 items-start gap-2">
                                                                                 <div
                                                                                     className="mt-1 h-2 w-2 shrink-0 rounded-full"
                                                                                     style={{ backgroundColor: meta.color }}
                                                                                 />
-                                                                                <span className="min-w-0 text-xs font-semibold leading-snug text-[#101928]">
+                                                                                <span className="flex min-h-8 min-w-0 items-center text-xs font-semibold leading-snug text-[#101928]">
                                                                                     {meta.label}
                                                                                 </span>
                                                                             </div>
@@ -720,34 +722,35 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                             </Badge>
                                                                         </div>
 
-                                                                        {assessorRole ? (
-                                                                            <div className="mb-3 space-y-0.5 text-[10px] leading-snug text-[#667085]">
+                                                                        <div className="mb-3 min-h-9 space-y-0.5 text-[10px] leading-snug text-[#667085]">
+                                                                            {assessorRole ? (
                                                                                 <div className="truncate" title={formatAssignmentLabel(c.members, assessorRole, me?.id)}>
                                                                                     {formatAssignmentLabel(c.members, assessorRole, me?.id)}
                                                                                 </div>
-                                                                                {area.status === 'completed' && area.submittedBy ? (
-                                                                                    <div className="truncate" title={`Submitted by ${area.submittedBy}`}>
-                                                                                        Submitted by {area.submittedBy}
-                                                                                    </div>
-                                                                                ) : null}
+                                                                            ) : <div>Unassigned</div>}
+                                                                            <div className="truncate" title={area.status === 'completed' && area.submittedBy ? `Submitted by ${area.submittedBy}` : undefined}>
+                                                                                {area.status === 'completed' && area.submittedBy ? `Submitted by ${area.submittedBy}` : '\u00a0'}
                                                                             </div>
-                                                                        ) : null}
+                                                                        </div>
 
-                                                                        {isPending ? (
-                                                                            <div className="rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-3 py-5 text-center text-xs italic text-[#667085]">
-                                                                                Not yet assessed
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="space-y-3">
+                                                                        <div className="flex min-h-[92px] flex-col">
+                                                                            {isPending ? (
+                                                                                <div className="flex flex-1 items-start justify-center rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-3 py-4 text-center text-xs italic text-[#667085]">
+                                                                                    Not yet assessed
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="flex-1 space-y-2">
                                                                                 {key === 'core3' && zakatScores ? (
-                                                                                    <div
-                                                                                        className="font-mono text-2xl font-bold tabular-nums"
-                                                                                        style={{ color: meta.color }}
-                                                                                    >
-                                                                                        {formatAuditScore(zakatScores.weightageScore)}/{AUDIT_DISPLAY_MAX.core3Weightage}
-                                                                                        <span className="ml-1 text-sm font-semibold tabular-nums text-[#98A2B3]">
-                                                                                            ({formatAuditScore(zakatScores.assessmentScore)}/{AUDIT_DISPLAY_MAX.core3Assessment})
-                                                                                        </span>
+                                                                                    <div className="space-y-1">
+                                                                                        <div className="font-mono text-2xl font-bold tabular-nums" style={{ color: meta.color }}>
+                                                                                            {formatAuditScore(zakatScores.weightageScore)}/{AUDIT_DISPLAY_MAX.core3Weightage}
+                                                                                        </div>
+                                                                                        <div className="text-[10px] leading-tight text-[#667085]">
+                                                                                            Assessment score
+                                                                                            <span className="ml-1 font-mono text-sm font-semibold tabular-nums text-[#344054]">
+                                                                                                {formatAuditScore(zakatScores.assessmentScore)}/{AUDIT_DISPLAY_MAX.core3Assessment}
+                                                                                            </span>
+                                                                                        </div>
                                                                                     </div>
                                                                                 ) : (
                                                                                     <div
@@ -757,28 +760,27 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                                         {formatAuditScore(displayScore)}/{meta.displayMax}
                                                                                     </div>
                                                                                 )}
-                                                                                <div className="flex items-center justify-between gap-2 border-t border-[#EEF2F6] pt-2">
-                                                                                    {(key === 'core1' || key === 'core2' || key === 'core4') && coreAreaBand ? (
-                                                                                        <RatingBandBadge ratingBand={coreAreaBand as RatingBand} className="text-[10px]" />
-                                                                                    ) : (
-                                                                                        <span />
-                                                                                    )}
-                                                                                    {area.result ? (
-                                                                                        <span
-                                                                                            className={cn(
-                                                                                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                                                                                area.result === 'pass'
-                                                                                                    ? 'bg-green-50 text-green-700'
-                                                                                                    : 'bg-red-50 text-red-700',
-                                                                                            )}
-                                                                                        >
-                                                                                            {area.result === 'pass' ? '✓ Pass' : '✕ Fail'}
-                                                                                        </span>
-                                                                                    ) : null}
                                                                                 </div>
-                                                                            </div>
-                                                                        )}
-                                                                        <div className="mt-3 border-t border-[#EEF2F6] pt-2 text-[10px] font-semibold text-[#266DD3]">
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="mt-auto flex min-h-8 items-center justify-between gap-2 border-t border-[#EEF2F6] pt-2">
+                                                                            {(key === 'core1' || key === 'core2' || key === 'core4') && coreAreaBand ? (
+                                                                                <RatingBandBadge ratingBand={coreAreaBand as RatingBand} className="text-[10px]" />
+                                                                            ) : <span className="h-5" />}
+                                                                            {area.result ? (
+                                                                                <span
+                                                                                    className={cn(
+                                                                                        'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                                                                        area.result === 'pass'
+                                                                                            ? 'bg-green-50 text-green-700'
+                                                                                            : 'bg-red-50 text-red-700',
+                                                                                    )}
+                                                                                >
+                                                                                    {area.result === 'pass' ? '✓ Pass' : '✕ Fail'}
+                                                                                </span>
+                                                                            ) : <span className="h-5" />}
+                                                                        </div>
+                                                                        <div className="mt-2 border-t border-[#EEF2F6] pt-2 text-[10px] font-semibold text-[#266DD3]">
                                                                             Open assessment section <span aria-hidden="true">→</span>
                                                                         </div>
                                                                     </div>

@@ -24,6 +24,10 @@ export type ListCharitiesParams = {
     isIslamic?: boolean;
     categories?: string[];
     pendingEligibilitySource?: string;
+    coreArea1Status?: 'completed' | 'not-completed';
+    coreArea2Status?: 'completed' | 'not-completed';
+    coreArea3Status?: 'completed' | 'not-completed';
+    coreArea4Status?: 'completed' | 'not-completed';
 }
 
 /**
@@ -113,6 +117,10 @@ export const listCharitiesAction = async (params: ListCharitiesParams, useCache 
     if (params.pendingEligibilitySource) {
         query.append('pendingEligibilitySource', params.pendingEligibilitySource);
     }
+    if (params.coreArea1Status) query.append('coreArea1Status', params.coreArea1Status);
+    if (params.coreArea2Status) query.append('coreArea2Status', params.coreArea2Status);
+    if (params.coreArea3Status) query.append('coreArea3Status', params.coreArea3Status);
+    if (params.coreArea4Status) query.append('coreArea4Status', params.coreArea4Status);
 
     const endpoint = `/charities?${query.toString()}`;
 

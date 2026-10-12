@@ -265,7 +265,7 @@ const AssessmentHistoryPage = () => {
                             <div className="mb-2 flex flex-wrap items-center gap-2">
                                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D9E8FB] bg-white/80 px-3 py-1 text-xs font-semibold text-[#266DD3] shadow-sm">
                                     <ClipboardList className="h-3.5 w-3.5" />
-                                    Assessment Scores
+                                    View Assessment Scores
                                 </span>
                                 <span className="inline-flex items-center rounded-full border border-[#D9E8FB] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#266DD3] shadow-sm">
                                     {reviews.summary.completed} of {reviews.summary.total} completed

@@ -684,22 +684,14 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                         ) : (
                                                                             <div className="space-y-3">
                                                                                 {key === 'core3' && zakatScores ? (
-                                                                                    <div className="space-y-2">
-                                                                                        <div>
-                                                                                            <div
-                                                                                                className="font-mono text-xl font-bold tabular-nums"
-                                                                                                style={{ color: meta.color }}
-                                                                                            >
-                                                                                                {formatAuditScore(zakatScores.assessmentScore)}/{AUDIT_DISPLAY_MAX.core3Assessment}
-                                                                                            </div>
-                                                                                            <div className="text-[10px] font-medium text-[#667085]">Assessment score</div>
-                                                                                        </div>
-                                                                                        <div>
-                                                                                            <div className="font-mono text-base font-semibold tabular-nums text-[#344054]">
-                                                                                                {formatAuditScore(zakatScores.weightageScore)}/{AUDIT_DISPLAY_MAX.core3Weightage}
-                                                                                            </div>
-                                                                                            <div className="text-[10px] font-medium text-[#667085]">Overall weightage</div>
-                                                                                        </div>
+                                                                                    <div
+                                                                                        className="font-mono text-2xl font-bold tabular-nums"
+                                                                                        style={{ color: meta.color }}
+                                                                                    >
+                                                                                        {formatAuditScore(zakatScores.weightageScore)}/{AUDIT_DISPLAY_MAX.core3Weightage}
+                                                                                        <span className="ml-1 text-sm font-semibold tabular-nums text-[#98A2B3]">
+                                                                                            ({formatAuditScore(zakatScores.assessmentScore)}/{AUDIT_DISPLAY_MAX.core3Assessment})
+                                                                                        </span>
                                                                                     </div>
                                                                                 ) : (
                                                                                     <div

@@ -399,6 +399,7 @@ export type DashboardAssessmentsParams = {
     sortBy?: 'createdAt' | 'updatedAt' | 'overallScorePercent' | 'completedAt' | 'name';
     order?: 'ASC' | 'DESC';
     topRated?: boolean;
+    status?: 'pending-admin-review';
 }
 
 export const getDashboardAssessmentsAction = async (
@@ -420,6 +421,7 @@ export const getDashboardAssessmentsAction = async (
     if (params.sortBy) query.append('sortBy', params.sortBy);
     if (params.order) query.append('order', params.order);
     if (params.topRated != null) query.append('topRated', String(params.topRated));
+    if (params.status) query.append('status', params.status);
     return await _get(`/admin/charities/dashboard-assessments?${query.toString()}`);
 }
 

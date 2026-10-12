@@ -20,6 +20,7 @@ import { CHARITY_STATUS_LABELS } from '@/components/use-case/SingleCharityPageCo
 import { getCharityStatusColor } from '@/lib/chip-styles'
 import { kebabToTitle } from '@/lib/helpers'
 import {
+    approveCharityAction,
     getDashboardAssessmentsAction,
     getDashboardMetricsAction,
     type DashboardAssessmentsParams,
@@ -138,6 +139,7 @@ const PROGRESS_LABELS: Record<string, string> = {
 
 type PmDashboardComponentProps = {
     metrics: DashboardMetrics | null
+    showApprovalTasks?: boolean
 }
 
 const shellClass =
@@ -357,7 +359,7 @@ function sameColumnSet(a: string[], b: string[]): boolean {
     return [...a].sort().every((id, i) => id === sortedB[i])
 }
 
-const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: initialMetrics }) => {
+const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: initialMetrics, showApprovalTasks = false }) => {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
@@ -370,6 +372,47 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     const [isRefreshingMetrics, startMetricsTransition] = useTransition()
     const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '')
     const [exportingFormat, setExportingFormat] = useState<'xlsx' | 'pdf' | null>(null)
+    const [approvalTasks, setApprovalTasks] = useState<AssessmentRow[]>([])
+    const [approvalTasksLoading, setApprovalTasksLoading] = useState(false)
+    const [approvingCharityId, setApprovingCharityId] = useState<string | null>(null)
+    const [approvalNotice, setApprovalNotice] = useState('')
+
+    const refreshApprovalTasks = useCallback(async () => {
+        if (!showApprovalTasks) return
+        setApprovalTasksLoading(true)
+        try {
+            const res = await getDashboardAssessmentsAction({ page: 1, limit: 100, status: 'pending-admin-review' })
+            const data = res.payload?.data?.data
+            setApprovalTasks(res.ok && Array.isArray(data?.charities) ? data.charities : [])
+        } catch {
+            setApprovalTasks([])
+        } finally {
+            setApprovalTasksLoading(false)
+        }
+    }, [showApprovalTasks])
+
+    useEffect(() => { void refreshApprovalTasks() }, [refreshApprovalTasks])
+
+    const approvePendingCharity = async (charityId: string) => {
+        setApprovingCharityId(charityId)
+        setApprovalNotice('')
+        try {
+            const res = await approveCharityAction(charityId)
+            if (!res.ok) {
+                setApprovalNotice(res.message || 'Approval failed. Please try again.')
+                return
+            }
+            const data = res.payload?.data?.data ?? res.payload?.data
+            setApprovalNotice(data?.emailSequenceStarted
+                ? 'Charity approved and the email sequence has started.'
+                : 'Charity approved. The email sequence could not start; check the charity contact email and mail settings.')
+            await refreshApprovalTasks()
+        } catch {
+            setApprovalNotice('Approval failed. Please try again.')
+        } finally {
+            setApprovingCharityId(null)
+        }
+    }
 
     usePageNavigationDismiss(!metrics)
 
@@ -891,6 +934,48 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         onClick={() => applyProgressFilter('completed')}
                     />
                 </div>
+
+                {showApprovalTasks ? (
+                    <section className={cn(shellClass, 'overflow-hidden')}>
+                        <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F6] px-5 py-4">
+                            <div>
+                                <h2 className="text-base font-semibold text-[#101928]">Operations Manager Tasks</h2>
+                                <p className="mt-0.5 text-sm text-[#667085]">Final review and manual approval for completed charity assessments.</p>
+                            </div>
+                            <span className="rounded-full bg-[#EEF4FD] px-2.5 py-1 text-xs font-semibold text-[#266DD3]">
+                                {approvalTasksLoading ? 'Loading…' : approvalTasks.length}
+                            </span>
+                        </div>
+                        {approvalNotice ? <p role="status" className="px-5 pt-3 text-sm text-[#344054]">{approvalNotice}</p> : null}
+                        {approvalTasks.length ? (
+                            <div className="divide-y divide-[#EEF2F6]">
+                                {approvalTasks.map((charity) => (
+                                    <div key={charity.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <Link href={`/charities/${charity.id}`} className="font-semibold text-[#101928] hover:text-[#266DD3] hover:underline">
+                                                {charity.name}
+                                            </Link>
+                                            <p className="mt-1 text-xs text-[#667085]">
+                                                {formatCountry(charity.countryCode)} · {charity.auditsCompleted}/{charity.auditsTotal} assessments complete
+                                                {charity.overallScorePercent != null ? ` · Score ${charity.overallScorePercent}%` : ''}
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Link href={`/charities/${charity.id}`} className="inline-flex h-9 items-center justify-center rounded-xl border border-[#E4E7EC] bg-white px-4 text-sm font-medium text-[#344054] hover:bg-[#F8FAFC]">
+                                                Review
+                                            </Link>
+                                            <Button type="button" className="rounded-xl" disabled={approvingCharityId === charity.id} onClick={() => void approvePendingCharity(charity.id)}>
+                                                {approvingCharityId === charity.id ? 'Approving…' : 'Approve'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="px-5 py-5 text-sm text-[#667085]">{approvalTasksLoading ? 'Loading pending reviews…' : 'No charities are waiting for final approval.'}</p>
+                        )}
+                    </section>
+                ) : null}
 
                 <section className={cn(shellClass, 'overflow-hidden')}>
                     <div className="flex flex-col gap-4 border-b border-[#EEF2F6] bg-gradient-to-r from-[#F8FBFF] via-white to-[#F7FFFB] px-5 py-5 sm:flex-row sm:items-center sm:justify-between">

@@ -1,13 +1,14 @@
-'use client'
-
-import React from 'react'
-import { cn } from '@/lib/utils'
-import { assessmentCurrency, parseFinancialAmount, sanitizeAmountInput } from '@/lib/assessment-sheet/financial'
-import { CharityUsdPreviewNote } from '@/components/common/CharityUsdPreviewNote'
-import { Checkbox } from '@/components/ui/checkbox'
-import type { CharityUsdPreviewState } from '@/hooks/use-charity-usd-preview'
+import { parseFinancialAmount } from '@/lib/assessment-sheet/financial'
 
 export const ASSURANCE_LEVELS = ['Audit', 'Review', 'Compilation', 'None'] as const
+
+/** Client-facing wording (client spec); the stored value stays the shorter internal vocabulary used across Airtable/DTOs. */
+export const ASSURANCE_LEVEL_LABELS: Record<(typeof ASSURANCE_LEVELS)[number], string> = {
+    Audit: 'Audited',
+    Review: 'Review Engagement',
+    Compilation: 'Compilation',
+    None: 'Internally Prepared',
+}
 
 export type FinancialFigures = {
     totalAssets: string
@@ -20,6 +21,8 @@ export type FinancialFigures = {
     compensationSpend: string
     compensationSpendNotReported: boolean
     assuranceLevel: string
+    /** Local currency -> USD. Only entered for charities based outside the US. */
+    fxRateToUsd: string
 }
 
 export const EMPTY_FINANCIAL_FIGURES: FinancialFigures = {
@@ -33,9 +36,10 @@ export const EMPTY_FINANCIAL_FIGURES: FinancialFigures = {
     compensationSpend: '',
     compensationSpendNotReported: false,
     assuranceLevel: '',
+    fxRateToUsd: '',
 }
 
-const AMOUNT_ROWS: Array<{
+export type FinancialAmountRow = {
     key: keyof Pick<
         FinancialFigures,
         | 'totalAssets'
@@ -48,7 +52,9 @@ const AMOUNT_ROWS: Array<{
     >
     label: string
     notReported?: 'qdSpendNotReported' | 'compensationSpendNotReported'
-}> = [
+}
+
+export const AMOUNT_ROWS: FinancialAmountRow[] = [
     { key: 'totalAssets', label: 'Total Assets' },
     { key: 'totalLiabilities', label: 'Total Liabilities' },
     { key: 'charitableProgramSpend', label: 'Charitable Program Spend' },
@@ -73,11 +79,17 @@ export function figuresFromCharity(charity: Record<string, unknown> | null | und
         compensationSpend: toInput(charity.compensationSpend),
         compensationSpendNotReported: Boolean(charity.compensationSpendNotReported),
         assuranceLevel: typeof charity.assuranceLevel === 'string' ? charity.assuranceLevel : '',
+        fxRateToUsd: toInput(charity.fxRateToUsd),
     }
 }
 
-/** Field-level errors; blank is an error, 0 is valid. */
-export function validateFinancialFigures(figures: FinancialFigures): Record<string, string> {
+/** A number greater than 0 with no more than 2 decimal places (client spec for the FX rate). */
+function hasAtMostTwoDecimals(value: number): boolean {
+    return Math.abs(Math.round(value * 100) - value * 100) < 1e-6
+}
+
+/** Field-level errors; blank is an error, 0 is valid. `countryCode` gates whether the FX rate is required. */
+export function validateFinancialFigures(figures: FinancialFigures, countryCode: string): Record<string, string> {
     const errors: Record<string, string> = {}
     for (const { key, label, notReported } of AMOUNT_ROWS) {
         if (notReported && figures[notReported]) continue
@@ -86,161 +98,20 @@ export function validateFinancialFigures(figures: FinancialFigures): Record<stri
             errors[key] = notReported
                 ? `Enter ${label} or mark it Not reported.`
                 : `Enter ${label} (0 is valid).`
-        } else if (amount < 0) {
-            errors[key] = `${label} cannot be negative.`
+        } else if (!Number.isInteger(amount) || amount < 0) {
+            errors[key] = `Enter a whole number of 0 or more for ${label}.`
         }
     }
     if (!ASSURANCE_LEVELS.includes(figures.assuranceLevel as (typeof ASSURANCE_LEVELS)[number])) {
         errors.assuranceLevel = 'Select an assurance level.'
     }
+    if (countryCode !== 'united-states') {
+        const fxRate = parseFinancialAmount(figures.fxRateToUsd)
+        if (fxRate === null || fxRate <= 0) {
+            errors.fxRateToUsd = 'Enter the foreign exchange rate to USD (greater than 0).'
+        } else if (!hasAtMostTwoDecimals(fxRate)) {
+            errors.fxRateToUsd = 'Enter the foreign exchange rate with no more than 2 decimal places.'
+        }
+    }
     return errors
-}
-
-type FinancialStatementFiguresProps = {
-    countryCode: string
-    figures: FinancialFigures
-    errors: Record<string, string>
-    canEdit: boolean
-    usdPreview: CharityUsdPreviewState
-    onChange: (patch: Partial<FinancialFigures>) => void
-}
-
-export default function FinancialStatementFigures({
-    countryCode,
-    figures,
-    errors,
-    canEdit,
-    usdPreview,
-    onChange,
-}: FinancialStatementFiguresProps) {
-    const currency = assessmentCurrency(countryCode)
-
-    return (
-        <section className="overflow-hidden rounded-2xl border border-[#E4EAF2] bg-white shadow-[0_10px_40px_-24px_rgba(26,35,50,0.45)]">
-            <div className="border-b border-[#EEF1F6] bg-gradient-to-r from-[#F7F9FC] via-white to-[#F3F7FC] px-5 py-3.5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7A8BA3]">
-                    From the financial statements
-                </p>
-                <h3 className="mt-0.5 font-[family-name:var(--font-kanit)] text-[16px] font-semibold tracking-[-0.02em] text-[#1A2332]">
-                    Financial statement figures{currency ? ` (${currency})` : ''}
-                </h3>
-                <p className="mt-1 text-[12px] text-[#6B7A8F]">
-                    Required. Total Revenue and Fiscal Year End are taken from the sheet below. Enter amounts in the
-                    charity&apos;s currency; 0 is valid, blank is not.
-                </p>
-            </div>
-
-            <div className="divide-y divide-[#F0F3F8]">
-                {AMOUNT_ROWS.map(({ key, label, notReported }) => {
-                    const isNotReported = notReported ? figures[notReported] : false
-                    const hasError = Boolean(errors[key])
-                    const isDisabled = !canEdit || isNotReported
-                    return (
-                        <div key={key} className="grid grid-cols-[minmax(180px,260px)_1fr] items-stretch">
-                            <label
-                                htmlFor={`ca2-figure-${key}`}
-                                className="flex items-center bg-[#FAFBFC] px-5 text-[13px] font-medium text-[#1A2332]"
-                            >
-                                {label}
-                                <span className="ml-1 text-[#E11D48]">*</span>
-                            </label>
-                            <div className="px-4 py-2.5">
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <div
-                                        className={cn(
-                                            'flex h-11 w-full max-w-[280px] items-center overflow-hidden rounded-lg border bg-white shadow-[0_1px_2px_rgba(26,35,50,0.04)] transition-colors',
-                                            hasError
-                                                ? 'border-red-300'
-                                                : 'border-[#D7E2F0] hover:border-[#B9C8DC]',
-                                            'focus-within:border-[#266DD3] focus-within:ring-2 focus-within:ring-[#266DD3]/15',
-                                            isDisabled && 'border-[#E8EDF4] bg-[#F7F9FC]',
-                                        )}
-                                    >
-                                        {currency ? (
-                                            <span className="flex h-full shrink-0 items-center border-r border-[#EEF1F6] bg-[#FAFBFC] px-3 text-[11.5px] font-semibold tracking-wide text-[#9AA8BA]">
-                                                {currency}
-                                            </span>
-                                        ) : null}
-                                        <input
-                                            id={`ca2-figure-${key}`}
-                                            inputMode="decimal"
-                                            autoComplete="off"
-                                            disabled={isDisabled}
-                                            value={isNotReported ? '' : figures[key]}
-                                            onChange={(e) => onChange({ [key]: sanitizeAmountInput(e.target.value) })}
-                                            placeholder={isNotReported ? 'Not reported' : '0'}
-                                            className={cn(
-                                                'h-full w-full min-w-0 bg-transparent px-3.5 text-right text-[13px] tabular-nums text-[#1A2332] outline-none',
-                                                'placeholder:text-[#C0C8D4]',
-                                                isDisabled && 'cursor-not-allowed text-[#9AA8BA]',
-                                            )}
-                                        />
-                                    </div>
-                                    {notReported ? (
-                                        <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[12px] font-medium text-[#5A6B82]">
-                                            <Checkbox
-                                                checked={Boolean(isNotReported)}
-                                                disabled={!canEdit}
-                                                onCheckedChange={(checked) =>
-                                                    onChange({
-                                                        [notReported]: checked === true,
-                                                        ...(checked === true ? { [key]: '' } : {}),
-                                                    })
-                                                }
-                                            />
-                                            Not reported
-                                        </label>
-                                    ) : null}
-                                </div>
-                                {errors[key] ? (
-                                    <p className="mt-1.5 text-[12px] text-red-600" role="alert">
-                                        {errors[key]}
-                                    </p>
-                                ) : null}
-                            </div>
-                        </div>
-                    )
-                })}
-
-                <div className="grid grid-cols-[minmax(180px,260px)_1fr] items-stretch">
-                    <span className="flex items-center bg-[#FAFBFC] px-5 text-[13px] font-medium text-[#1A2332]">
-                        Assurance Level<span className="ml-1 text-[#E11D48]">*</span>
-                    </span>
-                    <div className="px-4 py-2.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                            {ASSURANCE_LEVELS.map((level) => (
-                                <button
-                                    key={level}
-                                    type="button"
-                                    disabled={!canEdit}
-                                    onClick={() => onChange({ assuranceLevel: level })}
-                                    className={cn(
-                                        'rounded-lg border px-3.5 py-2 text-[12px] font-medium transition-all duration-150',
-                                        figures.assuranceLevel === level
-                                            ? 'border-[#266DD3] bg-[#266DD3] text-white shadow-sm'
-                                            : 'border-[#D7E2F0] bg-white text-[#4A5A70] shadow-[0_1px_2px_rgba(26,35,50,0.04)] hover:border-[#B9C8DC] hover:bg-[#F3F7FC]',
-                                        !canEdit && 'opacity-60',
-                                    )}
-                                >
-                                    {level}
-                                </button>
-                            ))}
-                        </div>
-                        {errors.assuranceLevel ? (
-                            <p className="mt-1.5 text-[12px] text-red-600" role="alert">
-                                {errors.assuranceLevel}
-                            </p>
-                        ) : null}
-                    </div>
-                </div>
-            </div>
-
-            <div className="border-t border-[#EEF1F6] px-5 py-3">
-                <CharityUsdPreviewNote
-                    {...usdPreview}
-                    emptyHint="Enter Fiscal Year End in the sheet below to see USD values and confirm the FX rate exists."
-                />
-            </div>
-        </section>
-    )
 }

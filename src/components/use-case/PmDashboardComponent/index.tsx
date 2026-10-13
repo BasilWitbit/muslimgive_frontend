@@ -372,6 +372,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     const [isRefreshingMetrics, startMetricsTransition] = useTransition()
     const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '')
     const [exportingFormat, setExportingFormat] = useState<'xlsx' | 'pdf' | null>(null)
+    const [isExportingLedger, setIsExportingLedger] = useState(false)
     const [approvalTasks, setApprovalTasks] = useState<AssessmentRow[]>([])
     const [approvalTasksLoading, setApprovalTasksLoading] = useState(false)
     const [approvingCharityId, setApprovingCharityId] = useState<string | null>(null)
@@ -521,6 +522,38 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
         },
         [progress, sortBy, search, countryCode, completedFrom, completedTo, topRated, outcomeCore1, outcomeCore2, outcomeCore3, outcomeCore4],
     )
+
+    const handleExportFinancialLedger = useCallback(async () => {
+        setIsExportingLedger(true)
+        try {
+            const res = await fetch('/api/export/charity-financial-ledger')
+            if (!res.ok) {
+                let message = 'Export failed. Please try again.'
+                try {
+                    const data = await res.json()
+                    message = data?.message || message
+                } catch { /* noop */ }
+                window.alert(message)
+                return
+            }
+
+            const blob = await res.blob()
+            const disposition = res.headers.get('content-disposition') || ''
+            const match = disposition.match(/filename="?([^"]+)"?/)
+            const filename = match?.[1] || 'charity-financial-ledger.csv'
+
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = filename
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+        } finally {
+            setIsExportingLedger(false)
+        }
+    }, [])
 
     useEffect(() => {
         setSearchInput(search)
@@ -1218,10 +1251,10 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            disabled={exportingFormat !== null}
+                                            disabled={exportingFormat !== null || isExportingLedger}
                                             className="h-8 gap-1.5 rounded-full border-[#E4E7EC] bg-white px-3 text-xs font-semibold text-[#344054] shadow-sm hover:bg-[#F8FAFC]"
                                         >
-                                            {exportingFormat ? (
+                                            {exportingFormat || isExportingLedger ? (
                                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                             ) : (
                                                 <Download className="h-3.5 w-3.5" />
@@ -1238,6 +1271,14 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                         <DropdownMenuItem onClick={() => handleExport('pdf')} disabled={exportingFormat !== null}>
                                             <FileText className="mr-2 h-4 w-4 text-[#B42318]" />
                                             Export as PDF
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={handleExportFinancialLedger} disabled={isExportingLedger}>
+                                            {isExportingLedger ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <FileSpreadsheet className="mr-2 h-4 w-4 text-[#16794F]" />
+                                            )}
+                                            Financial Ledger (CSV)
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>

@@ -4,22 +4,28 @@ import React, { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { Question } from '@/lib/assessment-forms/types'
 import DatePicker from '@/components/common/ControlledDatePickerComponent'
+import { Checkbox } from '@/components/ui/checkbox'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+import {
+  ASSURANCE_LEVELS,
+  ASSURANCE_LEVEL_LABELS,
+  AMOUNT_ROWS,
+  type FinancialAmountRow,
+  type FinancialFigures,
+} from './FinancialStatementFigures'
+import { assessmentCurrency, sanitizeAmountInput } from '@/lib/assessment-sheet/financial'
+import { isDateRangeCode, validateDateRange, validateOptionalUrl, URL_FIELD_CODES } from '@/lib/assessment-forms/core-area-2-validation'
 
-type SheetGroupId = 'transparency' | 'metrics' | 'documents' | 'notes'
+type SheetGroupId = 'input' | 'output' | 'notes'
 
 const GROUP_META: Record<SheetGroupId, { label: string; hint: string }> = {
-  transparency: {
-    label: 'Transparency',
-    hint: 'Website disclosure flags',
+  input: {
+    label: 'Input',
+    hint: 'Entered from the financial statements, tax return and website',
   },
-  metrics: {
-    label: 'Financial metrics',
-    hint: 'Revenue, spend ratios & reserves',
-  },
-  documents: {
-    label: 'Documents & dates',
-    hint: 'Links and key dates',
+  output: {
+    label: 'Output (calculated)',
+    hint: 'Computed automatically — never entered by hand',
   },
   notes: {
     label: 'Notes',
@@ -28,32 +34,46 @@ const GROUP_META: Record<SheetGroupId, { label: string; hint: string }> = {
 }
 
 const SHORT_LABELS: Record<string, string> = {
-  F01: 'C/Y audited financials',
-  F02: 'P/Y audited financials',
-  F03: 'Impact report',
+  F01: 'C/Y financials available?',
+  F02: 'P/Y financials available?',
+  F03: 'Impact report available?',
   F16: 'Total revenue',
   F04: 'Program %',
   F05: 'Fundraising %',
   F06: 'Admin %',
   F17: 'Compensation %',
+  F19: 'QD %',
   F07: 'Revenue spent %',
   F18: 'Reserves (months)',
   F08: 'Financials link',
   F09: 'Tax return link',
   F10: 'IRS returns link',
-  F11: "CRA returns link",
+  F11: "CRA's returns link",
   F12: 'Fiscal year end',
   F13: 'Registered since',
-  F14: 'Analysis date',
+  F14: 'Analysis reviewed date',
   F15: 'Notes',
 }
 
-function groupForQuestion(code: string): SheetGroupId {
-  if (['F01', 'F02', 'F03'].includes(code)) return 'transparency'
-  if (['F16', 'F04', 'F05', 'F06', 'F17', 'F07', 'F18'].includes(code)) return 'metrics'
-  if (code === 'F15') return 'notes'
-  return 'documents'
-}
+/** Calculated from the Financial Statement Figures + revenue — never hand-typed. */
+const CALCULATED_CODES = new Set(['F04', 'F05', 'F06', 'F17', 'F19', 'F07', 'F18'])
+
+/** The exact entry order from the client's input spec: dates & links, then the dollar figures, then assurance & transparency. */
+const INPUT_QUESTION_ORDER = ['F13', 'F12', 'F14', 'F08', 'F09', 'F10', 'F11']
+const OUTPUT_QUESTION_ORDER = ['F04', 'F05', 'F06', 'F17', 'F19', 'F07', 'F18']
+const AMOUNT_ORDER: FinancialAmountRow['key'][] = [
+  'charitableProgramSpend',
+  'fundraisingSpend',
+  'administrativeSpend',
+  'qdSpend',
+  'compensationSpend',
+]
+
+type TableRow =
+  | { kind: 'question'; group: SheetGroupId; question: Question }
+  | { kind: 'amount'; group: SheetGroupId; row: FinancialAmountRow }
+  | { kind: 'assurance'; group: SheetGroupId }
+  | { kind: 'fxRate'; group: SheetGroupId }
 
 type FinanceAssessmentTableProps = {
   questions: Question[]
@@ -61,6 +81,12 @@ type FinanceAssessmentTableProps = {
   canEdit: boolean
   onChange: (code: string, value: any) => void
   highlightCode?: string | null
+  /** Whether the calculated field for this code can't be computed right now (shows "CHECK INPUT"). */
+  checkInputByCode?: Record<string, boolean>
+  countryCode: string
+  figures: FinancialFigures
+  figureErrors: Record<string, string>
+  onChangeFigures: (patch: Partial<FinancialFigures>) => void
 }
 
 export default function FinanceAssessmentTable({
@@ -69,20 +95,57 @@ export default function FinanceAssessmentTable({
   canEdit,
   onChange,
   highlightCode,
+  checkInputByCode = {},
+  countryCode,
+  figures,
+  figureErrors,
+  onChangeFigures,
 }: FinanceAssessmentTableProps) {
   const [activeCode, setActiveCode] = useState<string | null>(null)
+  const currency = assessmentCurrency(countryCode)
+
+  const amountByKey = useMemo(() => new Map(AMOUNT_ROWS.map((row) => [row.key, row])), [])
+
+  const rows = useMemo(() => {
+    const byCode = new Map(questions.map((q) => [q.code, q]))
+    const result: TableRow[] = []
+    const pushQuestion = (group: SheetGroupId, code: string) => {
+      const q = byCode.get(code)
+      if (q) result.push({ kind: 'question', group, question: q })
+    }
+    const pushAmount = (group: SheetGroupId, key: FinancialAmountRow['key']) => {
+      const row = amountByKey.get(key)
+      if (row) result.push({ kind: 'amount', group, row })
+    }
+
+    for (const code of INPUT_QUESTION_ORDER) pushQuestion('input', code)
+    pushAmount('input', 'totalAssets')
+    pushAmount('input', 'totalLiabilities')
+    pushQuestion('input', 'F16')
+    for (const key of AMOUNT_ORDER) pushAmount('input', key)
+    result.push({ kind: 'assurance', group: 'input' })
+    pushQuestion('input', 'F01')
+    pushQuestion('input', 'F02')
+    pushQuestion('input', 'F03')
+    // FX rate is only entered for charities based outside the US (client spec).
+    if (countryCode !== 'united-states') {
+      result.push({ kind: 'fxRate', group: 'input' })
+    }
+
+    for (const code of OUTPUT_QUESTION_ORDER) pushQuestion('output', code)
+
+    pushQuestion('notes', 'F15')
+
+    return result
+  }, [questions, amountByKey, countryCode])
 
   const grouped = useMemo(() => {
-    const order: SheetGroupId[] = ['transparency', 'metrics', 'documents', 'notes']
-    const map = new Map<SheetGroupId, Question[]>()
+    const order: SheetGroupId[] = ['input', 'output', 'notes']
+    const map = new Map<SheetGroupId, TableRow[]>()
     for (const g of order) map.set(g, [])
-    for (const q of questions) {
-      map.get(groupForQuestion(q.code))!.push(q)
-    }
-    return order
-      .map((id) => ({ id, questions: map.get(id) ?? [] }))
-      .filter((g) => g.questions.length > 0)
-  }, [questions])
+    for (const row of rows) map.get(row.group)!.push(row)
+    return order.map((id) => ({ id, rows: map.get(id) ?? [] })).filter((g) => g.rows.length > 0)
+  }, [rows])
 
   const fundraising = Number(formData.F05)
   const admin = Number(formData.F06)
@@ -126,11 +189,11 @@ export default function FinanceAssessmentTable({
               Spreadsheet input
             </p>
             <h3 className="mt-0.5 font-[family-name:var(--font-kanit)] text-[16px] font-semibold tracking-[-0.02em] text-[#1A2332]">
-              Financial accountability sheet
+              Financial accountability sheet{currency ? ` (${currency})` : ''}
             </h3>
           </div>
           <span className="rounded-full border border-[#E4EAF2] bg-white px-3 py-1 text-[11px] font-medium text-[#6B7A8F]">
-            {questions.length} fields
+            {rows.length} fields
           </span>
         </div>
 
@@ -170,7 +233,47 @@ export default function FinanceAssessmentTable({
                       </div>
                     </td>
                   </tr>
-                  {group.questions.map((q, rowIndex) => {
+                  {group.rows.map((row, rowIndex) => {
+                    if (row.kind === 'amount') {
+                      return (
+                        <AmountRow
+                          key={row.row.key}
+                          row={row.row}
+                          figures={figures}
+                          errors={figureErrors}
+                          disabled={!canEdit}
+                          currency={currency}
+                          onChange={onChangeFigures}
+                          animationDelay={Math.min(rowIndex + groupIndex * 2, 14) * 20}
+                        />
+                      )
+                    }
+                    if (row.kind === 'assurance') {
+                      return (
+                        <AssuranceRow
+                          key="assuranceLevel"
+                          value={figures.assuranceLevel}
+                          error={figureErrors.assuranceLevel}
+                          disabled={!canEdit}
+                          onChange={(level) => onChangeFigures({ assuranceLevel: level })}
+                          animationDelay={Math.min(rowIndex + groupIndex * 2, 14) * 20}
+                        />
+                      )
+                    }
+                    if (row.kind === 'fxRate') {
+                      return (
+                        <FxRateRow
+                          key="fxRateToUsd"
+                          value={figures.fxRateToUsd}
+                          error={figureErrors.fxRateToUsd}
+                          disabled={!canEdit}
+                          onChange={(value) => onChangeFigures({ fxRateToUsd: value })}
+                          animationDelay={Math.min(rowIndex + groupIndex * 2, 14) * 20}
+                        />
+                      )
+                    }
+
+                    const q = row.question
                     const isActive = activeCode === q.code
                     const isHighlight = highlightCode === q.code
                     const short = SHORT_LABELS[q.code] ?? q.label
@@ -220,6 +323,7 @@ export default function FinanceAssessmentTable({
                             onActivate={() => canEdit && setActiveCode(q.code)}
                             onBlur={() => setActiveCode(null)}
                             onChange={(v) => onChange(q.code, v)}
+                            checkInput={checkInputByCode[q.code] ?? false}
                           />
                         </td>
                       </tr>
@@ -286,6 +390,203 @@ function GateChip({
   )
 }
 
+function AmountRow({
+  row,
+  figures,
+  errors,
+  disabled,
+  currency,
+  onChange,
+  animationDelay,
+}: {
+  row: FinancialAmountRow
+  figures: FinancialFigures
+  errors: Record<string, string>
+  disabled: boolean
+  currency: string | null
+  onChange: (patch: Partial<FinancialFigures>) => void
+  animationDelay: number
+}) {
+  const { key, label, notReported } = row
+  const isNotReported = notReported ? figures[notReported] : false
+  const hasError = Boolean(errors[key])
+  const isDisabled = disabled || Boolean(isNotReported)
+
+  return (
+    <tr className="group/row scroll-mt-4 transition-colors hover:bg-[#F8FAFD]" style={{ animation: `ca2RowIn 280ms ease-out ${animationDelay}ms both` }}>
+      <td className="sticky left-0 z-10 border-b border-r border-[#F0F3F8] bg-white px-4 py-0 group-hover/row:bg-[#F8FAFD]">
+        <span className="font-[family-name:var(--font-kanit)] text-[12px] font-medium tabular-nums text-[#A0AEC0]">—</span>
+      </td>
+      <td className="border-b border-[#F0F3F8] px-4 py-3 align-middle">
+        <span className="text-[13px] font-medium leading-snug text-[#1A2332]">
+          {label}
+          <span className="ml-1 text-[#E11D48]">*</span>
+        </span>
+      </td>
+      <td className="border-b border-[#F0F3F8] px-3 py-2 align-middle">
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            className={cn(
+              'flex h-9 w-full max-w-[260px] items-center overflow-hidden rounded-lg border bg-white shadow-[0_1px_2px_rgba(26,35,50,0.04)] transition-colors',
+              hasError ? 'border-red-300' : 'border-[#D7E2F0] hover:border-[#B9C8DC]',
+              'focus-within:border-[#266DD3] focus-within:ring-2 focus-within:ring-[#266DD3]/15',
+              isDisabled && 'border-[#E8EDF4] bg-[#F7F9FC]',
+            )}
+          >
+            {currency ? (
+              <span className="flex h-full shrink-0 items-center border-r border-[#EEF1F6] bg-[#FAFBFC] px-2.5 text-[11px] font-semibold tracking-wide text-[#9AA8BA]">
+                {currency}
+              </span>
+            ) : null}
+            <input
+              inputMode="decimal"
+              autoComplete="off"
+              disabled={isDisabled}
+              value={isNotReported ? '' : figures[key]}
+              onChange={(e) => onChange({ [key]: sanitizeAmountInput(e.target.value) })}
+              placeholder={isNotReported ? 'Not reported' : '0'}
+              className={cn(
+                'h-full w-full min-w-0 bg-transparent px-3 text-right text-[13px] tabular-nums text-[#1A2332] outline-none',
+                'placeholder:text-[#C0C8D4]',
+                isDisabled && 'cursor-not-allowed text-[#9AA8BA]',
+              )}
+            />
+          </div>
+          {notReported ? (
+            <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[11px] font-medium text-[#5A6B82]">
+              <Checkbox
+                checked={Boolean(isNotReported)}
+                disabled={disabled}
+                onCheckedChange={(checked) =>
+                  onChange({
+                    [notReported]: checked === true,
+                    ...(checked === true ? { [key]: '' } : {}),
+                  })
+                }
+              />
+              Not reported
+            </label>
+          ) : null}
+        </div>
+        {errors[key] ? (
+          <p className="mt-1 text-[11px] text-red-600" role="alert">
+            {errors[key]}
+          </p>
+        ) : null}
+      </td>
+    </tr>
+  )
+}
+
+function AssuranceRow({
+  value,
+  error,
+  disabled,
+  onChange,
+  animationDelay,
+}: {
+  value: string
+  error?: string
+  disabled: boolean
+  onChange: (level: string) => void
+  animationDelay: number
+}) {
+  return (
+    <tr className="group/row scroll-mt-4 transition-colors hover:bg-[#F8FAFD]" style={{ animation: `ca2RowIn 280ms ease-out ${animationDelay}ms both` }}>
+      <td className="sticky left-0 z-10 border-b border-r border-[#F0F3F8] bg-white px-4 py-0 group-hover/row:bg-[#F8FAFD]">
+        <span className="font-[family-name:var(--font-kanit)] text-[12px] font-medium tabular-nums text-[#A0AEC0]">—</span>
+      </td>
+      <td className="border-b border-[#F0F3F8] px-4 py-3 align-middle">
+        <span className="text-[13px] font-medium leading-snug text-[#1A2332]">
+          Assurance level
+          <span className="ml-1 text-[#E11D48]">*</span>
+        </span>
+      </td>
+      <td className="border-b border-[#F0F3F8] px-3 py-2 align-middle">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ASSURANCE_LEVELS.map((level) => (
+            <button
+              key={level}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(level)}
+              className={cn(
+                'rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-all duration-150',
+                value === level
+                  ? 'border-[#266DD3] bg-[#266DD3] text-white shadow-sm'
+                  : 'border-[#E4EAF2] bg-white text-[#4A5A70] hover:border-[#C5D5EA] hover:bg-[#F3F7FC]',
+                disabled && 'opacity-60',
+              )}
+            >
+              {ASSURANCE_LEVEL_LABELS[level]}
+            </button>
+          ))}
+        </div>
+        {error ? (
+          <p className="mt-1 text-[11px] text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </td>
+    </tr>
+  )
+}
+
+function FxRateRow({
+  value,
+  error,
+  disabled,
+  onChange,
+  animationDelay,
+}: {
+  value: string
+  error?: string
+  disabled: boolean
+  onChange: (value: string) => void
+  animationDelay: number
+}) {
+  return (
+    <tr className="group/row scroll-mt-4 transition-colors hover:bg-[#F8FAFD]" style={{ animation: `ca2RowIn 280ms ease-out ${animationDelay}ms both` }}>
+      <td className="sticky left-0 z-10 border-b border-r border-[#F0F3F8] bg-white px-4 py-0 group-hover/row:bg-[#F8FAFD]">
+        <span className="font-[family-name:var(--font-kanit)] text-[12px] font-medium tabular-nums text-[#A0AEC0]">—</span>
+      </td>
+      <td className="border-b border-[#F0F3F8] px-4 py-3 align-middle">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[13px] font-medium leading-snug text-[#1A2332]">
+            Foreign exchange rate to USD
+            <span className="ml-1 text-[#E11D48]">*</span>
+          </span>
+          <span className="line-clamp-1 text-[11px] text-[#9AA8BA]">
+            Used to convert local-currency figures to USD. Scoring always uses local currency.
+          </span>
+        </div>
+      </td>
+      <td className="border-b border-[#F0F3F8] px-3 py-2 align-middle">
+        <input
+          inputMode="decimal"
+          autoComplete="off"
+          disabled={disabled}
+          value={value}
+          onChange={(e) => onChange(sanitizeAmountInput(e.target.value))}
+          placeholder="e.g. 1.35"
+          className={cn(
+            'h-9 w-full max-w-[260px] rounded-lg border bg-white px-3.5 text-[13px] tabular-nums text-[#1A2332] outline-none',
+            'font-[family-name:var(--font-kanit)] placeholder:text-[#C0C8D4] shadow-[0_1px_2px_rgba(26,35,50,0.04)]',
+            error ? 'border-red-300' : 'border-[#D7E2F0] transition-colors hover:border-[#B9C8DC]',
+            'focus:border-[#266DD3] focus:ring-2 focus:ring-[#266DD3]/15',
+            disabled && 'cursor-not-allowed border-[#E8EDF4] bg-[#F7F9FC] text-[#9AA8BA]',
+          )}
+        />
+        {error ? (
+          <p className="mt-1 text-[11px] text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </td>
+    </tr>
+  )
+}
+
 function SheetValueCell({
   question,
   value,
@@ -293,6 +594,7 @@ function SheetValueCell({
   onActivate,
   onBlur,
   onChange,
+  checkInput = false,
 }: {
   question: Question
   value: any
@@ -300,6 +602,7 @@ function SheetValueCell({
   onActivate: () => void
   onBlur: () => void
   onChange: (value: any) => void
+  checkInput?: boolean
 }) {
   const inputClass = cn(
     'h-9 w-full max-w-[260px] rounded-lg border bg-white px-3.5 text-[13px] text-[#1A2332] outline-none',
@@ -308,6 +611,26 @@ function SheetValueCell({
     'focus:border-[#266DD3] focus:ring-2 focus:ring-[#266DD3]/15',
     disabled && 'cursor-not-allowed border-[#E8EDF4] bg-[#F7F9FC] text-[#9AA8BA]',
   )
+
+  if (CALCULATED_CODES.has(question.code)) {
+    const unit = question.code === 'F18' ? '' : '%'
+    return (
+      <div className="flex h-9 w-full max-w-[260px] items-center rounded-lg border border-dashed border-[#D7E2F0] bg-[#F7F9FC] px-3.5">
+        {checkInput ? (
+          <span className="text-[12px] font-semibold uppercase tracking-[0.04em] text-amber-700">
+            CHECK INPUT
+          </span>
+        ) : (
+          <span className="font-[family-name:var(--font-kanit)] text-[13px] tabular-nums text-[#1A2332]">
+            {typeof value === 'number' ? `${value.toFixed(2)}${unit}` : '—'}
+          </span>
+        )}
+        <span className="ml-auto shrink-0 text-[10px] font-medium uppercase tracking-[0.08em] text-[#9AA8BA]">
+          Calculated
+        </span>
+      </div>
+    )
+  }
 
   if (question.type === 'radio') {
     return (
@@ -337,6 +660,7 @@ function SheetValueCell({
   }
 
   if (question.type === 'date') {
+    const dateError = isDateRangeCode(question.code) ? validateDateRange(question.code, value) : null
     return (
       <div onFocus={onActivate}>
         <DatePicker
@@ -346,6 +670,11 @@ function SheetValueCell({
           disabled={disabled}
           placeholder="Select date"
         />
+        {dateError ? (
+          <p className="mt-1 text-[11px] text-red-600" role="alert">
+            {dateError}
+          </p>
+        ) : null}
       </div>
     )
   }
@@ -370,6 +699,29 @@ function SheetValueCell({
     )
   }
 
+  if ((URL_FIELD_CODES as readonly string[]).includes(question.code)) {
+    const urlError = validateOptionalUrl(value)
+    return (
+      <div>
+        <input
+          type="text"
+          value={value ?? ''}
+          disabled={disabled}
+          onFocus={onActivate}
+          onBlur={onBlur}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://…"
+          className={cn(inputClass, urlError && 'border-red-300')}
+        />
+        {urlError ? (
+          <p className="mt-1 text-[11px] text-red-600" role="alert">
+            {urlError}
+          </p>
+        ) : null}
+      </div>
+    )
+  }
+
   const isNumber = question.type === 'number'
   return (
     <input
@@ -381,9 +733,6 @@ function SheetValueCell({
       onChange={(e) => onChange(isNumber ? e.target.value : e.target.value)}
       placeholder={isNumber ? '0' : 'Enter value…'}
       min={isNumber ? 0 : undefined}
-      max={
-        isNumber && ['F04', 'F05', 'F06', 'F17'].includes(question.code) ? 100 : undefined
-      }
       step={isNumber ? 'any' : undefined}
       className={inputClass}
     />

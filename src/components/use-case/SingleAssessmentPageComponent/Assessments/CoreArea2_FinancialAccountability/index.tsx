@@ -14,17 +14,30 @@ import {
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import AssessmentResetButton from '../../UI/AssessmentResetButton'
 import FinanceAssessmentTable from './FinanceAssessmentTable'
-import FinancialStatementFigures, {
+import {
     EMPTY_FINANCIAL_FIGURES,
     figuresFromCharity,
     validateFinancialFigures,
     type FinancialFigures,
 } from './FinancialStatementFigures'
-import { useCharityUsdPreview } from '@/hooks/use-charity-usd-preview'
-import { parseFinancialAmount } from '@/lib/assessment-sheet/financial'
+import { deriveAssessmentMetrics, parseFinancialAmount } from '@/lib/assessment-sheet/financial'
+import { isDateRangeCode, validateDateRange, validateOptionalUrl, URL_FIELD_CODES } from '@/lib/assessment-forms/core-area-2-validation'
 
 const REVENUE_CODE = 'F16'
 const FISCAL_YEAR_END_CODE = 'F12'
+
+/** These fields are calculated from the Financial Statement Figures + revenue — never hand-typed. */
+export const CALCULATED_METRIC_CODES = ['F04', 'F05', 'F06', 'F17', 'F07', 'F18', 'F19'] as const
+
+const CALCULATED_METRIC_FIELD: Record<(typeof CALCULATED_METRIC_CODES)[number], string> = {
+    F04: 'programPercent',
+    F05: 'fundraisingPercent',
+    F06: 'adminPercent',
+    F17: 'compensationPercent',
+    F07: 'revenueSpentPercent',
+    F18: 'reservesMonths',
+    F19: 'qdPercent',
+}
 
 type IProps = {
     location: 'united-kingdom' | 'united-states' | 'canada' | 'uk' | 'usa' | 'us' | 'ca'
@@ -77,13 +90,70 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
     const countryCode = formDefinition?.countryCode ?? 'united-states'
     const fiscalYearEndValue = formData[FISCAL_YEAR_END_CODE]
     const fiscalYearEnd = fiscalYearEndValue instanceof Date ? formatDateToYYYYMMDD(fiscalYearEndValue) : null
-    const usdPreview = useCharityUsdPreview({
-        countryCode,
-        fiscalYearEnd,
-        totalAssets: figures.totalAssets,
-        totalLiabilities: figures.totalLiabilities,
-        totalRevenue: formData[REVENUE_CODE],
-    })
+
+    const revenueValue = formData[REVENUE_CODE]
+    const derivedMetrics = useMemo(
+        () =>
+            deriveAssessmentMetrics({
+                totalRevenue: revenueValue,
+                totalAssets: figures.totalAssets,
+                totalLiabilities: figures.totalLiabilities,
+                charitableProgramSpend: figures.charitableProgramSpend,
+                administrativeSpend: figures.administrativeSpend,
+                fundraisingSpend: figures.fundraisingSpend,
+                qdSpend: figures.qdSpendNotReported ? 0 : figures.qdSpend,
+                compensationSpend: figures.compensationSpendNotReported ? 0 : figures.compensationSpend,
+            }),
+        [
+            revenueValue,
+            figures.totalAssets,
+            figures.totalLiabilities,
+            figures.charitableProgramSpend,
+            figures.administrativeSpend,
+            figures.fundraisingSpend,
+            figures.qdSpend,
+            figures.qdSpendNotReported,
+            figures.compensationSpend,
+            figures.compensationSpendNotReported,
+        ],
+    )
+    const revenueAmount = parseFinancialAmount(revenueValue)
+    // Matches the client's spec: ratio fields show CHECK INPUT when revenue is zero/missing;
+    // Reserves shows CHECK INPUT when listed spending (program+admin+fundraising+QD) is zero/missing.
+    const revenueCheckInput = revenueAmount === null || revenueAmount <= 0
+    const spendingCheckInput = derivedMetrics.totalSpend === null || derivedMetrics.totalSpend <= 0
+    const checkInputByCode: Record<string, boolean> = {
+        F04: revenueCheckInput,
+        F05: revenueCheckInput,
+        F06: revenueCheckInput,
+        F17: revenueCheckInput,
+        F19: revenueCheckInput,
+        F07: revenueCheckInput,
+        F18: spendingCheckInput,
+    }
+
+    // Keeps the calculated metric answers (F04-F19) in lockstep with the raw dollar
+    // figures + revenue, so scoring is never based on a hand-typed ratio.
+    React.useEffect(() => {
+        setFormData((prev) => {
+            let changed = false
+            const next = { ...prev }
+            for (const code of CALCULATED_METRIC_CODES) {
+                const value = derivedMetrics[CALCULATED_METRIC_FIELD[code] as keyof typeof derivedMetrics] as number | null
+                if (value === null) {
+                    if (code in next) {
+                        delete next[code]
+                        changed = true
+                    }
+                } else if (next[code] !== value) {
+                    next[code] = value
+                    changed = true
+                }
+            }
+            return changed ? next : prev
+        })
+    }, [derivedMetrics])
+
     const isReady = Boolean(formDefinition) && !isLoading
     const contentVisible = useAssessmentContentReveal(isLoading, isReady)
 
@@ -152,6 +222,7 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                 : parseFinancialAmount(figures.compensationSpend),
             compensationSpendNotReported: figures.compensationSpendNotReported,
             assuranceLevel: figures.assuranceLevel || null,
+            fxRateToUsd: countryCode === 'united-states' ? null : parseFinancialAmount(figures.fxRateToUsd),
         })
         if (!res.ok) {
             toast.error(res.message || 'Could not save the financial statement figures.')
@@ -161,19 +232,11 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
     }
 
     const validateFinancialFiguresBeforePreview = () => {
-        const errors = validateFinancialFigures(figures)
+        const errors = validateFinancialFigures(figures, countryCode)
         setFigureErrors(errors)
         if (Object.keys(errors).length) {
-            toast.error('Complete the financial statement figures (assets, liabilities, spends and assurance level).')
+            toast.error('Complete the financial statement figures (assets, liabilities, spends, assurance level and FX rate).')
             document.getElementById('financial-statement-figures')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            return false
-        }
-        if (usdPreview.preview?.missingRate) {
-            toast.error(usdPreview.preview.message || 'The FX rate for this fiscal year is missing.')
-            return false
-        }
-        if (usdPreview.loading) {
-            toast.error('Still checking the FX rate for this fiscal year — try again in a moment.')
             return false
         }
         return true
@@ -190,33 +253,60 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                     const answers = res.payload.data.data.answers || {}
                     setIsEditable(res.payload.data.data.isEditable !== false)
                     const newFormData: Record<string, any> = {}
+                    let cachedFormData: Record<string, any> = {}
+
+                    try {
+                        const cached = localStorage.getItem(`assessment-form-data-${charityId}-core-area-2`)
+                        const parsed = cached ? JSON.parse(cached) : null
+                        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                            cachedFormData = parsed
+                        }
+                    } catch (error) {
+                        console.error('Failed to restore financial assessment draft', error)
+                    }
 
                     formDefinition.questions.forEach((q) => {
                         const primaryKey = getQuestionFieldKey(q)
                         const legacyKey = labelToSnakeCase(q.label)
-                        const ans =
-                            answers[primaryKey] ??
-                            answers[legacyKey] ??
-                            (q.code === 'F01'
-                                ? answers.assessmented_financial_statements_available_on_website
-                                : undefined) ??
-                            (q.code === 'F02'
-                                ? answers.previous_year_assessmented_financial_statements_available_on_website
-                                : undefined)
-                        if (ans !== undefined && ans !== null) {
-                            if (q.type === 'date' && typeof ans === 'string') {
-                                const dateObj = new Date(ans)
+                        const ans = answers[primaryKey] ?? answers[legacyKey]
+                        const value = ans ?? cachedFormData[q.code]
+                        if (value !== undefined && value !== null && value !== '') {
+                            if (q.type === 'date' && typeof value === 'string') {
+                                const dateObj = new Date(value)
                                 if (!isNaN(dateObj.getTime())) {
                                     newFormData[q.code] = dateObj
                                 }
                             } else {
-                                newFormData[q.code] = ans
+                                newFormData[q.code] = value
                             }
                         }
                     })
 
-                    if (Object.keys(newFormData).length > 0) {
-                        setFormData((prev) => ({ ...prev, ...newFormData }))
+                    setFormData((prev) => ({ ...cachedFormData, ...prev, ...newFormData }))
+                    localStorage.removeItem(`assessment-form-data-${charityId}-core-area-2`)
+                } else {
+                    // Preserve a preview draft if the saved assessment cannot be read yet.
+                    try {
+                        const cached = localStorage.getItem(`assessment-form-data-${charityId}-core-area-2`)
+                        const parsed = cached ? JSON.parse(cached) : null
+                        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                            const restored: Record<string, any> = {}
+                            formDefinition.questions.forEach((q) => {
+                                const value = parsed[q.code]
+                                if (value !== undefined && value !== null && value !== '') {
+                                    if (q.type === 'date' && typeof value === 'string') {
+                                        const date = new Date(value)
+                                        if (!Number.isNaN(date.getTime())) restored[q.code] = date
+                                    } else {
+                                        restored[q.code] = value
+                                    }
+                                }
+                            })
+                            setFormData((prev) => ({ ...prev, ...restored }))
+                            localStorage.removeItem(`assessment-form-data-${charityId}-core-area-2`)
+                        }
+                    } catch (error) {
+                        console.error('Failed to restore financial assessment draft', error)
                     }
                 }
             } catch (error) {
@@ -269,9 +359,31 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
         return true
     }
 
-    const handleSaveDraft = async () => {
+    const validateFieldFormats = () => {
+        if (!formDefinition) return false
+
+        for (const q of formDefinition.questions) {
+            const val = formData[q.code]
+            const error = (URL_FIELD_CODES as readonly string[]).includes(q.code)
+                ? validateOptionalUrl(val)
+                : isDateRangeCode(q.code)
+                    ? validateDateRange(q.code, val)
+                    : null
+            if (error) {
+                toast.error(error)
+                document
+                    .getElementById(getAssessmentTargetElementId('question', q.code))
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                return false
+            }
+        }
+
+        return true
+    }
+
+    const handleSaveDraft = async (): Promise<boolean> => {
         const answers: Record<string, any> = {}
-        if (!formDefinition) return
+        if (!formDefinition) return false
 
         formDefinition.questions.forEach((q) => {
             const key = getQuestionFieldKey(q)
@@ -290,30 +402,27 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
             }
         })
 
-        if (Object.keys(answers).length > 0) {
-            try {
-                const { submitAssessmentAction, editAssessmentAction } = await import(
-                    '@/app/actions/assessments'
-                )
+        if (Object.keys(answers).length === 0) return true
 
-                const isEdit = status === 'submitted' || status === 'completed'
+        try {
+            const { submitAssessmentAction, editAssessmentAction } = await import(
+                '@/app/actions/assessments'
+            )
 
-                if (isEdit) {
-                    await editAssessmentAction({
-                        charityId,
-                        coreArea: 2,
-                        answers,
-                    })
-                } else {
-                    await submitAssessmentAction({
-                        charityId,
-                        coreArea: 2,
-                        answers,
-                    })
-                }
-            } catch (e) {
-                console.error('Failed to save draft', e)
+            const isEdit = status === 'submitted' || status === 'completed'
+            const res = isEdit
+                ? await editAssessmentAction({ charityId, coreArea: 2, answers })
+                : await submitAssessmentAction({ charityId, coreArea: 2, answers })
+
+            if (!res.ok) {
+                toast.error(res.message || 'Could not save the assessment before opening results.')
+                return false
             }
+            return true
+        } catch (e) {
+            console.error('Failed to save draft', e)
+            toast.error('Could not save the assessment before opening results.')
+            return false
         }
     }
 
@@ -369,23 +478,19 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                 </div>
 
                 <div id="financial-statement-figures" className="scroll-mt-4">
-                    <FinancialStatementFigures
+                    <FinanceAssessmentTable
+                        questions={formDefinition.questions}
+                        formData={formData}
+                        canEdit={canEdit}
+                        onChange={updateFormData}
+                        highlightCode={scrollTargetId}
+                        checkInputByCode={checkInputByCode}
                         countryCode={countryCode}
                         figures={figures}
-                        errors={figureErrors}
-                        canEdit={canEdit}
-                        usdPreview={usdPreview}
-                        onChange={updateFigures}
+                        figureErrors={figureErrors}
+                        onChangeFigures={updateFigures}
                     />
                 </div>
-
-                <FinanceAssessmentTable
-                    questions={formDefinition.questions}
-                    formData={formData}
-                    canEdit={canEdit}
-                    onChange={updateFormData}
-                    highlightCode={scrollTargetId}
-                />
             </div>
 
             {!canEdit ? null : (
@@ -398,6 +503,7 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                         onClick={async () => {
                             if (isPreviewing || isCancelling) return
                             if (!validateRequiredAnswers()) return
+                            if (!validateFieldFormats()) return
                             if (!validateFinancialFiguresBeforePreview()) return
 
                             setIsPreviewing(true)
@@ -413,7 +519,10 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                                     )
                                 }
 
-                                await handleSaveDraft()
+                                if (!(await handleSaveDraft())) {
+                                    setIsPreviewing(false)
+                                    return
+                                }
 
                                 router.push(
                                     `/charities/${charityId}/assessments/core-area-2?preview-mode=true&country=${location}`,

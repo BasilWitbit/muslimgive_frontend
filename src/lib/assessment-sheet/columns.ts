@@ -203,7 +203,7 @@ export const ASSESSMENT_SHEET_COLUMNS: SheetColumn[] = [
     width: 100,
     editable: true,
     field: 'tierStatus',
-    options: ['Tier 1', 'Tier 2', 'Tier 3'],
+    options: ['Tier 1', 'Tier 2'],
   },
   {
     id: 'cyFinancialsAvailable',

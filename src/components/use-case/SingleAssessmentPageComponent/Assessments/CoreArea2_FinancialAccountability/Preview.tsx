@@ -100,16 +100,76 @@ const getCategoryIndexById = (rows: SectionRow[]) => {
     return categoryIndexById;
 };
 
-const formatAmount = (currency: string | null, value: number | string | null | undefined) => {
+/** Mirrors the thresholds in the backend's finance-assessment.ts TIER_THRESHOLDS — keep in sync. */
+const FINANCE_TIER_RULES: Record<'tier_1' | 'tier_2', Array<{ metric: string; full: string; half: string; zero: string }>> = {
+    tier_1: [
+        { metric: 'Program spend % (7)', full: '≥ 80.00%', half: '70.00% – 79.99%', zero: '< 70.00%' },
+        { metric: 'Fundraising spend % (7)', full: '≤ 10.00%', half: '10.01% – 15.00%', zero: '> 15.00%' },
+        { metric: 'Admin spend % (7)', full: '≤ 10.00%', half: '10.01% – 15.00%', zero: '> 15.00%' },
+        { metric: 'Compensation % (3)', full: '≤ 20.00%', half: '20.01% – 25.00%', zero: '> 25.00%' },
+        { metric: 'Revenue spent % (4)', full: '≥ 80.00%', half: '70.00% – 79.99%', zero: '< 70.00%' },
+        { metric: 'Reserves, months (4)', full: '≤ 24.00', half: '24.01 – 36.00', zero: '> 36.00' },
+    ],
+    tier_2: [
+        { metric: 'Program spend % (7)', full: '≥ 82.50%', half: '75.00% – 82.49%', zero: '< 75.00%' },
+        { metric: 'Fundraising spend % (7)', full: '≤ 10.00%', half: '10.01% – 15.00%', zero: '> 15.00%' },
+        { metric: 'Admin spend % (7)', full: '≤ 5.00%', half: '5.01% – 10.00%', zero: '> 10.00%' },
+        { metric: 'Compensation % (3)', full: '≤ 15.00%', half: '15.01% – 20.00%', zero: '> 20.00%' },
+        { metric: 'Revenue spent % (4)', full: '≥ 82.50%', half: '75.00% – 82.49%', zero: '< 75.00%' },
+        { metric: 'Reserves, months (4)', full: '≤ 12.00', half: '12.01 – 24.00', zero: '> 24.00' },
+    ],
+};
+
+const FinanceScoringRulesLegend = ({ tier }: { tier: 'tier_1' | 'tier_2' }) => {
+    const rules = FINANCE_TIER_RULES[tier];
+    return (
+        <div className="border-t border-[#EEF2F6] bg-white px-4 py-3">
+            <div className="mb-2 flex items-center justify-between">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">
+                    Scoring rules — {tier === 'tier_1' ? 'Tier 1 (revenue ≤ $1M)' : 'Tier 2 (revenue > $1M)'}
+                </p>
+                <p className="text-[10px] text-[#98A2B3]">Transparency (both tiers): CY 5 · PY 2 · Impact report 1</p>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] border-collapse text-[11px]">
+                    <thead>
+                        <tr className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#98A2B3]">
+                            <th className="border-b border-[#EEF2F6] px-2 py-1.5 text-left">Metric</th>
+                            <th className="border-b border-[#EEF2F6] px-2 py-1.5 text-left text-emerald-700">Full points</th>
+                            <th className="border-b border-[#EEF2F6] px-2 py-1.5 text-left text-amber-700">Half points</th>
+                            <th className="border-b border-[#EEF2F6] px-2 py-1.5 text-left text-rose-700">Zero</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rules.map((rule) => (
+                            <tr key={rule.metric}>
+                                <td className="border-b border-[#F5F7FA] px-2 py-1.5 font-medium text-[#344054]">{rule.metric}</td>
+                                <td className="border-b border-[#F5F7FA] px-2 py-1.5 font-mono tabular-nums text-[#344054]">{rule.full}</td>
+                                <td className="border-b border-[#F5F7FA] px-2 py-1.5 font-mono tabular-nums text-[#344054]">{rule.half}</td>
+                                <td className="border-b border-[#F5F7FA] px-2 py-1.5 font-mono tabular-nums text-[#344054]">{rule.zero}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+const formatAmount = (currency: string | null, value: number | string | null | undefined, usdValue?: number | null) => {
     const num = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : null;
     if (num === null || Number.isNaN(num)) return '—';
-    return `${currency ? `${currency} ` : ''}${num.toLocaleString()}`;
+    const base = `${currency ? `${currency} ` : ''}${num.toLocaleString()}`;
+    return currency && currency !== 'USD' && typeof usdValue === 'number'
+        ? `${base} (USD ${usdValue.toLocaleString()})`
+        : base;
 };
 
 const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI = false }) => {
     const isEditMode = status === 'submitted' || status === 'completed';
     const [assessmentVals, setAssessmentVals] = useState<any>(null);
     const [figures, setFigures] = useState<FinancialFigures | null>(null);
+    const [usdFigures, setUsdFigures] = useState<Record<string, number | null> | null>(null);
     const [scoring, setScoring] = useState<FinanceScoring | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [showSubmittedModel, setShowSubmittedModel] = useState(false);
@@ -134,7 +194,18 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                 ]);
 
                 if (charityRes.ok) {
-                    setFigures(figuresFromCharity(charityRes.payload?.data?.data ?? charityRes.payload?.data));
+                    const charityData = charityRes.payload?.data?.data ?? charityRes.payload?.data;
+                    setFigures(figuresFromCharity(charityData));
+                    setUsdFigures({
+                        totalAssetsUsd: charityData?.totalAssetsUsd ?? null,
+                        totalLiabilitiesUsd: charityData?.totalLiabilitiesUsd ?? null,
+                        totalRevenueUsd: charityData?.totalRevenueUsd ?? null,
+                        charitableProgramSpendUsd: charityData?.charitableProgramSpendUsd ?? null,
+                        fundraisingSpendUsd: charityData?.fundraisingSpendUsd ?? null,
+                        administrativeSpendUsd: charityData?.administrativeSpendUsd ?? null,
+                        qdSpendUsd: charityData?.qdSpendUsd ?? null,
+                        compensationSpendUsd: charityData?.compensationSpendUsd ?? null,
+                    });
                 }
 
                 if (fetchFromAPI) {
@@ -159,9 +230,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                             formDefinition.questions.forEach((q) => {
                                 const primaryKey = getQuestionFieldKey(q);
                                 const legacyKey = labelToSnakeCase(q.label);
-                                const ans = answers[primaryKey] ?? answers[legacyKey]
-                                    ?? (q.code === 'F01' ? answers.assessmented_financial_statements_available_on_website : undefined)
-                                    ?? (q.code === 'F02' ? answers.previous_year_assessmented_financial_statements_available_on_website : undefined);
+                                const ans = answers[primaryKey] ?? answers[legacyKey];
                                 if (ans !== undefined && ans !== null) {
                                     mappedAnswers[q.code] = ans;
                                 }
@@ -270,18 +339,41 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     }
 
     const getValue = (code: string) => assessmentVals[code];
+    const dateValue = (code: string) => (getValue(code) ? new Date(getValue(code)).toLocaleDateString() : '—');
+    const linkRow = (code: string, field: string): SectionRow[] =>
+        getValue(code)
+            ? [{
+                id: code,
+                field,
+                value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue(code)}>{getValue(code)}</LinkComponent>,
+                onEdit: () => navigateToTarget(code),
+            }]
+            : [];
 
-    const figuresRows: SectionRow[] = [
-        { id: 'F16', field: 'Total Revenue', value: formatAmount(currency, getValue('F16')), onEdit: () => navigateToTarget('F16') },
-        { id: 'totalAssets', field: 'Total Assets', value: formatAmount(currency, figures?.totalAssets) },
-        { id: 'totalLiabilities', field: 'Total Liabilities', value: formatAmount(currency, figures?.totalLiabilities) },
-        { id: 'charitableProgramSpend', field: 'Charitable Program Spend', value: formatAmount(currency, figures?.charitableProgramSpend) },
-        { id: 'administrativeSpend', field: 'Administrative Spend', value: formatAmount(currency, figures?.administrativeSpend) },
-        { id: 'fundraisingSpend', field: 'Fundraising Spend', value: formatAmount(currency, figures?.fundraisingSpend) },
-        { id: 'qdSpend', field: 'QD Spend', value: figures?.qdSpendNotReported ? 'Not reported' : formatAmount(currency, figures?.qdSpend) },
-        { id: 'compensationSpend', field: 'Compensation Spend', value: figures?.compensationSpendNotReported ? 'Not reported' : formatAmount(currency, figures?.compensationSpend) },
+    // Same fields, same order as the data-entry form: dates & links, then the dollar
+    // figures, then assurance level, then notes — all in one table.
+    const inputRows: SectionRow[] = [
+        { id: 'F13', field: 'Registered Since', value: dateValue('F13'), onEdit: () => navigateToTarget('F13') },
+        { id: 'F12', field: 'Fiscal Year End', value: dateValue('F12'), onEdit: () => navigateToTarget('F12') },
+        { id: 'F14', field: 'Analysis Reviewed Date', value: dateValue('F14'), onEdit: () => navigateToTarget('F14') },
+        ...linkRow('F08', 'Financials Link'),
+        ...linkRow('F09', 'Tax Return Link (UK)'),
+        ...linkRow('F10', 'IRS Returns Link (US)'),
+        ...linkRow('F11', 'CRA Returns Link (Canada)'),
+        { id: 'totalAssets', field: 'Total Assets', value: formatAmount(currency, figures?.totalAssets, usdFigures?.totalAssetsUsd) },
+        { id: 'totalLiabilities', field: 'Total Liabilities', value: formatAmount(currency, figures?.totalLiabilities, usdFigures?.totalLiabilitiesUsd) },
+        { id: 'F16', field: 'Total Revenue', value: formatAmount(currency, getValue('F16'), usdFigures?.totalRevenueUsd), onEdit: () => navigateToTarget('F16') },
+        { id: 'charitableProgramSpend', field: 'Charitable Program Spend', value: formatAmount(currency, figures?.charitableProgramSpend, usdFigures?.charitableProgramSpendUsd) },
+        { id: 'fundraisingSpend', field: 'Fundraising Spend', value: formatAmount(currency, figures?.fundraisingSpend, usdFigures?.fundraisingSpendUsd) },
+        { id: 'administrativeSpend', field: 'Administrative Spend', value: formatAmount(currency, figures?.administrativeSpend, usdFigures?.administrativeSpendUsd) },
+        { id: 'qdSpend', field: 'QD Spend', value: figures?.qdSpendNotReported ? 'Not reported' : formatAmount(currency, figures?.qdSpend, usdFigures?.qdSpendUsd) },
+        { id: 'F19', field: 'QD %', value: typeof getValue('F19') === 'number' ? `${getValue('F19')}%` : '—' },
+        { id: 'compensationSpend', field: 'Compensation Spend', value: figures?.compensationSpendNotReported ? 'Not reported' : formatAmount(currency, figures?.compensationSpend, usdFigures?.compensationSpendUsd) },
         { id: 'assuranceLevel', field: 'Assurance Level', value: figures?.assuranceLevel || '—' },
-        { id: 'F12', field: 'Fiscal Year End', value: getValue('F12') ? new Date(getValue('F12')).toLocaleDateString() : '—', onEdit: () => navigateToTarget('F12') },
+        ...(currency && currency !== 'USD'
+            ? [{ id: 'fxRateToUsd', field: 'FX Rate to USD', value: figures?.fxRateToUsd || '—' }]
+            : []),
+        { id: 'F15', field: 'Notes', value: getValue('F15') || '—', onEdit: () => navigateToTarget('F15') },
     ];
 
     /**
@@ -379,17 +471,6 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
         },
     ];
 
-    const documentRows: SectionRow[] = [
-        ...(getValue('F08') ? [{ id: 'F08', field: 'Financials Link', value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F08')}>{getValue('F08')}</LinkComponent>, onEdit: () => navigateToTarget('F08') }] : []),
-        ...(getValue('F09') ? [{ id: 'F09', field: 'Tax Return Link (UK)', value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F09')}>{getValue('F09')}</LinkComponent>, onEdit: () => navigateToTarget('F09') }] : []),
-        ...(getValue('F10') ? [{ id: 'F10', field: 'IRS Returns Link (US)', value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F10')}>{getValue('F10')}</LinkComponent>, onEdit: () => navigateToTarget('F10') }] : []),
-        ...(getValue('F11') ? [{ id: 'F11', field: "CRA Returns Link (Canada)", value: <LinkComponent openInNewTab className='font-semibold text-[#266DD3] hover:underline' to={getValue('F11')}>{getValue('F11')}</LinkComponent>, onEdit: () => navigateToTarget('F11') }] : []),
-        ...(getValue('F13') ? [{ id: 'F13', field: 'Charitable Registration Since', value: new Date(getValue('F13')).toLocaleDateString(), onEdit: () => navigateToTarget('F13') }] : []),
-    ];
-
-    const notesRows: SectionRow[] = [
-        { id: 'F15', field: 'Notes', value: getValue('F15') || '—', onEdit: () => navigateToTarget('F15') },
-    ];
 
     const Section = ({ title, rows, showScore }: { title: string; rows: SectionRow[]; showScore: boolean }) => {
         if (rows.length === 0) return null;
@@ -555,12 +636,12 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                         Bands (out of 40): Strong 33.33+ · Moderate / Needs Improvement 26.67–33.32 · Concern below 26.67. A failed mandatory gate caps the rating at Concern.
                         {!scoring ? ' Outcome appears once this section has been saved with Core Area 2 answers.' : ''}
                     </div>
+
+                    {scoring ? <FinanceScoringRulesLegend tier={scoring.tier} /> : null}
                 </div>
 
-                <Section title="Financial statement figures" rows={figuresRows} showScore={false} />
                 <Section title="Transparency & scored metrics" rows={scoredRows} showScore />
-                <Section title="Documents & dates" rows={documentRows} showScore={false} />
-                <Section title="Notes" rows={notesRows} showScore={false} />
+                <Section title="Financial statement figures, documents & notes" rows={inputRows} showScore={false} />
             </div>
 
             {!fetchFromAPI ? (

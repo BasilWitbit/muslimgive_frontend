@@ -172,6 +172,17 @@ export const CORE_AREA_2_FORMS: FormDefinition[] = [
                 "rubricItem": null
             },
             {
+                "id": "f19a1000-aaaa-4bbb-8ccc-000000000001",
+                "code": "F19",
+                "fieldKey": "qd_percent",
+                "label": "QD Spend %",
+                "type": "number",
+                "required": false,
+                "scoreLogic": null,
+                "options": [],
+                "rubricItem": null
+            },
+            {
                 "id": "26ecba55-05a3-4ee5-b677-00bfb7fa65e6",
                 "code": "F07",
                 "fieldKey": "percentage_of_revenue_spent_per_year_spent_revenue",
@@ -422,6 +433,17 @@ export const CORE_AREA_2_FORMS: FormDefinition[] = [
                 "label": "Compensation %",
                 "type": "number",
                 "required": true,
+                "scoreLogic": null,
+                "options": [],
+                "rubricItem": null
+            },
+            {
+                "id": "f19a1000-aaaa-4bbb-8ccc-000000000002",
+                "code": "F19",
+                "fieldKey": "qd_percent",
+                "label": "QD Spend %",
+                "type": "number",
+                "required": false,
                 "scoreLogic": null,
                 "options": [],
                 "rubricItem": null
@@ -693,6 +715,17 @@ export const CORE_AREA_2_FORMS: FormDefinition[] = [
                 "rubricItem": null
             },
             {
+                "id": "f19a1000-aaaa-4bbb-8ccc-000000000003",
+                "code": "F19",
+                "fieldKey": "qd_percent",
+                "label": "QD Spend %",
+                "type": "number",
+                "required": false,
+                "scoreLogic": null,
+                "options": [],
+                "rubricItem": null
+            },
+            {
                 "id": "06b51593-90f6-476c-a9d9-7a7add9f031d",
                 "code": "F07",
                 "fieldKey": "percentage_of_revenue_spent_per_year_spent_revenue",
@@ -734,7 +767,7 @@ export const CORE_AREA_2_FORMS: FormDefinition[] = [
 {
                 "id": "f5f83121-40b8-4b86-aef9-6750e177fb27",
                 "code": "F11",
-                "fieldKey": "cra_returns_link",
+                "fieldKey": "cra_s_returns_link",
                 "label": "CRA's Returns (Link)",
                 "type": "text",
                 "required": true,
@@ -767,7 +800,7 @@ export const CORE_AREA_2_FORMS: FormDefinition[] = [
             {
                 "id": "2a31e2f5-592a-49c6-b6a3-d928e5ee3fd7",
                 "code": "F14",
-                "fieldKey": "snk_teams_analysis_date",
+                "fieldKey": "analysis_reviewed_date",
                 "label": "SNK Team's Analysis Date",
                 "type": "date",
                 "required": false,

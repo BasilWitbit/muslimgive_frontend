@@ -10,6 +10,7 @@ export type SidebarIconName =
     | 'access-control'
     | 'email-logs'
     | 'email'
+    | 'finance-scoring-rules'
 
 export type Page = {
     path: string,
@@ -65,6 +66,18 @@ export const PAGES: Page[] = [
                 PERMISSIONS.AUDIT_CHARITY_VIEW,
                 PERMISSIONS.AUDIT_SUBMISSION_CREATE,
             ],
+        },
+    },
+    {
+        name: 'finance-scoring-rules',
+        path: '/finance-scoring-rules',
+        heading: 'Financial Scoring Rules',
+        iconName: 'finance-scoring-rules',
+        type: 'menu',
+        show: true,
+        permissions: {
+            roles: ['finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor'],
+            anyOf: [PERMISSIONS.CHARITY_MANAGE],
         },
     },
     {

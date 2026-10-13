@@ -1,5 +1,5 @@
 /**
- * Charity Legitimacy (Core Area 1) descriptors — mirrors MG Scoring sheet
+ * Charity Legitimacy (Core Area 1) descriptors — mirrors ZA Scoring sheet
  * "Charity Legitimacy Metrics".
  *
  * Keys: fieldKey → option value → descriptor shown on assessment + preview/view.
@@ -34,7 +34,7 @@ export const METRIC_MAX_POINTS: Record<string, number> = {
   contact_info_accessible_on_website: 1,
 };
 
-/** Outcome band labels aligned with the MG Scoring sheet. */
+/** Outcome band labels aligned with the ZA Scoring sheet. */
 export type CoreArea1Outcome = 'strong' | 'needs_improvement' | 'concern';
 
 export const METRIC_OUTCOME_BY_VALUE: Record<string, Record<string, CoreArea1Outcome>> = {

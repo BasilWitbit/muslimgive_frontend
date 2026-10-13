@@ -1,13 +1,12 @@
-import { AssessmentStatus, GradeType } from '@/DUMMY_ASSESSMENT_VALS';
+import { AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS';
 import { capitalizeWords } from '@/lib/helpers';
-import { cn } from '@/lib/utils'
 import React, { FC } from 'react'
+import RatingBandBadge from '@/components/common/RatingBandBadge'
 
 type IProps = {
     title: string,
     subTitle: string,
-    grade?: GradeType,
-    result?: 'pass' | 'fail' | null,
+    ratingBand?: string | null,
     score: number,
     status: AssessmentStatus
     accentColor: string
@@ -21,11 +20,9 @@ const statusDisplayMeta: Record<AssessmentStatus, { label: string; bg: string; t
     completed: { label: 'Completed', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
 }
 
-const AccordionHeader: FC<IProps> = ({ title, subTitle, grade, result, score, status, accentColor }) => {
+const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, status, accentColor }) => {
     const statusStyle = statusDisplayMeta[status]
     const isPending = status === 'pending'
-    const resultLabel = isPending ? '—' : (result ? capitalizeWords(result) : (grade || '—'))
-
     return (
         <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(88px,0.75fr)_minmax(0,1.4fr)_72px_88px_96px] md:items-center md:gap-3">
             <div className="flex min-w-0 items-center gap-2 md:contents">
@@ -46,23 +43,14 @@ const AccordionHeader: FC<IProps> = ({ title, subTitle, grade, result, score, st
             <div className="flex items-center gap-3 md:contents">
                 <div className="md:col-start-3 md:text-center">
                     <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
-                        Result
+                        Rating
                     </span>
                     {isPending ? (
                         <span className="text-sm text-[#98A2B3]">—</span>
-                    ) : result ? (
-                        <span
-                            className={cn(
-                                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                                result === 'pass'
-                                    ? 'bg-green-50 text-green-700'
-                                    : 'bg-red-50 text-red-700',
-                            )}
-                        >
-                            {result === 'pass' ? '✓ Pass' : '✕ Fail'}
-                        </span>
+                    ) : ratingBand ? (
+                        <RatingBandBadge ratingBand={ratingBand as 'Strong' | 'Moderate' | 'Needs Improvement' | 'Concern'} />
                     ) : (
-                        <span className="text-sm font-medium text-[#344054]">{resultLabel}</span>
+                        <span className="text-sm font-medium text-[#344054]">—</span>
                     )}
                 </div>
 

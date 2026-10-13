@@ -135,7 +135,10 @@ const UsersPageComponent: FC<IProps> = ({ usersArr }) => {
         if (!q) return activeUsers
         return new Fuse(activeUsers, {
             threshold: 0.4,
-            keys: [{ name: 'name', getFn: (u: Data) => `${u.firstName} ${u.lastName}`.trim() }],
+            keys: [
+                { name: 'name', getFn: (u: Data) => `${u.firstName} ${u.lastName}`.trim() },
+                'email',
+            ],
         }).search(q).map((result) => result.item)
     }, [query, activeUsers])
 
@@ -342,7 +345,7 @@ const UsersPageComponent: FC<IProps> = ({ usersArr }) => {
                         <ControlledSearchBarComponent
                             setQuery={setQueryInput}
                             query={queryInput}
-                            placeholder="Search users by name"
+                            placeholder="Search users by name or email"
                             className="h-11 rounded-xl border-[#DDE7F3] bg-[#F8FAFC]"
                         />
                     </div>

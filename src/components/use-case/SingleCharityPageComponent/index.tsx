@@ -110,7 +110,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
     currentUserId,
     reassessmentCycle,
     overallScorePercent,
-    overallScoreResult,
     currentUserRoles = [],
 }) => {
     const router = useRouter();
@@ -280,14 +279,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
     const isEligibilityDone = !verificationSummary?.eligibility?.pending
     const shouldHideAssessmentAndProgress = status === 'ineligible' || verificationSummary?.eligibility?.pending
     const isAdminReviewed = status === 'pending-admin-review' || status === 'approved'
-    const passFailValue = overallScoreResult
-        ? (overallScoreResult === 'pass' ? 'Pass' : 'Fail')
-        : status === 'approved'
-            ? 'Pass'
-            : status === 'ineligible'
-                ? 'Fail'
-                : 'Pending'
-    const isPassFailDone = passFailValue !== 'Pending'
     const projectManagerNames = getMemberNamesByRole('project-manager')
     const projectManagerName = projectManagerNames.length ? projectManagerNames.join(', ') : 'Unassigned'
 
@@ -837,12 +828,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 successText="Reviewed"
                                 pendingText="Pending"
                                 meta={overallScoreLabel ? `Score: ${overallScoreLabel}` : undefined}
-                            />
-                            <PremiumProgressStepRow
-                                title="Pass / Fail"
-                                done={isPassFailDone}
-                                variant="pass-fail"
-                                passFailValue={passFailValue}
                                 isLast
                             />
                         </div>
@@ -859,7 +844,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         >
                             <div className="flex flex-col gap-3">
                                 <InfoRow label="Overall Score:" value={overallScoreLabel ?? '-'} />
-                                <InfoRow label="Pass / Fail:" value={passFailValue} />
                                 <div className="flex flex-col gap-2">
                                     {canManageCharity ? (
                                         <Button

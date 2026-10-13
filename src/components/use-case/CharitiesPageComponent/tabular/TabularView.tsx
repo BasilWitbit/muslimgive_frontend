@@ -639,6 +639,9 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                 <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">
                                                                     Audit Scores
                                                                 </span>
+                                                                <span className="text-xs text-[#667085]">
+                                                                    Pass/Fail applies only to mandatory metrics; final outcomes use rating bands.
+                                                                </span>
                                                                 <span className="inline-flex items-center rounded-full border border-[#D9E8FB] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[#266DD3] shadow-sm">
                                                                     {reviews.summary.completed} of {reviews.summary.total} completed
                                                                 </span>
@@ -767,18 +770,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                             {(key === 'core1' || key === 'core2' || key === 'core4') && coreAreaBand ? (
                                                                                 <RatingBandBadge ratingBand={coreAreaBand as RatingBand} className="text-[10px]" />
                                                                             ) : <span className="h-5" />}
-                                                                            {area.result ? (
-                                                                                <span
-                                                                                    className={cn(
-                                                                                        'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                                                                        area.result === 'pass'
-                                                                                            ? 'bg-green-50 text-green-700'
-                                                                                            : 'bg-red-50 text-red-700',
-                                                                                    )}
-                                                                                >
-                                                                                    {area.result === 'pass' ? '✓ Pass' : '✕ Fail'}
-                                                                                </span>
-                                                                            ) : <span className="h-5" />}
+                                                                            <span className="h-5" />
                                                                         </div>
                                                                         <div className="mt-2 border-t border-[#EEF2F6] pt-2 text-[10px] font-semibold text-[#266DD3]">
                                                                             Open assessment section <span aria-hidden="true">→</span>
@@ -790,8 +782,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
 
                                                         {(() => {
                                                             const overallScore = getOverallDisplayScore(reviews, c.overallScorePercent)
-                                                            const overallResult = c.overallScoreResult
-                                                            if (overallScore === null && !overallResult) return null
+                                                            if (overallScore === null) return null
 
                                                             return (
                                                                 <div className="relative overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white p-4 shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
@@ -818,23 +809,6 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                                     : '—'}
                                                                             </div>
                                                                         </div>
-                                                                        {overallResult ? (
-                                                                            <div className="text-left sm:text-right">
-                                                                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">
-                                                                                    Outcome
-                                                                                </div>
-                                                                                <div
-                                                                                    className={cn(
-                                                                                        'mt-1 inline-flex rounded-full px-3 py-1 text-sm font-semibold',
-                                                                                        overallResult === 'pass'
-                                                                                            ? 'bg-green-50 text-green-700'
-                                                                                            : 'bg-red-50 text-red-700',
-                                                                                    )}
-                                                                                >
-                                                                                    {overallResult === 'pass' ? 'Pass' : 'Fail'}
-                                                                                </div>
-                                                                            </div>
-                                                                        ) : null}
                                                                     </div>
                                                                 </div>
                                                             )

@@ -13,7 +13,7 @@ export function normalizeScore(score: number, totalScore: number): number {
 }
 
 /**
- * Charity Legitimacy Metrics (/10) — mirrors MG Scoring matrix.
+ * Charity Legitimacy Metrics (/10) — mirrors ZA Scoring matrix.
  * Registered Yes(4)/No(0) · Regulatory no concerns(4)/suspended-revoked-investigation(0)
  * Charity number clearly(1)/partial(0.5)/not(0) · Contact easily(1)/limited(0.5)/not(0)
  * Mandatory: registered + regulatory. Failing either caps max at 6 → Concern.

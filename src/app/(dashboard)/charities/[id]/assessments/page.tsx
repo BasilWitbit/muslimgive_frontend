@@ -6,7 +6,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from '@/components/ui/accordion'
-import { AssessmentIds, GradeType, AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS'
+import { AssessmentIds, AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS'
 import AccordionHeader from './AccordionHeader'
 import AssessmentChangeHistory from './AssessmentChangeHistory'
 import Preview from '@/components/use-case/SingleAssessmentPageComponent/Assessments/Preview'
@@ -24,12 +24,15 @@ import {
     formatAuditScore,
     getOverallDisplayScore,
 } from '@/lib/audit-score-display'
+import { computeRatingBand } from '@/lib/audit-scoring'
+import RatingBandBadge from '@/components/common/RatingBandBadge'
 
 type CoreAreaReview = {
     status: 'pending' | 'in_progress' | 'submitted' | 'completed' | 'draft';
     score: number | null;
     totalScore: number;
     result: 'pass' | 'fail' | null;
+    ratingBand?: 'Strong' | 'Moderate' | 'Needs Improvement' | 'Concern' | null;
 }
 
 type CharityReviews = {
@@ -78,8 +81,6 @@ const AssessmentHistoryLoader = () => (
         </div>
     </div>
 )
-
-const OVERALL_PASS_THRESHOLD = 80
 
 const overallStatusMeta = {
     incomplete: { label: 'Incomplete', bg: '#FFF7ED', text: '#C2410C', border: '#FDBA74' },
@@ -163,16 +164,6 @@ const AssessmentHistoryPage = () => {
         }
     }
 
-    const calculateGrade = (score: number | null, totalScore: number): GradeType => {
-        if (score === null) return 'F'
-        const percentage = (score / totalScore) * 100
-        if (percentage >= 90) return 'A'
-        if (percentage >= 80) return 'B'
-        if (percentage >= 70) return 'C'
-        if (percentage >= 60) return 'D'
-        return 'F'
-    }
-
     const getCoreAreaData = (assessmentKey: AssessmentIds) => {
         if (!reviews) return null
 
@@ -196,8 +187,7 @@ const AssessmentHistoryPage = () => {
         return {
             status: mapStatusToAssessmentStatus(coreAreaData.status),
             score: normalizedScore,
-            grade: calculateGrade(coreAreaData.score, coreAreaData.totalScore),
-            result: coreAreaData.result
+            ratingBand: coreAreaData.ratingBand ?? null,
         }
     }
 
@@ -206,19 +196,14 @@ const AssessmentHistoryPage = () => {
 
         const overallScore = getOverallDisplayScore(reviews, overallScorePercent)
         const allAreasComplete = reviews.summary.completed >= reviews.summary.total
-        const derivedResult =
-            overallScoreResult ??
-            (overallScore !== null
-                ? (overallScore >= OVERALL_PASS_THRESHOLD ? 'pass' : 'fail')
-                : null)
         const isFinal = overallScore !== null && (allAreasComplete || overallScoreResult !== null)
 
         return {
             score: overallScore,
-            result: isFinal ? derivedResult : null,
+            ratingBand: overallScore === null ? null : computeRatingBand(overallScore / 10),
             statusKey: isFinal ? 'final' as const : 'incomplete' as const,
             statusHint: isFinal
-                ? 'Weighted total across all core areas (pass at 80+).'
+                ? 'Weighted total across all core areas.'
                 : 'Overall score unlocks when every required core area has a score.',
         }
     }, [reviews, overallScorePercent, overallScoreResult])
@@ -288,7 +273,7 @@ const AssessmentHistoryPage = () => {
                         <span />
                         <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Area</span>
                         <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Assessment</span>
-                        <span className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Result</span>
+                        <span className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Rating</span>
                         <span className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Score</span>
                         <span className="text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Status</span>
                     </div>
@@ -318,8 +303,7 @@ const AssessmentHistoryPage = () => {
                                         <AccordionHeader
                                             title={kebabToTitle(eachAssessment)}
                                             subTitle={AUDIT_DEFINITIONS[eachAssessment].title.split('(')[0].trim()}
-                                            grade={assessmentData.grade}
-                                            result={assessmentData.result}
+                                            ratingBand={assessmentData.ratingBand}
                                             score={assessmentData.score}
                                             status={assessmentData.status}
                                             accentColor={areaMeta.color}
@@ -365,22 +349,9 @@ const AssessmentHistoryPage = () => {
                                 <div className="flex items-center gap-3 md:contents">
                                     <div className="md:col-start-4 md:text-center">
                                         <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
-                                            Result
+                                            Rating
                                         </span>
-                                        {overallSummary.result ? (
-                                            <span
-                                                className={cn(
-                                                    'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                                                    overallSummary.result === 'pass'
-                                                        ? 'bg-green-50 text-green-700'
-                                                        : 'bg-red-50 text-red-700',
-                                                )}
-                                            >
-                                                {overallSummary.result === 'pass' ? '✓ Pass' : '✕ Fail'}
-                                            </span>
-                                        ) : (
-                                            <span className="text-sm text-[#98A2B3]">—</span>
-                                        )}
+                                        <RatingBandBadge ratingBand={overallSummary.ratingBand} />
                                     </div>
 
                                     <div className="md:col-start-5 md:text-center">

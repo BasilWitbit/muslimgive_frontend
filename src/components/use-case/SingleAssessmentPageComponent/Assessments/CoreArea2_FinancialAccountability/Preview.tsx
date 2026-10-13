@@ -50,7 +50,7 @@ type FinanceScoring = {
     finalResult: string
 }
 
-const CORE_AREA_2_ACCENT = '#10B981';
+const CORE_AREA_2_ACCENT = '#8B5CF6';
 
 const RATING_STYLES: Record<string, { bg: string; text: string; dot: string }> = {
     strong: { bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
@@ -398,7 +398,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
         const showEditColumn = rows.some((r) => r.onEdit);
         return (
             <div className="relative overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#10B981] to-[#34D399]" />
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#8B5CF6] to-[#A78BFA]" />
                 <div className="flex items-center justify-between gap-3 border-b border-[#EEF2F6] bg-gradient-to-r from-[#FAFBFC] to-white px-4 py-3">
                     <span className="text-sm font-semibold text-[#101928]">{title}</span>
                     <span className="rounded-full border border-[#E8EEF5] bg-white px-2.5 py-0.5 text-[11px] font-medium text-[#667085]">
@@ -434,11 +434,11 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                     onClick={row.onEdit}
                                     className={cn(
                                         'group relative transition-all duration-200',
-                                        groupIdx % 2 === 1 ? 'bg-[#E7F4EC]' : 'bg-white',
+                                        groupIdx % 2 === 1 ? 'bg-[#F5F1FF]' : 'bg-white',
                                         row.onEdit && [
                                             'cursor-pointer',
-                                            'hover:shadow-[inset_3px_0_0_0_#10B981]',
-                                            groupIdx % 2 === 1 ? 'hover:bg-[#DCEFE5]' : 'hover:bg-[#F0F7FF]',
+                                            'hover:shadow-[inset_3px_0_0_0_#8B5CF6]',
+                                            groupIdx % 2 === 1 ? 'hover:bg-[#ECE4FF]' : 'hover:bg-[#F8F5FF]',
                                         ],
                                         isNavigating && 'pointer-events-none opacity-70',
                                     )}
@@ -495,6 +495,8 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
             !scoring.mandatory.reservesWithinLimit ? 'Reserves must be under 36 months.' : null,
         ].filter(Boolean)
         : [];
+    const scoredMetricKeys = ['F01', 'F02', 'F03', 'F04', 'F05', 'F06', 'F17', 'F07', 'F18'];
+    const metricsRated = scoredMetricKeys.filter((key) => Boolean(getValue(key))).length;
 
     return (
         <div className={cn('flex flex-col gap-4', fetchFromAPI && 'relative overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]')}>
@@ -505,7 +507,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                         <div className="min-w-0 flex-1 pr-2">
                             <p className="text-sm font-semibold text-[#101928]">Financial accountability responses</p>
                             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-[#667085]">
-                                <MousePointerClick className="h-3.5 w-3.5 shrink-0 text-[#10B981]" />
+                                <MousePointerClick className="h-3.5 w-3.5 shrink-0 text-[#8B5CF6]" />
                                 Click any row to edit that field directly.
                             </p>
                         </div>
@@ -528,33 +530,24 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                         </div>
                     ) : null}
 
-                    <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-3">
                         <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Mandatory</p>
-                            <p className={cn(
-                                'mt-1 font-mono text-xl font-bold tabular-nums',
-                                !scoring ? 'text-[#101928]' : scoring.mandatory.passed ? 'text-emerald-700' : 'text-rose-700',
-                            )}>
-                                {scoring ? (scoring.mandatory.passed ? 'PASS' : 'FAIL') : '—'}
-                            </p>
-                        </div>
-                        <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Tier</p>
-                            <p className="mt-1 font-mono text-xl font-bold tabular-nums text-[#101928]">
-                                {scoring ? (scoring.tier === 'tier_1' ? 'Tier 1' : 'Tier 2') : '—'}
-                            </p>
-                        </div>
-                        <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Finance Score</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Total score</p>
                             <p className="mt-1 font-mono text-xl font-bold tabular-nums text-[#101928]">
                                 {scoring ? `${scoring.totalScore}/${scoring.maxScore}` : '—'}
                             </p>
+                            <p className="mt-1 text-[10px] text-[#667085]">{scoring ? (scoring.tier === 'tier_1' ? 'Tier 1' : 'Tier 2') : 'Tier pending'}</p>
                         </div>
                         <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Outcome</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Final rating</p>
                             <div className="mt-1.5">
                                 <RatingCell rating={scoring?.ratingBand} />
                             </div>
+                        </div>
+                        <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Metrics rated</p>
+                            <p className="mt-1 font-mono text-xl font-bold tabular-nums text-[#266DD3]">{metricsRated}/{scoredMetricKeys.length}</p>
+                            <p className="mt-1 text-[10px] text-[#667085]">Mandatory metrics: <span className={scoring?.mandatory.passed ? 'font-semibold text-emerald-700' : 'font-semibold text-rose-700'}>{scoring ? (scoring.mandatory.passed ? 'PASS' : 'FAIL') : '—'}</span></p>
                         </div>
                     </div>
 

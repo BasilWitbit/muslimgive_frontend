@@ -58,9 +58,26 @@ const RATING_STYLES: Record<string, { bg: string; text: string; dot: string }> =
     broad: { bg: 'bg-teal-50', text: 'text-teal-800', dot: 'bg-teal-500' },
     basic: { bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
     none: { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' },
+    comprehensive_donor_support: { bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
+    broad_donor_support: { bg: 'bg-teal-50', text: 'text-teal-800', dot: 'bg-teal-500' },
+    moderate_donor_support: { bg: 'bg-sky-50', text: 'text-sky-800', dot: 'bg-sky-500' },
+    basic_donor_support: { bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
+    limited_or_undisclosed_support: { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' },
 };
 
 const formatPoints = (value: unknown) => (typeof value === 'number' ? formatScore(value) : '—');
+
+/** The legacy Charity Services Extra section scores out of 8; scale to the
+ * 13-point donor-support profile thresholds used by the current rubric. */
+const getLegacyDonorSupportProfile = (score: unknown, max: unknown): string | null => {
+    if (typeof score !== 'number' || typeof max !== 'number' || max <= 0) return null;
+    const equivalentScore = (score / max) * 13;
+    if (equivalentScore >= 11) return 'Comprehensive Donor Support';
+    if (equivalentScore >= 8) return 'Broad Donor Support';
+    if (equivalentScore >= 6) return 'Moderate Donor Support';
+    if (equivalentScore >= 3) return 'Basic Donor Support';
+    return 'Limited or Undisclosed Support';
+};
 
 const formatRating = (rating?: string | null) => {
     const key = normalizeRatingKey(rating);
@@ -81,9 +98,9 @@ const RatingCell = ({ rating }: { rating?: string | null }) => {
 };
 
 const MANDATORY_STATUS_STYLES: Record<'clean' | 'caution' | 'concern', { label: string; bg: string; text: string; dot: string }> = {
-    clean: { label: 'Requirement Met', bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
-    caution: { label: 'Caution', bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
-    concern: { label: 'Concern', bg: 'bg-rose-50', text: 'text-rose-800', dot: 'bg-rose-500' },
+    clean: { label: 'PASS', bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
+    caution: { label: 'PASS', bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
+    concern: { label: 'FAIL', bg: 'bg-rose-50', text: 'text-rose-800', dot: 'bg-rose-500' },
 };
 
 const MandatoryStatusBadge = ({ status }: { status: 'clean' | 'caution' | 'concern' }) => {
@@ -441,6 +458,14 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                     label="Charity services extra"
                                     score={charityServicesExtraSection.score}
                                     max={charityServicesExtraSection.max}
+                                    footer={
+                                        <RatingCell
+                                            rating={getLegacyDonorSupportProfile(
+                                                charityServicesExtraSection.score,
+                                                charityServicesExtraSection.max,
+                                            )}
+                                        />
+                                    }
                                 />
                             ) : null}
                         </div>

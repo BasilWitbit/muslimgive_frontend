@@ -4,6 +4,7 @@ import { AUDIT_DEFINITIONS, isAssessmentSlug } from '../../../../../../component
 import { notFound } from 'next/navigation'
 import { CountryEnum } from '@/components/use-case/CharitiesPageComponent/kanban/KanbanView'
 import Preview from '@/components/use-case/SingleAssessmentPageComponent/Assessments/Preview'
+import CharityWebsiteLink from '@/components/common/CharityWebsiteLink'
 
 export type CountryCode = keyof typeof CountryEnum
 
@@ -40,6 +41,7 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
         id: c.id,
         charityTitle: c.name,
         country: c.countryCode || c.country,
+        websiteUrl: c.websiteUrl ?? null,
     }
 
     const assessmentDefinition = AUDIT_DEFINITIONS[assessment]
@@ -70,16 +72,22 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
     const assessmentStatus = c.reviews?.[`core${coreAreaId}`]?.status || 'pending';
 
     if (previewMode) {
-        return <Preview assessmentedBy={{
-            name: "Rahima Issa",
-            time: "2024-06-01T12:00:00Z"
-        }}
-            charityTitle={charityTitle}
-            charityId={charity.id}
-            assessmentSlug={assessment}
-            country={resolvedCountry}
-            status={assessmentStatus}
-        />
+        return (
+            <div className="flex flex-col gap-4">
+                <h1 className="text-xl font-semibold text-[#101928]">{charityTitle}</h1>
+                <CharityWebsiteLink websiteUrl={charity.websiteUrl} />
+                <Preview assessmentedBy={{
+                    name: "Rahima Issa",
+                    time: "2024-06-01T12:00:00Z"
+                }}
+                    charityTitle={charityTitle}
+                    charityId={charity.id}
+                    assessmentSlug={assessment}
+                    country={resolvedCountry}
+                    status={assessmentStatus}
+                />
+            </div>
+        )
     }
 
     const currentUserRoles = res.payload.data.data.currentUserRoles || [];
@@ -90,6 +98,7 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
             assessmentDescription={assessmentDefinition.description}
             charityId={charity.id}
             charityTitle={charityTitle}
+            websiteUrl={charity.websiteUrl}
             location={resolvedCountry}
             status={assessmentStatus}
             currentUserRoles={currentUserRoles}

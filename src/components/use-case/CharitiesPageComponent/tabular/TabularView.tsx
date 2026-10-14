@@ -26,7 +26,7 @@ import { usePermissions } from '@/components/common/permissions-provider'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
 import StatusPill from '@/components/common/StatusPill'
 import { CHARITY_STATUS_COLORS } from '@/lib/chip-styles'
-import { computeCoreArea1RatingBandFromReview, RatingBand } from '@/lib/audit-scoring'
+import { computeCoreArea1RatingBandFromReview, computeRatingBand, RatingBand } from '@/lib/audit-scoring'
 import {
     AUDIT_AREA_LABELS,
     AUDIT_DISPLAY_MAX,
@@ -100,6 +100,7 @@ type CoreAreaReview = {
     score: number | null
     totalScore: number
     result: 'pass' | 'fail' | null
+    mandatoryResult?: 'pass' | 'fail' | null
     ratingBand?: string | null
     weightedScore?: number | null
     weightageScore?: number | null
@@ -646,18 +647,32 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                     {reviews.summary.completed} of {reviews.summary.total} completed
                                                                 </span>
                                                             </div>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="h-9 gap-2 rounded-xl border-[#DDE7F3] bg-white text-xs font-semibold text-[#344054] shadow-sm hover:bg-[#F8FBFF]"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    navigateToAssessments(c.id, c.charityTitle)
-                                                                }}
-                                                            >
-                                                                <History className="h-3.5 w-3.5 text-[#266DD3]" />
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="h-9 gap-2 rounded-xl border-[#DDE7F3] bg-white text-xs font-semibold text-[#344054] shadow-sm hover:bg-[#F8FBFF]"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        navigateToAssessments(c.id, c.charityTitle)
+                                                                    }}
+                                                                >
+                                                                    <History className="h-3.5 w-3.5 text-[#266DD3]" />
                                                                     Assessment Scores
-                                                            </Button>
+                                                                </Button>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="h-9 gap-2 rounded-xl border-[#DDE7F3] bg-white text-xs font-semibold text-[#344054] shadow-sm hover:bg-[#F8FBFF]"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        navigateToCharity(c.id, c.charityTitle)
+                                                                    }}
+                                                                >
+                                                                    <ExternalLink className="h-3.5 w-3.5 text-[#266DD3]" />
+                                                                    Charity Overview
+                                                                </Button>
+                                                            </div>
                                                         </div>
 
                                                         <div className="grid min-w-0 auto-rows-fr grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -671,17 +686,26 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                     : CORE_AREA_ASSESSOR_ROLE[key]
                                                                 const meta = CORE_AREA_META[key]
                                                                 const statusStyle = getCoreAreaStatusMeta(area.status)
+                                                                const isPending = area.status === 'pending'
+                                                                const displayScore = getAreaDisplayScore(area, meta.displayMax)
+                                                                const zakatScores = key === 'core3' ? getZakatDisplayScores(area) : null
                                                                 const coreAreaBand = key === 'core1'
                                                                     ? computeCoreArea1RatingBandFromReview(area.score, area.totalScore)
                                                                     : key === 'core2'
                                                                         ? computeCoreArea2RatingBandFromReview(area.score, area.totalScore, area.ratingBand)
+                                                                        : key === 'core3'
+                                                                            ? area.ratingBand ?? (zakatScores?.weightageScore != null
+                                                                                ? (zakatScores.weightageScore > 34
+                                                                                    ? 'Strong'
+                                                                                    : zakatScores.weightageScore > 27
+                                                                                        ? 'Moderate'
+                                                                                        : zakatScores.weightageScore >= 20
+                                                                                            ? 'Needs Improvement'
+                                                                                            : 'Concern')
+                                                                                : null)
                                                                         : key === 'core4'
-                                                                            ? area.ratingBand
+                                                                            ? area.ratingBand ?? (displayScore === null ? null : computeRatingBand(displayScore))
                                                                             : null
-                                                                const isPending = area.status === 'pending'
-                                                                const displayScore = getAreaDisplayScore(area, meta.displayMax)
-                                                                const zakatScores = key === 'core3' ? getZakatDisplayScores(area) : null
-
                                                                 return (
                                                                     <div
                                                                         key={key}
@@ -767,10 +791,23 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                             )}
                                                                         </div>
                                                                         <div className="mt-auto flex min-h-8 items-center justify-between gap-2 border-t border-[#EEF2F6] pt-2">
-                                                                            {(key === 'core1' || key === 'core2' || key === 'core4') && coreAreaBand ? (
+                                                                            {coreAreaBand ? (
                                                                                 <RatingBandBadge ratingBand={coreAreaBand as RatingBand} className="text-[10px]" />
                                                                             ) : <span className="h-5" />}
-                                                                            <span className="h-5" />
+                                                                            {key === 'core4' ? (
+                                                                                <span className="text-[10px] text-[#98A2B3]">Mandatory metrics: N/A</span>
+                                                                            ) : area.mandatoryResult ? (
+                                                                                <span
+                                                                                    className={cn(
+                                                                                        'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold',
+                                                                                        area.mandatoryResult === 'pass'
+                                                                                            ? 'bg-emerald-50 text-emerald-700'
+                                                                                            : 'bg-rose-50 text-rose-700',
+                                                                                    )}
+                                                                                >
+                                                                                    Mandatory: {area.mandatoryResult === 'pass' ? 'Pass' : 'Fail'}
+                                                                                </span>
+                                                                            ) : <span className="h-5" />}
                                                                         </div>
                                                                         <div className="mt-2 border-t border-[#EEF2F6] pt-2 text-[10px] font-semibold text-[#266DD3]">
                                                                             Open assessment section <span aria-hidden="true">→</span>

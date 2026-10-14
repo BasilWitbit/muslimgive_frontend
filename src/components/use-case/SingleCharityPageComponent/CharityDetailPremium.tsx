@@ -20,6 +20,7 @@ export const CHARITY_STATUS_LABELS: Record<string, string> = {
 type PremiumSectionCardProps = {
     heading?: string
     description?: string
+    headerAction?: ReactNode
     children: ReactNode
     className?: string
     accent?: string
@@ -29,6 +30,7 @@ type PremiumSectionCardProps = {
 export const PremiumSectionCard: FC<PremiumSectionCardProps> = ({
     heading,
     description,
+    headerAction,
     children,
     className,
     accent = 'from-[#266DD3] via-[#3B82E8] to-[#5CD9F2]',
@@ -37,13 +39,16 @@ export const PremiumSectionCard: FC<PremiumSectionCardProps> = ({
     <div className={cn(premiumCardClass, 'relative rounded-2xl', className)}>
         <div className={cn('absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r', accent)} />
         {(heading || description) ? (
-            <div className="border-b border-[#E8EEF5]/80 px-5 py-4">
-                {heading ? (
-                    <h3 className="text-base font-semibold tracking-[-0.02em] text-[#101928]">{heading}</h3>
-                ) : null}
-                {description ? (
-                    <p className="mt-1 text-sm leading-5 text-[#667085]">{description}</p>
-                ) : null}
+            <div className="flex flex-col gap-3 border-b border-[#E8EEF5]/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    {heading ? (
+                        <h3 className="text-base font-semibold tracking-[-0.02em] text-[#101928]">{heading}</h3>
+                    ) : null}
+                    {description ? (
+                        <p className="mt-1 text-sm leading-5 text-[#667085]">{description}</p>
+                    ) : null}
+                </div>
+                {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
             </div>
         ) : null}
         <div className={cn('p-5', bodyClassName)}>{children}</div>

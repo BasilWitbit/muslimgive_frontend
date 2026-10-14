@@ -15,11 +15,13 @@ import RatingBandBadge from '@/components/common/RatingBandBadge'
 import { computeCoreArea1RatingBandFromReview, RatingBand } from '@/lib/audit-scoring'
 import { computeCoreArea2RatingBandFromReview } from '@/lib/audit-score-display'
 import { useCharityAssessmentNavigationDismiss } from '@/hooks/use-page-navigation'
+import CharityWebsiteLink from '@/components/common/CharityWebsiteLink'
 
 
 type AssessmentPageContentProps = {
     charityId: string;
     charityTitle: string;
+    websiteUrl?: string | null;
     assessmentSlug: AssessmentSlug;
     assessmentTitle: string;
     assessmentDescription: string;
@@ -31,6 +33,7 @@ type AssessmentPageContentProps = {
 const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
     charityId,
     charityTitle,
+    websiteUrl,
     assessmentSlug,
     location,
     status,
@@ -143,6 +146,7 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                 </div>
                 <div className="flex flex-col gap-3">
                     <TypographyComponent variant='h2'>{charityTitle}</TypographyComponent>
+                    <CharityWebsiteLink websiteUrl={websiteUrl} />
                     {score !== null && (
                         <div className="flex items-center gap-2 flex-wrap">
                             <TypographyComponent className='text-sm font-medium'>Current Score:</TypographyComponent>

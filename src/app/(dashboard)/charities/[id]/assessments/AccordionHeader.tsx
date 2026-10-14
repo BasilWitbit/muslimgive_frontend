@@ -10,6 +10,8 @@ type IProps = {
     score: number,
     status: AssessmentStatus
     accentColor: string
+    mandatoryResult?: 'pass' | 'fail' | null
+    mandatoryApplicable?: boolean
 }
 
 const statusDisplayMeta: Record<AssessmentStatus, { label: string; bg: string; text: string; border: string }> = {
@@ -20,11 +22,11 @@ const statusDisplayMeta: Record<AssessmentStatus, { label: string; bg: string; t
     completed: { label: 'Completed', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
 }
 
-const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, status, accentColor }) => {
+const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, status, accentColor, mandatoryResult, mandatoryApplicable = true }) => {
     const statusStyle = statusDisplayMeta[status]
     const isPending = status === 'pending'
     return (
-        <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(88px,0.75fr)_minmax(0,1.4fr)_72px_88px_96px] md:items-center md:gap-3">
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(88px,0.75fr)_minmax(0,1.4fr)_72px_88px_110px_96px] md:items-center md:gap-3">
             <div className="flex min-w-0 items-center gap-2 md:contents">
                 <span
                     className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-[#E8EEF5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#344054] shadow-sm"
@@ -71,7 +73,22 @@ const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, statu
                     )}
                 </div>
 
-                <div className="ml-auto md:col-start-5 md:ml-0 md:flex md:justify-end">
+                <div className="md:col-start-5 md:text-center">
+                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
+                        Mandatory metrics
+                    </span>
+                    {!mandatoryApplicable ? (
+                        <span className="text-[10px] text-[#98A2B3]">N/A</span>
+                    ) : mandatoryResult ? (
+                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold ${mandatoryResult === 'pass' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                            {mandatoryResult === 'pass' ? 'Pass' : 'Fail'}
+                        </span>
+                    ) : (
+                        <span className="text-sm text-[#98A2B3]">—</span>
+                    )}
+                </div>
+
+                <div className="ml-auto md:col-start-6 md:ml-0 md:flex md:justify-end">
                     <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
                         Status
                     </span>

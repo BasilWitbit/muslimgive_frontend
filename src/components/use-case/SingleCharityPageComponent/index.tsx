@@ -670,7 +670,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         <div className="min-w-0 flex-1">
                             <div className="mb-3 flex flex-wrap items-center gap-2">
                                 <span className="inline-flex items-center rounded-full border border-[#D9E8FB] bg-white/80 px-3 py-1 text-xs font-semibold text-[#266DD3] shadow-sm">
-                                    Charity Profile
+                                    Charity Overview
                                 </span>
                                 <StatusPill
                                     label={CHARITY_STATUS_LABELS[status] ?? kebabToTitle(status)}
@@ -1008,6 +1008,17 @@ const SingleCharityPageComponent: FC<IProps> = ({
                     <PremiumSectionCard
                         heading="Assessments"
                         description="Completed and pending audit areas for this charity."
+                        headerAction={(
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 gap-2 rounded-xl border-[#DDE7F3] bg-white text-xs font-semibold text-[#344054] shadow-sm hover:bg-[#F8FBFF]"
+                                onClick={() => router.push(`/charities/${charityId}/assessments`)}
+                            >
+                                <Table2 className="h-3.5 w-3.5 text-[#266DD3]" />
+                                View all Assessment Scores
+                            </Button>
+                        )}
                         accent="from-[#12B76A] via-[#10B981] to-[#5CD9F2]"
                         bodyClassName="pt-2"
                     >

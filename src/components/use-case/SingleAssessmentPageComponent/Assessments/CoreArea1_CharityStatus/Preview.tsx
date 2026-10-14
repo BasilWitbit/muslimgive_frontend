@@ -300,6 +300,13 @@ const PreviewCoreArea1: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                             <p className="mt-1 font-mono text-xl font-bold tabular-nums text-[#266DD3]">
                                 {answeredCount}/{currentForm.questions.length}
                             </p>
+                            <p className="mt-1 text-[10px] text-[#667085]">
+                                Mandatory metrics: <span className={cn('font-semibold', mandatoryFailed ? 'text-rose-700' : 'text-emerald-700')}>
+                                    {assessmentVals?.registered_in_country_collecting_funds && assessmentVals?.regulatory_status
+                                        ? (mandatoryFailed ? 'FAIL' : 'PASS')
+                                        : '—'}
+                                </span>
+                            </p>
                         </div>
                     </div>
 

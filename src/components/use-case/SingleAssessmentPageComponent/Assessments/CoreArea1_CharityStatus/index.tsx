@@ -60,6 +60,8 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
     const [isPreviewing, setIsPreviewing] = useState(false)
     const [isCancelling, setIsCancelling] = useState(false)
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
+    const [registrationNumber, setRegistrationNumber] = useState<string | null>(null)
+    const [regulatorUrl, setRegulatorUrl] = useState<string | null>(null)
 
     const isManager = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
     const canEdit = isEditable || isManager;
@@ -107,6 +109,32 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
             return next
         })
     }
+
+    React.useEffect(() => {
+        if (!charityId) return;
+        let cancelled = false;
+
+        import('@/app/actions/charities')
+            .then(({ getCharityAction }) => getCharityAction(charityId))
+            .then((res) => {
+                if (cancelled || !res.ok) return;
+                const charity = res.payload?.data?.data ?? res.payload?.data;
+                const number =
+                    charity?.registrationNumber ??
+                    charity?.ukCharityNumber ??
+                    charity?.caRegistrationNumber ??
+                    charity?.usEin ??
+                    null;
+                setRegistrationNumber(typeof number === 'string' && number.trim() ? number.trim() : null);
+                const url = charity?.regulatorUrl ?? charity?.charityCommissionWebsiteUrl ?? null;
+                setRegulatorUrl(typeof url === 'string' && url.trim() ? url.trim() : null);
+            })
+            .catch((error) => console.error('Failed to load charity registration number', error));
+
+        return () => {
+            cancelled = true;
+        };
+    }, [charityId]);
 
     React.useEffect(() => {
         const fetchAssessment = async () => {
@@ -164,6 +192,12 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
             const showRegulatoryDetail =
                 fieldKey === 'regulatory_status' &&
                 formData[fieldKey] === REGULATORY_CONCERN_VALUE;
+            const showCharityNumberHint = fieldKey === 'charity_number_visible_on_website';
+            const regulatorHref = regulatorUrl
+                ? regulatorUrl.startsWith('http')
+                    ? regulatorUrl
+                    : `https://${regulatorUrl}`
+                : null;
 
             return (
                 <div
@@ -172,11 +206,39 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
                     className="scroll-mt-4"
                 >
                     <AssessmentSectionCard>
+                        {showCharityNumberHint ? (
+                            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[#D6E4F7] bg-[#F5F9FF] px-3.5 py-2.5">
+                                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#667085]">
+                                    Charity number on file
+                                </span>
+                                {registrationNumber ? (
+                                    regulatorHref ? (
+                                        <a
+                                            href={regulatorHref}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-mono text-sm font-semibold tabular-nums text-[#266DD3] underline decoration-dotted underline-offset-2 hover:text-[#1f5bb5]"
+                                            title="Open regulator record"
+                                        >
+                                            {registrationNumber}
+                                        </a>
+                                    ) : (
+                                        <span className="font-mono text-sm font-semibold tabular-nums text-[#101928]">
+                                            {registrationNumber}
+                                        </span>
+                                    )
+                                ) : (
+                                    <span className="text-sm text-[#98A2B3]">
+                                        Not set on charity profile
+                                    </span>
+                                )}
+                            </div>
+                        ) : null}
                         <RadioGroupComponent
                             value={formData[fieldKey]}
                             onChange={(newVal) => updateFormData(fieldKey, newVal)}
                             label={question.label}
-                            labelClassNames='text-sm'
+                            labelClassNames="text-[15px] font-semibold"
                             name={`core_1__${fieldKey}`}
                             required={question.required}
                             options={question.options.map(opt => {

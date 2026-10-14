@@ -145,6 +145,31 @@ type PmDashboardComponentProps = {
 const shellClass =
     'rounded-2xl border border-[#E8EEF5]/80 bg-white/90 shadow-[0_10px_40px_rgba(15,23,42,0.05)] backdrop-blur-sm'
 
+type DashboardSectionKey = 'approvals' | 'activity' | 'charities'
+
+function SectionCollapseButton({
+    collapsed,
+    controls,
+    onClick,
+}: {
+    collapsed: boolean
+    controls: string
+    onClick: () => void
+}) {
+    return (
+        <button
+            type="button"
+            aria-expanded={!collapsed}
+            aria-controls={controls}
+            onClick={onClick}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#667085] transition-colors hover:bg-[#F2F6FB] hover:text-[#266DD3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#266DD3]/30"
+        >
+            {collapsed ? 'Expand' : 'Collapse'}
+            <ChevronDown className={cn('h-4 w-4 transition-transform', !collapsed && 'rotate-180')} />
+        </button>
+    )
+}
+
 const filterControlClass =
     'h-10 w-full rounded-xl border-[#E4E7EC] bg-[#F8FAFC] text-sm shadow-none transition-colors hover:bg-white focus:bg-white'
 
@@ -377,6 +402,15 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     const [approvalTasksLoading, setApprovalTasksLoading] = useState(false)
     const [approvingCharityId, setApprovingCharityId] = useState<string | null>(null)
     const [approvalNotice, setApprovalNotice] = useState('')
+    const [collapsedSections, setCollapsedSections] = useState<Record<DashboardSectionKey, boolean>>({
+        approvals: false,
+        activity: false,
+        charities: false,
+    })
+
+    const toggleSection = (section: DashboardSectionKey) => {
+        setCollapsedSections((current) => ({ ...current, [section]: !current[section] }))
+    }
 
     const refreshApprovalTasks = useCallback(async () => {
         if (!showApprovalTasks) return
@@ -975,10 +1009,18 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                 <h2 className="text-base font-semibold text-[#101928]">Operations Manager Tasks</h2>
                                 <p className="mt-0.5 text-sm text-[#667085]">Final review and manual approval for completed charity assessments.</p>
                             </div>
-                            <span className="rounded-full bg-[#EEF4FD] px-2.5 py-1 text-xs font-semibold text-[#266DD3]">
-                                {approvalTasksLoading ? 'Loading…' : approvalTasks.length}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="rounded-full bg-[#EEF4FD] px-2.5 py-1 text-xs font-semibold text-[#266DD3]">
+                                    {approvalTasksLoading ? 'Loading…' : approvalTasks.length}
+                                </span>
+                                <SectionCollapseButton
+                                    collapsed={collapsedSections.approvals}
+                                    controls="pm-approval-tasks-content"
+                                    onClick={() => toggleSection('approvals')}
+                                />
+                            </div>
                         </div>
+                        <div id="pm-approval-tasks-content" hidden={collapsedSections.approvals}>
                         {approvalNotice ? <p role="status" className="px-5 pt-3 text-sm text-[#344054]">{approvalNotice}</p> : null}
                         {approvalTasks.length ? (
                             <div className="divide-y divide-[#EEF2F6]">
@@ -1007,6 +1049,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         ) : (
                             <p className="px-5 py-5 text-sm text-[#667085]">{approvalTasksLoading ? 'Loading pending reviews…' : 'No charities are waiting for final approval.'}</p>
                         )}
+                        </div>
                     </section>
                 ) : null}
 
@@ -1079,9 +1122,17 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <SectionCollapseButton
+                                collapsed={collapsedSections.activity}
+                                controls="pm-activity-content"
+                                onClick={() => toggleSection('activity')}
+                            />
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-3">
+                    <div
+                        id="pm-activity-content"
+                        className={collapsedSections.activity ? 'hidden' : 'grid grid-cols-1 gap-3 p-5 sm:grid-cols-3'}
+                    >
                         <SnapshotStat
                             label="Avg. time to complete a review"
                             value={
@@ -1122,6 +1173,11 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                 <span className="inline-flex w-fit items-center rounded-full border border-[#E8EEF5] bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-semibold text-[#667085]">
                                     {isLoadingList ? 'Loading…' : meta ? `${meta.total} charities` : '—'}
                                 </span>
+                                <SectionCollapseButton
+                                    collapsed={collapsedSections.charities}
+                                    controls="pm-charities-content"
+                                    onClick={() => toggleSection('charities')}
+                                />
                                 <Popover open={columnsPopoverOpen} onOpenChange={setColumnsPopoverOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
@@ -1285,6 +1341,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                             </div>
                         </div>
 
+                        <div id="pm-charities-content" hidden={collapsedSections.charities}>
                         <div className="rounded-2xl border border-[#EEF2F6] bg-[#F8FAFC]/80 p-3">
                             <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-4">
                                 <div className="relative xl:col-span-2">
@@ -1535,6 +1592,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                             </div>
                         </div>
                     ) : null}
+                        </div>
                 </section>
             </div>
         </div>

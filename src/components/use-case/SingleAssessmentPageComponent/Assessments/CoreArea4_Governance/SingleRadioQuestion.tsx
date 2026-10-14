@@ -15,13 +15,13 @@ const SingleRadioQuestion = ({ label, id, options, value, onChange }: IProps) =>
         <AssessmentSectionCard>
             <RadioGroupComponent
                 value={value}
-                onChange={(newVal) => {
-                    onChange(newVal);
-                }}
-                label={label} labelClassNames='text-sm'
+                onChange={onChange}
+                label={label}
+                labelClassNames="text-[15px] font-semibold"
                 name={id}
-
-                required={true} options={options} />
+                required
+                options={options}
+            />
         </AssessmentSectionCard>
     )
 }

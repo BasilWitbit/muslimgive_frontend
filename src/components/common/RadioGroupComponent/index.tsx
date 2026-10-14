@@ -63,16 +63,18 @@ const RadioGroupComponent = React.forwardRef<HTMLDivElement, RadioGroupControlle
         const errId = error ? `${baseId}-err` : undefined;
         const helpId = error ? errId : descId;
 
-        const layoutClass = direction === "horizontal" ? "flex-row flex-wrap gap-4" : "flex-col gap-3";
+        const hasDescriptions = options.some((opt) => Boolean(opt.description));
+        const layoutClass =
+            direction === "horizontal"
+                ? "flex-row flex-wrap gap-2.5"
+                : "flex-col gap-2";
 
         return (
-            <div className={cn('flex flex-col gap-2', className)} ref={ref}>
+            <div className={cn("flex w-full flex-col items-stretch gap-3 text-left", className)} ref={ref}>
                 {label ? (
-                    <TypographyComponent className={cn(labelClassNames)}>
-                        <strong>
-                            {label}
-                            {required ? <span className="text-red-500">*</span> : null}
-                        </strong>
+                    <TypographyComponent className={cn("text-left text-[15px] font-semibold text-[#101928]", labelClassNames)}>
+                        {label}
+                        {required ? <span className="ml-0.5 text-red-500">*</span> : null}
                     </TypographyComponent>
                 ) : null}
 
@@ -80,7 +82,7 @@ const RadioGroupComponent = React.forwardRef<HTMLDivElement, RadioGroupControlle
                     name={name}
                     value={value !== undefined ? String(value) : undefined}
                     onValueChange={onChange}
-                    className={`flex ${layoutClass}`}
+                    className={cn("!flex w-full items-stretch", layoutClass)}
                     aria-invalid={!!error}
                     aria-describedby={helpId}
                     disabled={disabled}
@@ -89,42 +91,52 @@ const RadioGroupComponent = React.forwardRef<HTMLDivElement, RadioGroupControlle
                         const itemId = `${baseId}-opt-${index}`;
                         const isSelected = value !== undefined && String(value) === eachOption.value;
                         return (
-                            <div
+                            <Label
                                 key={eachOption.value}
+                                htmlFor={itemId}
                                 className={cn(
-                                    'flex items-start gap-3 cursor-pointer rounded-md border p-3 transition-colors',
-                                    eachOption.description
-                                        ? isSelected
-                                            ? 'border-[#266dd3]/40 bg-white shadow-sm'
-                                            : 'border-gray-200 hover:bg-gray-50'
-                                        : 'border-transparent p-0',
+                                    "flex w-full cursor-pointer items-start justify-start gap-3 text-left font-normal",
+                                    hasDescriptions
+                                        ? cn(
+                                              "rounded-xl border p-3.5 transition-colors",
+                                              isSelected
+                                                  ? "border-[#266dd3]/45 bg-[#F7FAFF] shadow-[0_1px_2px_rgba(38,109,211,0.08)]"
+                                                  : "border-[#E8EEF5] bg-white hover:border-[#D0D5DD] hover:bg-[#FAFBFC]",
+                                          )
+                                        : cn(
+                                              "rounded-lg px-1 py-2 transition-colors",
+                                              isSelected ? "bg-[#F7FAFF]" : "hover:bg-[#FAFBFC]",
+                                          ),
+                                    (disabled || eachOption.disabled) && "cursor-not-allowed opacity-50",
                                 )}
                             >
                                 <RadioGroupItem
                                     value={eachOption.value}
                                     id={itemId}
                                     disabled={disabled || eachOption.disabled}
-                                    className="mt-0.5"
+                                    className="mt-0.5 shrink-0"
                                 />
-                                <Label htmlFor={itemId} className="cursor-pointer flex flex-col gap-1 w-full font-normal">
-                                    <span className="font-medium text-sm text-[#101928]">{eachOption.label}</span>
+                                <span className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left">
+                                    <span className="text-sm font-medium leading-snug text-[#101928]">
+                                        {eachOption.label}
+                                    </span>
                                     {eachOption.description ? (
-                                        <span className="text-xs text-[#667085] font-normal leading-snug">
+                                        <span className="text-xs font-normal leading-snug text-[#667085]">
                                             {eachOption.description}
                                         </span>
                                     ) : null}
-                                </Label>
-                            </div>
+                                </span>
+                            </Label>
                         );
                     })}
                 </RadioGroup>
 
                 {error ? (
-                    <p id={errId} className="text-sm text-red-600 mt-1">
+                    <p id={errId} className="mt-1 text-left text-sm text-red-600">
                         {error}
                     </p>
                 ) : description ? (
-                    <p id={descId} className="text-sm text-muted-foreground mt-1">
+                    <p id={descId} className="mt-1 text-left text-sm text-muted-foreground">
                         {description}
                     </p>
                 ) : null}
@@ -136,23 +148,3 @@ const RadioGroupComponent = React.forwardRef<HTMLDivElement, RadioGroupControlle
 RadioGroupComponent.displayName = "RadioGroupComponent";
 
 export default RadioGroupComponent;
-
-/*
-Usage example:
-
-<RadioGroupControlled
-  label="Notification preference"
-  required
-  options={[
-    { label: "Email", value: "email" },
-    { label: "SMS", value: "sms" },
-    { label: "Push", value: "push", disabled: true },
-  ]}
-  value={pref}
-  onChange={setPref}
-  name="notif-pref"
-  description="Choose how you want to be contacted"
-  error={formError}
-  direction="horizontal"
-/>
-*/

@@ -29,6 +29,7 @@ import ModelComponentWithExternalControl from '@/components/common/ModelComponen
 import AssignProjectManager from './models/AssignProjectManager'
 import { toast } from 'sonner'
 import { capitalizeWords, kebabToTitle } from '@/lib/helpers'
+import { ASSESSMENT_STATUS_LABELS } from '@/lib/status-labels'
 import { getCurrencyCode, getCurrencySymbol } from '@/lib/utils'
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
@@ -41,7 +42,6 @@ import { usePermissions } from '@/components/common/permissions-provider'
 import { PERMISSIONS } from '@/lib/permissions-config'
 import EligibilityOverrideModal from './models/EligibilityOverrideModal'
 import EligibilityTest from './models/EligibilityTest'
-import TabsComponent from '@/components/common/TabsComponent'
 import { Progress } from '@/components/ui/progress'
 import { AUDIT_DEFINITIONS } from '../SingleAssessmentPageComponent/ASSESSMENT_DEFINITIONS'
 import EditCharityDetailsModal from './models/EditCharityDetailsModal'
@@ -124,7 +124,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
     const [isDeleting, setIsDeleting] = useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [selectedMemberForRoleEdit, setSelectedMemberForRoleEdit] = useState<Member | null>(null)
-    const [assessmentTab, setAssessmentTab] = useState<'completed' | 'pending'>('pending')
     const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>('assign')
     const [isAssigningRole, setIsAssigningRole] = useState(false)
     const [comments, setComments] = useState<Array<{ id: string; message: string; createdAt: string; user?: { firstName?: string | null; lastName?: string | null; email?: string | null } }>>([])
@@ -296,17 +295,9 @@ const SingleCharityPageComponent: FC<IProps> = ({
     }
 
     const assessmentStatusLabel = (status?: string) => {
-        if (!status) return 'Pending'
-        const normalized = status.replace('_', '-')
-        const labels: Record<string, string> = {
-            pending: 'Pending',
-            'in-progress': 'In Progress',
-            in_progress: 'In Progress',
-            draft: 'Draft',
-            submitted: 'Submitted',
-            completed: 'Completed',
-        }
-        return labels[normalized] || kebabToTitle(normalized)
+        if (!status) return ASSESSMENT_STATUS_LABELS.pending
+        const normalized = status.replace('-', '_')
+        return ASSESSMENT_STATUS_LABELS[normalized] || kebabToTitle(normalized)
     }
 
     const assessmentMeta = [
@@ -350,25 +341,14 @@ const SingleCharityPageComponent: FC<IProps> = ({
         return status === 'completed' || status === 'submitted'
     }
 
-    const completedAssessments = assessmentMeta.filter(item => isAssessmentComplete(getAssessmentStatus(item.statusKey, item.reviewKey)))
-    const pendingAssessments = assessmentMeta.filter(item => !isAssessmentComplete(getAssessmentStatus(item.statusKey, item.reviewKey)))
     const focusedAssessmentId = searchParams.get('assessmentSection')
-    const focusedAssessmentIsComplete = focusedAssessmentId
-        ? completedAssessments.some((item) => item.id === focusedAssessmentId)
-        : false
-
-    useEffect(() => {
-        if (!focusedAssessmentId) return
-        setAssessmentTab(focusedAssessmentIsComplete ? 'completed' : 'pending')
-    }, [focusedAssessmentId, focusedAssessmentIsComplete])
-
     useEffect(() => {
         if (!focusedAssessmentId) return
         const frame = window.requestAnimationFrame(() => {
             document.getElementById(`assessment-${focusedAssessmentId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         })
         return () => window.cancelAnimationFrame(frame)
-    }, [focusedAssessmentId, assessmentTab])
+    }, [focusedAssessmentId])
 
     const getAssignedNamesForAssessment = (assessmentId: typeof assessmentMeta[number]['id']) => {
         const role = roleByAssessment[assessmentId]
@@ -977,7 +957,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 {!shouldHideAssessmentAndProgress ? (
                     <PremiumSectionCard
                         heading="Assessments"
-                        description="Completed and pending audit areas for this charity."
+                        description="All assessment areas, their current status, and available scores."
                         headerAction={(
                             <Button
                                 variant="outline"
@@ -992,197 +972,133 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         accent="from-[#12B76A] via-[#10B981] to-[#5CD9F2]"
                         bodyClassName="pt-2"
                     >
-                        <TabsComponent
-                            value={assessmentTab}
-                            onValueChange={(value) => setAssessmentTab(value as 'completed' | 'pending')}
-                            items={[
-                                {
-                                    value: 'completed',
-                                    label: `Completed (${completedAssessments.length})`,
-                                    content: (
-                                        <div className="flex flex-col gap-3 pt-3">
-                                            {completedAssessments.length === 0 ? (
-                                                <TypographyComponent variant="body2" className="text-[#666E76]">
-                                                    No completed assessments yet.
-                                                </TypographyComponent>
-                                            ) : (
-                                                completedAssessments.map(item => {
-                                                    const review = getReview(item.reviewKey)
-                                                    const status = getAssessmentStatus(item.statusKey, item.reviewKey)
-                                                    const scoreLabel = getAssessmentScoreLabel(item.id, review)
-                                                    const assignedNames = getAssignedNamesForAssessment(item.id)
-                                                    const isAssigned = assignedNames !== 'Unassigned'
-                                                    return (
-                                                        <AssessmentItemCard key={item.id} id={`assessment-${item.id}`}>
-                                                            <div className="flex flex-col gap-1">
-                                                                <TypographyComponent variant="body2" className="font-medium text-[#101928]">
-                                                                    {AUDIT_DEFINITIONS[item.id].title}
-                                                                </TypographyComponent>
-                                                                <TypographyComponent variant="caption" className="flex items-center gap-1 text-[#666E76]">
-                                                                    <span>Assigned to: {assignedNames}</span>
-                                                                    {isAssigned && (roleByAssessment[item.id] === 'project-manager' ? canAssignPMRole : canAssignAssessorRole) ? (
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-6 w-6"
-                                                                            aria-label={`Add ${AUDIT_DEFINITIONS[item.id].title} assignee`}
-                                                                            onClick={() => openAssignmentModal(roleByAssessment[item.id], 'assign')}
-                                                                        >
-                                                                            <Pencil className="h-3.5 w-3.5" />
-                                                                        </Button>
-                                                                    ) : null}
-                                                                </TypographyComponent>
-                                                                <TypographyComponent variant="caption" className="text-[#666E76]">
-                                                                    Status: {assessmentStatusLabel(status)}
-                                                                </TypographyComponent>
-                                                                {scoreLabel ? (
-                                                                    <TypographyComponent variant="caption" className="text-[#666E76]">
-                                                                        {scoreLabel}
-                                                                    </TypographyComponent>
-                                                                ) : null}
-                                                            </div>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    className="rounded-xl"
-                                                                    onClick={() => openAssessmentScores(item.id)}
-                                                                >
-                                                                    View Scores
-                                                                </Button>
-                                                                <Button variant="ghost" className="rounded-xl" onClick={() => router.push(`/charities/${charityId}/assessments?section=edit-history#edit-history`)}>
-                                                                    Edit History
-                                                                </Button>
-                                                                {(() => {
-                                                                    const hasManagerRole = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase())) || (me?.roles || []).some(r => typeof r === 'string' && ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
-                                                                    const isCore2Or3Assessor = (item.id === 'core-area-2' || item.id === 'core-area-3') && isCurrentUserAssignedToRole(roleByAssessment[item.id]);
-                                                                    
-                                                                    if (hasManagerRole || isCore2Or3Assessor) {
-                                                                        return (
-                                                                            <Button variant="primary" onClick={() => handleTask(item.id as TaskIds)}>
-                                                                                Edit
-                                                                            </Button>
-                                                                        );
-                                                                    }
-                                                                    return null;
-                                                                })()}
-                                                            </div>
-                                                        </AssessmentItemCard>
-                                                    )
-                                                })
-                                            )}
-                                        </div>
-                                    )
-                                },
-                                {
-                                    value: 'pending',
-                                    label: `Pending (${pendingAssessments.length})`,
-                                    content: (
-                                        <div className="flex flex-col gap-3 pt-3">
-                                            {pendingAssessments.length === 0 ? (
-                                                <TypographyComponent variant="body2" className="text-[#666E76]">
-                                                    No pending assessments.
-                                                </TypographyComponent>
-                                            ) : (
-                                                pendingAssessments.map(item => {
-                                                    const status = getAssessmentStatus(item.statusKey, item.reviewKey)
-                                                    const isEditable = getAssessmentIsEditable(item.statusKey)
-                                                    const isLocked = isEditable === false
-                                                    const isCore1Or4 = item.id === 'core-area-1' || item.id === 'core-area-4'
-                                                    const needsProjectManager = isCore1Or4 && !projectManagerAssigned
-                                                    const needsFinanceAssessor = item.id === 'core-area-2' && !financeAssessorAssigned
-                                                    const needsZakatAssessor = item.id === 'core-area-3' && !zakatAssessorAssigned
-                                                    const requiredRole = roleByAssessment[item.id]
-                                                    const assignedNames = getAssignedNamesForAssessment(item.id)
-                                                    const isAssigned = assignedNames !== 'Unassigned'
+                        <div className="flex flex-col gap-3 pt-3">
+                            {assessmentMeta.map((item) => {
+                                const status = getAssessmentStatus(item.statusKey, item.reviewKey)
+                                const isComplete = isAssessmentComplete(status)
+                                const review = getReview(item.reviewKey)
+                                const scoreLabel = getAssessmentScoreLabel(item.id, review)
+                                const assignedNames = getAssignedNamesForAssessment(item.id)
+                                const isAssigned = assignedNames !== 'Unassigned'
+                                const requiredRole = roleByAssessment[item.id]
+                                const isEditable = getAssessmentIsEditable(item.statusKey)
+                                const isLocked = !isComplete && isEditable === false
+                                const isCore1Or4 = item.id === 'core-area-1' || item.id === 'core-area-4'
+                                const needsProjectManager = !isComplete && isCore1Or4 && !projectManagerAssigned
+                                const needsFinanceAssessor = !isComplete && item.id === 'core-area-2' && !financeAssessorAssigned
+                                const needsZakatAssessor = !isComplete && item.id === 'core-area-3' && !zakatAssessorAssigned
+                                const hasManagerRole =
+                                    currentUserRoles.some((role) => ['operation-manager', 'operations-manager', 'project-manager'].includes(role.toLowerCase())) ||
+                                    (me?.roles || []).some((role) => typeof role === 'string' && ['operation-manager', 'operations-manager', 'project-manager'].includes(role.toLowerCase()))
+                                const isCore2Or3Assessor =
+                                    (item.id === 'core-area-2' || item.id === 'core-area-3') && isCurrentUserAssignedToRole(requiredRole)
+                                const canEditCompleted =
+                                    !currentUserRoles.includes('read-only') && (hasManagerRole || isCore2Or3Assessor)
+                                const canStartAssessment =
+                                    !currentUserRoles.includes('read-only') &&
+                                    (isEditable === true ||
+                                        hasManagerRole ||
+                                        isCore2Or3Assessor ||
+                                        (isEditable !== false && (canManageCharity || isCurrentUserAssignedToRole(requiredRole))))
+                                const assignmentAction = needsProjectManager
+                                    ? {
+                                          label: 'Assign Project Manager',
+                                          onClick: () => openAssignmentModal('project-manager', 'assign'),
+                                          disabled: !canAssignPMRole,
+                                          roleType: 'pm' as const,
+                                      }
+                                    : needsFinanceAssessor
+                                      ? {
+                                            label: 'Assign Financial Assessor',
+                                            onClick: () => openAssignmentModal('finance-assessor', 'assign'),
+                                            disabled: !canAssignAssessorRole,
+                                            roleType: 'assessor' as const,
+                                        }
+                                      : needsZakatAssessor
+                                        ? {
+                                              label: 'Assign Zakat Assessor',
+                                              onClick: () => openAssignmentModal('zakat-assessor', 'assign'),
+                                              disabled: !canAssignAssessorRole,
+                                              roleType: 'assessor' as const,
+                                          }
+                                        : null
+                                const statusLabel = assessmentStatusLabel(status)
+                                const statusTone = isComplete
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : status === 'draft' || status === 'in_progress' || status === 'in-progress'
+                                      ? 'bg-blue-50 text-blue-700'
+                                      : 'bg-amber-50 text-amber-700'
 
-                                                    // Allow starting if isEditable is explicitly true or implicitly true due to role
-                                                    // but definitely block if isLocked is true.
-                                                    const hasManagerRole = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase())) || (me?.roles || []).some(r => typeof r === 'string' && ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
-                                                    const isCore2Or3Assessor = (item.id === 'core-area-2' || item.id === 'core-area-3') && isCurrentUserAssignedToRole(requiredRole)
-                                                    const canStartAssessment = !currentUserRoles.includes('read-only') && ((isEditable === true) || hasManagerRole || isCore2Or3Assessor || (isEditable !== false && !isLocked && (canManageCharity || isCurrentUserAssignedToRole(requiredRole))))
-
-                                                    const assignmentAction = needsProjectManager
-                                                        ? {
-                                                            label: 'Assign Project Manager',
-                                                            onClick: () => openAssignmentModal('project-manager', 'assign'),
-                                                            disabled: !canAssignPMRole,
-                                                            roleType: 'pm' as const
-                                                        }
-                                                        : needsFinanceAssessor
-                                                            ? {
-                                                                label: 'Assign Financial Assessor',
-                                                                onClick: () => openAssignmentModal('finance-assessor', 'assign'),
-                                                                disabled: !canAssignAssessorRole,
-                                                                roleType: 'assessor' as const
-                                                            }
-                                                            : needsZakatAssessor
-                                                                ? {
-                                                                    label: 'Assign Zakat Assessor',
-                                                                    onClick: () => openAssignmentModal('zakat-assessor', 'assign'),
-                                                                    disabled: !canAssignAssessorRole,
-                                                                    roleType: 'assessor' as const
-                                                                }
-                                                                : null
-                                                    return (
-                                                        <AssessmentItemCard key={item.id} id={`assessment-${item.id}`}>
-                                                            <div className="flex flex-col gap-1">
-                                                                <TypographyComponent variant="body2" className="font-medium text-[#101928]">
-                                                                    {AUDIT_DEFINITIONS[item.id].title}
-                                                                </TypographyComponent>
-                                                                {isLocked && <div className="text-red-500 font-bold text-xs mt-1">LOCKED</div>}
-                                                                <TypographyComponent variant="caption" className="flex items-center gap-1 text-[#666E76]">
-                                                                    <span>Assigned to: {assignedNames}</span>
-                                                                    {isAssigned && (roleByAssessment[item.id] === 'project-manager' ? canAssignPMRole : canAssignAssessorRole) ? (
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-6 w-6"
-                                                                            aria-label={`Add ${AUDIT_DEFINITIONS[item.id].title} assignee`}
-                                                                            onClick={() => openAssignmentModal(roleByAssessment[item.id], 'assign')}
-                                                                        >
-                                                                            <Pencil className="h-3.5 w-3.5" />
-                                                                        </Button>
-                                                                    ) : null}
-                                                                </TypographyComponent>
-                                                                <TypographyComponent variant="caption" className="text-[#666E76]">
-                                                                    Status: {assessmentStatusLabel(status)}
-                                                                </TypographyComponent>
-                                                            </div>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                <Button variant="outline" className="rounded-xl" onClick={() => openAssessmentScores(item.id)}>
-                                                                    View Scores
-                                                                </Button>
-                                                                <Button variant="ghost" className="rounded-xl" onClick={() => router.push(`/charities/${charityId}/assessments?section=edit-history#edit-history`)}>
-                                                                    Edit History
-                                                                </Button>
-                                                                {assignmentAction && (assignmentAction.roleType === 'pm' ? canAssignPMRole : canAssignAssessorRole) ? (
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        onClick={assignmentAction.onClick}
-                                                                        disabled={assignmentAction.disabled}
-                                                                    >
-                                                                        {assignmentAction.label}
-                                                                    </Button>
-                                                                ) : null}
-                                                                {canStartAssessment && (
-                                                                    <Button
-                                                                        variant="primary"
-                                                                        onClick={() => handleTask(item.id as TaskIds)}
-                                                                        disabled={pendingTaskId === item.id && isTaskPending}
-                                                                    >
-                                                                        {assessmentActionLabel}
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                        </AssessmentItemCard>
-                                                    )
-                                                })
-                                            )}
+                                return (
+                                    <AssessmentItemCard key={item.id} id={`assessment-${item.id}`}>
+                                        <div className="flex min-w-0 flex-col gap-1.5">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <TypographyComponent variant="body2" className="font-medium text-[#101928]">
+                                                    {AUDIT_DEFINITIONS[item.id].title}
+                                                </TypographyComponent>
+                                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusTone}`}>
+                                                    {statusLabel}
+                                                </span>
+                                                {isLocked ? <span className="text-[10px] font-semibold text-red-600">Locked</span> : null}
+                                            </div>
+                                            <TypographyComponent variant="caption" className="flex items-center gap-1 text-[#666E76]">
+                                                <span>Assigned to: {assignedNames}</span>
+                                                {isAssigned && (requiredRole === 'project-manager' ? canAssignPMRole : canAssignAssessorRole) ? (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6"
+                                                        aria-label={`Edit ${AUDIT_DEFINITIONS[item.id].title} assignees`}
+                                                        onClick={() => openAssignmentModal(requiredRole, 'assign')}
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                ) : null}
+                                            </TypographyComponent>
+                                            {scoreLabel ? (
+                                                <TypographyComponent variant="caption" className="text-[#666E76]">
+                                                    {scoreLabel}
+                                                </TypographyComponent>
+                                            ) : null}
                                         </div>
-                                    )
-                                }
-                            ]}
-                        />
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button variant="outline" className="rounded-xl" onClick={() => openAssessmentScores(item.id)}>
+                                                View Scores
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                className="rounded-xl"
+                                                onClick={() => router.push(`/charities/${charityId}/assessments?section=edit-history#edit-history`)}
+                                            >
+                                                Edit History
+                                            </Button>
+                                            {assignmentAction && (assignmentAction.roleType === 'pm' ? canAssignPMRole : canAssignAssessorRole) ? (
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={assignmentAction.onClick}
+                                                    disabled={assignmentAction.disabled}
+                                                >
+                                                    {assignmentAction.label}
+                                                </Button>
+                                            ) : null}
+                                            {(isComplete ? canEditCompleted : canStartAssessment) ? (
+                                                <Button
+                                                    variant="primary"
+                                                    onClick={() => handleTask(item.id as TaskIds)}
+                                                    disabled={pendingTaskId === item.id && isTaskPending}
+                                                >
+                                                    {isComplete
+                                                        ? 'Edit Assessment'
+                                                        : status === 'draft' || status === 'in_progress' || status === 'in-progress'
+                                                          ? 'Continue Assessment'
+                                                          : assessmentActionLabel}
+                                                </Button>
+                                            ) : null}
+                                        </div>
+                                    </AssessmentItemCard>
+                                )
+                            })}
+                        </div>
                     </PremiumSectionCard>
                 ) : null}
             <PremiumSectionCard
@@ -1460,7 +1376,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 open={showReassessModal}
                 onOpenChange={setShowReassessModal}
                 title="Re-Assess Charity"
-                description={`This will move ${capitalizeWords(charityTitle)} back to Open to Review and start a new assessment cycle. Continue?`}
+                description={`This will move ${capitalizeWords(charityTitle)} back to Open for Review and start a new assessment cycle. Continue?`}
                 confirmText={isReassessing ? "Re-Assessing..." : "Start Re-Assessment"}
                 onConfirm={async () => {
                     if (!canManageCharity) return;

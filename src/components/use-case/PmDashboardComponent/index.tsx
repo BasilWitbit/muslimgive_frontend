@@ -19,6 +19,13 @@ import StatusPill from '@/components/common/StatusPill'
 import { CHARITY_STATUS_LABELS } from '@/components/use-case/SingleCharityPageComponent/CharityDetailPremium'
 import { getCharityStatusColor } from '@/lib/chip-styles'
 import { kebabToTitle } from '@/lib/helpers'
+import ColumnHeadingHelp from '@/components/common/ColumnHeadingHelp'
+import {
+    ASSESSMENT_STATUS_LABELS,
+    ASSESSMENT_STATUS_TOOLTIP,
+    CHARITY_WORKFLOW_STATUS,
+    TABLE_COLUMN_HELP,
+} from '@/lib/status-labels'
 import {
     approveCharityAction,
     getDashboardAssessmentsAction,
@@ -131,7 +138,7 @@ type ProgressFilter = DashboardAssessmentsParams['progress']
 
 const PROGRESS_LABELS: Record<string, string> = {
     all: 'All Assessment Charities',
-    assigned: 'Assigned Charities',
+    assigned: 'Assigned to Assessors',
     in_progress: 'In Progress Charities',
     completed: 'Completed Charities',
     not_started: 'Not Started Charities',
@@ -669,7 +676,12 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
         () => [
             {
                 id: 'charity',
-                header: 'Charity',
+                header: (
+                    <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.charity.description}>
+                        {TABLE_COLUMN_HELP.charity.title}
+                    </ColumnHeadingHelp>
+                ),
+                toggleLabel: TABLE_COLUMN_HELP.charity.title,
                 className: 'min-w-0',
                 widthWeight: 18,
                 toggleable: false,
@@ -688,7 +700,12 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             },
             {
                 id: 'createdAt',
-                header: 'Created',
+                header: (
+                    <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.created.description}>
+                        {TABLE_COLUMN_HELP.created.title}
+                    </ColumnHeadingHelp>
+                ),
+                toggleLabel: TABLE_COLUMN_HELP.created.title,
                 widthWeight: 9,
                 toggleable: true,
                 cell: (row) => (
@@ -699,20 +716,39 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             },
             {
                 id: 'status',
-                header: 'Status',
+                header: (
+                    <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.charityWorkflowStatus.description}>
+                        <span className="inline-block leading-tight">
+                            Charity
+                            <br />
+                            workflow status
+                        </span>
+                    </ColumnHeadingHelp>
+                ),
+                toggleLabel: 'Charity Workflow Status',
                 widthWeight: 10,
                 toggleable: true,
                 cell: (row) => (
                     <StatusPill
-                        label={CHARITY_STATUS_LABELS[row.status] ?? kebabToTitle(row.status)}
+                        label={CHARITY_WORKFLOW_STATUS[row.status]?.label ?? CHARITY_STATUS_LABELS[row.status] ?? kebabToTitle(row.status)}
                         color={getCharityStatusColor(row.status)}
+                        title={CHARITY_WORKFLOW_STATUS[row.status]?.description ?? row.status}
                         className="px-1.5 py-0.5 text-[10px] font-semibold"
                     />
                 ),
             },
             {
                 id: 'completedAt',
-                header: 'Completed',
+                header: (
+                    <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentsCompletedDate.description}>
+                        <span className="inline-block leading-tight">
+                            Assessments
+                            <br />
+                            completed
+                        </span>
+                    </ColumnHeadingHelp>
+                ),
+                toggleLabel: 'Assessments completed',
                 widthWeight: 9,
                 toggleable: true,
                 cell: (row) => (
@@ -724,14 +760,17 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'scores',
                 header: (
-                    <div className="grid w-full grid-cols-4 gap-1.5 text-center tracking-normal">
+                    <div
+                        className="grid w-full grid-cols-4 gap-1.5 text-center tracking-normal"
+                        title={TABLE_COLUMN_HELP.scores.description}
+                    >
                         <span className="whitespace-nowrap" title="Charity Legitimacy (out of 10)">CL (10)</span>
                         <span className="whitespace-nowrap" title="Financial Accountability (out of 40)">FA (40)</span>
                         <span className="whitespace-nowrap" title="Zakah Policy Transparency (out of 40)">ZPT (40)</span>
-                        <span className="whitespace-nowrap" title="Governance &amp; Leadership (out of 10)">G&amp;L (10)</span>
+                        <span className="whitespace-nowrap" title="Governance & Leadership (out of 10)">G&L (10)</span>
                     </div>
                 ),
-                toggleLabel: 'Scores (CL / FA / ZPT / G&L)',
+                toggleLabel: TABLE_COLUMN_HELP.scores.title,
                 widthWeight: 32,
                 toggleable: true,
                 cell: (row) => (
@@ -745,7 +784,16 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             },
             {
                 id: 'overall',
-                header: 'Overall',
+                header: (
+                    <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.overallScore.description}>
+                        <span className="inline-block leading-tight">
+                            Overall
+                            <br />
+                            score
+                        </span>
+                    </ColumnHeadingHelp>
+                ),
+                toggleLabel: TABLE_COLUMN_HELP.overallScore.title,
                 widthWeight: 8,
                 toggleable: true,
                 cell: (row) => {
@@ -763,7 +811,12 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             },
             {
                 id: 'nextDue',
-                header: 'Next due',
+                header: (
+                    <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.nextDue.description}>
+                        {TABLE_COLUMN_HELP.nextDue.title}
+                    </ColumnHeadingHelp>
+                ),
+                toggleLabel: TABLE_COLUMN_HELP.nextDue.title,
                 widthWeight: 10,
                 toggleable: true,
                 cell: (row) => {
@@ -799,13 +852,15 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             {
                 id: 'profilePublished',
                 header: (
-                    <span className="block leading-tight tracking-normal" title="Profile published">
-                        Profile
-                        <br />
-                        published
-                    </span>
+                    <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.profilePublished.description}>
+                        <span className="inline-block leading-tight">
+                            Profile
+                            <br />
+                            published
+                        </span>
+                    </ColumnHeadingHelp>
                 ),
-                toggleLabel: 'Profile published',
+                toggleLabel: TABLE_COLUMN_HELP.profilePublished.title,
                 className: 'overflow-hidden whitespace-normal align-bottom',
                 widthWeight: 9,
                 toggleable: true,
@@ -825,7 +880,12 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             },
             {
                 id: 'scorecard',
-                header: 'Card',
+                header: (
+                    <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.scorecard.description}>
+                        {TABLE_COLUMN_HELP.scorecard.title}
+                    </ColumnHeadingHelp>
+                ),
+                toggleLabel: TABLE_COLUMN_HELP.scorecard.title,
                 className: 'overflow-hidden text-center',
                 widthWeight: 5,
                 toggleable: true,
@@ -1362,15 +1422,15 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                         applyProgressFilter((value === 'all' ? 'all' : value) as ProgressFilter)
                                     }
                                 >
-                                    <SelectTrigger className={filterControlClass}>
-                                        <SelectValue placeholder="Progress" />
+                                    <SelectTrigger className={filterControlClass} title={ASSESSMENT_STATUS_TOOLTIP} aria-label={ASSESSMENT_STATUS_TOOLTIP}>
+                                        <SelectValue placeholder="Assessment status" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All progress</SelectItem>
-                                        <SelectItem value="completed">Completed</SelectItem>
-                                        <SelectItem value="in_progress">In progress</SelectItem>
-                                        <SelectItem value="assigned">Assigned</SelectItem>
-                                        <SelectItem value="not_started">Not started</SelectItem>
+                                        <SelectItem value="completed">{ASSESSMENT_STATUS_LABELS.completed}</SelectItem>
+                                        <SelectItem value="in_progress">{ASSESSMENT_STATUS_LABELS.in_progress}</SelectItem>
+                                        <SelectItem value="assigned">Assigned to assessors</SelectItem>
+                                        <SelectItem value="not_started">{ASSESSMENT_STATUS_LABELS.not_started}</SelectItem>
                                     </SelectContent>
                                 </Select>
 

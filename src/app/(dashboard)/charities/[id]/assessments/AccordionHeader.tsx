@@ -15,10 +15,10 @@ type IProps = {
 }
 
 const statusDisplayMeta: Record<AssessmentStatus, { label: string; bg: string; text: string; border: string }> = {
-    pending: { label: 'Pending', bg: '#FFF7ED', text: '#C2410C', border: '#FDBA74' },
+    pending: { label: 'Not Started', bg: '#FFF7ED', text: '#C2410C', border: '#FDBA74' },
     'in-progress': { label: 'In Progress', bg: '#EFF6FF', text: '#1D4ED8', border: '#93C5FD' },
-    draft: { label: 'Draft', bg: '#F3F4F6', text: '#4B5563', border: '#D1D5DB' },
-    submitted: { label: 'Submitted', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
+    draft: { label: 'In Progress', bg: '#F3F4F6', text: '#4B5563', border: '#D1D5DB' },
+    submitted: { label: 'Completed', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
     completed: { label: 'Completed', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
 }
 

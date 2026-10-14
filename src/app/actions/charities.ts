@@ -23,6 +23,7 @@ export type ListCharitiesParams = {
     doesCharityGiveZakat?: boolean;
     isIslamic?: boolean;
     categories?: string[];
+    countryCode?: CountriesInKebab;
     pendingEligibilitySource?: string;
     coreArea1Status?: 'completed' | 'not-completed';
     coreArea2Status?: 'completed' | 'not-completed';
@@ -89,6 +90,7 @@ export const listCharitiesAction = async (params: ListCharitiesParams, useCache 
     if (params.categories && params.categories.length > 0) {
         query.append('categories', params.categories.join(','));
     }
+    if (params.countryCode) query.append('countryCode', params.countryCode);
     if (params.pendingEligibilitySource) {
         query.append('pendingEligibilitySource', params.pendingEligibilitySource);
     }

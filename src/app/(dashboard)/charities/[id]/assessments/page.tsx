@@ -9,6 +9,8 @@ import {
 import { AssessmentIds, AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS'
 import AccordionHeader from './AccordionHeader'
 import AssessmentChangeHistory from './AssessmentChangeHistory'
+import ColumnHeadingHelp from '@/components/common/ColumnHeadingHelp'
+import { ASSESSMENT_STATUS_TOOLTIP } from '@/lib/status-labels'
 import Preview from '@/components/use-case/SingleAssessmentPageComponent/Assessments/Preview'
 import { AUDIT_DEFINITIONS } from '@/components/use-case/SingleAssessmentPageComponent/ASSESSMENT_DEFINITIONS'
 import { usePathname, useSearchParams } from 'next/navigation'
@@ -84,8 +86,9 @@ const AssessmentHistoryLoader = () => (
 )
 
 const overallStatusMeta = {
-    incomplete: { label: 'Incomplete', bg: '#FFF7ED', text: '#C2410C', border: '#FDBA74' },
-    final: { label: 'Final', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
+    notStarted: { label: 'Not Started', bg: '#FFF7ED', text: '#C2410C', border: '#FDBA74' },
+    inProgress: { label: 'In Progress', bg: '#EFF6FF', text: '#1D4ED8', border: '#93C5FD' },
+    completed: { label: 'Completed', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
 } as const
 
 const AssessmentHistoryPage = () => {
@@ -199,11 +202,14 @@ const AssessmentHistoryPage = () => {
         const overallScore = getOverallDisplayScore(reviews, overallScorePercent)
         const allAreasComplete = reviews.summary.completed >= reviews.summary.total
         const isFinal = overallScore !== null && (allAreasComplete || overallScoreResult !== null)
+        const hasStarted = [reviews.core1, reviews.core2, reviews.core3, reviews.core4].some((area) =>
+            area != null && ['in_progress', 'draft', 'submitted', 'completed'].includes(area.status),
+        )
 
         return {
             score: overallScore,
             ratingBand: overallScore === null ? null : computeRatingBand(overallScore / 10),
-            statusKey: isFinal ? 'final' as const : 'incomplete' as const,
+            statusKey: allAreasComplete ? 'completed' as const : hasStarted ? 'inProgress' as const : 'notStarted' as const,
             statusHint: isFinal
                 ? 'Weighted total across all core areas.'
                 : 'Overall score unlocks when every required core area has a score.',
@@ -226,7 +232,7 @@ const AssessmentHistoryPage = () => {
 
     const overallStatusStyle = overallSummary
         ? overallStatusMeta[overallSummary.statusKey]
-        : overallStatusMeta.incomplete
+        : overallStatusMeta.notStarted
 
     return (
         <div className="space-y-5 pb-6">
@@ -264,7 +270,7 @@ const AssessmentHistoryPage = () => {
                                 </h2>
                             ) : null}
                             <p className="mt-1 text-sm text-[#667085]">
-                                Review core area assessments, scores, and submission status.
+                                Review each assessment area, its score, and completion status.
                             </p>
                         </div>
                     </div>
@@ -278,7 +284,7 @@ const AssessmentHistoryPage = () => {
                         <span className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Rating</span>
                         <span className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Score</span>
                         <span className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Mandatory metrics</span>
-                        <span className="text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Status</span>
+                        <span className="text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]"><ColumnHeadingHelp description={ASSESSMENT_STATUS_TOOLTIP}>Assessment Status</ColumnHeadingHelp></span>
                     </div>
 
                     <Accordion type="single" collapsible defaultValue={focusedAssessment || undefined} className="w-full">
@@ -377,7 +383,7 @@ const AssessmentHistoryPage = () => {
 
                                     <div className="ml-auto md:col-start-7 md:ml-0 md:flex md:justify-end">
                                         <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
-                                            Status
+                                            Assessment Status
                                         </span>
                                         <span
                                             className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold"

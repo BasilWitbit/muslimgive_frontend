@@ -41,6 +41,13 @@ import CharityTeamPopover from './CharityTeamPopover'
 import { CHARITY_ROLE_ALIASES, formatAssignmentLabel, getMembersForRole } from '@/lib/assignment-candidates'
 import { useCharityNavigation } from '@/hooks/use-charity-navigation'
 import { cn } from '@/lib/utils'
+import ColumnHeadingHelp from '@/components/common/ColumnHeadingHelp'
+import {
+    ASSESSMENT_STATUS_LABELS,
+    CHARITY_WORKFLOW_STATUS,
+    EMAIL_SEQUENCE_STATUS,
+    TABLE_COLUMN_HELP,
+} from '@/lib/status-labels'
 
 type AssignRoleState = {
     charityId: string
@@ -132,11 +139,11 @@ const CORE_AREA_META: Record<AuditCoreAreaKey, { label: string; color: string; d
 }
 
 const coreAreaStatusMeta: Record<string, { label: string; bg: string; text: string; border: string }> = {
-    pending: { label: 'Pending', bg: '#FFF7ED', text: '#C2410C', border: '#FDBA74' },
+    pending: { label: ASSESSMENT_STATUS_LABELS.pending, bg: '#FFF7ED', text: '#C2410C', border: '#FDBA74' },
     in_progress: { label: 'In Progress', bg: '#EFF6FF', text: '#1D4ED8', border: '#93C5FD' },
-    draft: { label: 'Draft', bg: '#F3F4F6', text: '#4B5563', border: '#D1D5DB' },
-    submitted: { label: 'Submitted', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
-    completed: { label: 'Completed', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
+    draft: { label: ASSESSMENT_STATUS_LABELS.draft, bg: '#F3F4F6', text: '#4B5563', border: '#D1D5DB' },
+    submitted: { label: ASSESSMENT_STATUS_LABELS.submitted, bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
+    completed: { label: ASSESSMENT_STATUS_LABELS.completed, bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
 }
 
 function getCoreAreaStatusMeta(status?: string | null) {
@@ -167,12 +174,12 @@ function formatDate(dateStr?: string | null): string {
 
 /* ── Charity status labels ── */
 const statusMeta: Record<string, { title: string }> = {
-    'pending-eligibility': { title: 'Pending Eligibility Review' },
-    'unassigned': { title: 'Unassigned' },
-    'open-to-review': { title: 'Open To Review' },
-    'pending-admin-review': { title: 'Pending Approval' },
-    'approved': { title: 'Approved' },
-    'ineligible': { title: 'Ineligible' },
+    'pending-eligibility': { title: CHARITY_WORKFLOW_STATUS['pending-eligibility'].label },
+    'unassigned': { title: CHARITY_WORKFLOW_STATUS.unassigned.label },
+    'open-to-review': { title: CHARITY_WORKFLOW_STATUS['open-to-review'].label },
+    'pending-admin-review': { title: CHARITY_WORKFLOW_STATUS['pending-admin-review'].label },
+    'approved': { title: CHARITY_WORKFLOW_STATUS.approved.label },
+    'ineligible': { title: CHARITY_WORKFLOW_STATUS.ineligible.label },
 }
 
 function parseMonths(totalDuration?: string) {
@@ -375,27 +382,95 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
 
     const pageItems = charities.slice(start, end)
 
-    const colCount = 12 // number of table columns
-    const headCell = 'px-2 py-2 text-[10px] font-semibold uppercase leading-tight text-[#98A2B3]'
-    const bodyCell = 'px-2 py-2 align-middle'
+    const colCount = 13 // number of table columns
+    const headCell =
+        'px-2 py-3 text-left text-[10px] font-semibold uppercase leading-none tracking-[0.06em] text-[#98A2B3]'
+    const bodyCell = 'px-2 py-2.5 align-middle'
 
     return (
         <div className="overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.045)]">
             <Table className="w-full table-fixed text-[11px] [&_th]:align-middle [&_td]:align-middle">
                 <TableHeader>
                     <TableRow className="border-b border-[#E8EEF5] bg-gradient-to-r from-[#FAFBFC] to-[#F8FBFF] hover:bg-gradient-to-r hover:from-[#FAFBFC] hover:to-[#F8FBFF]">
-                        <TableHead className={cn(headCell, 'w-[14%]')}>Charity</TableHead>
-                        <TableHead className={cn(headCell, 'w-[9%]')}>Status</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[8%] lg:table-cell')}>Created by</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Team</TableHead>
-                        <TableHead className={cn(headCell, 'w-[4%] text-center')}>Assess</TableHead>
-                        <TableHead className={cn(headCell, 'w-[6%] text-center')}>Progress</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[4%] text-center xl:table-cell')}>2y</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Scorecard Sent</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>Scorecard Review Email</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>Start</TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>Completed</TableHead>
-                        <TableHead className={cn(headCell, 'w-[8%] text-center')}>Actions</TableHead>
+                        <TableHead className={cn(headCell, 'w-[14%]')} title={TABLE_COLUMN_HELP.charity.description}>
+                            {TABLE_COLUMN_HELP.charity.title}
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'w-[9%]')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.charityWorkflowStatus.description}>
+                                <span className="inline-block text-left leading-tight">
+                                    Workflow
+                                    <br />
+                                    status
+                                </span>
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.createdBy.description}>
+                                {TABLE_COLUMN_HELP.createdBy.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.team.description}>
+                                {TABLE_COLUMN_HELP.team.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'w-[7%] text-center')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentsCompletedCount.description}>
+                                {TABLE_COLUMN_HELP.assessmentsCompletedCount.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'w-[7%] text-center')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentProgress.description}>
+                                {TABLE_COLUMN_HELP.assessmentProgress.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[5%] text-center xl:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.twoPlusYears.description}>
+                                {TABLE_COLUMN_HELP.twoPlusYears.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.scorecardSent.description}>
+                                <span className="inline-block text-center leading-tight">
+                                    Scorecard
+                                    <br />
+                                    sent
+                                </span>
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.emailDelivery.description}>
+                                <span className="inline-block text-center leading-tight">
+                                    Email
+                                    <br />
+                                    delivery
+                                </span>
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.emailSequence.description}>
+                                <span className="inline-block text-center leading-tight">
+                                    Email
+                                    <br />
+                                    sequence
+                                </span>
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentStarted.description}>
+                                {TABLE_COLUMN_HELP.assessmentStarted.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentsCompletedDate.description}>
+                                {TABLE_COLUMN_HELP.assessmentsCompletedDate.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'w-[8%] text-center')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.actions.description}>
+                                {TABLE_COLUMN_HELP.actions.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -416,6 +491,8 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                         const emailMeta = comm?.lastEmailStatus
                             ? emailStatusMeta[comm.lastEmailStatus.toLowerCase()] || { label: comm.lastEmailStatus, color: '#999' }
                             : null
+                        const sequenceStatusKey = comm?.sequenceStatus?.toLowerCase() || 'not-started'
+                        const sequenceMeta = EMAIL_SEQUENCE_STATUS[sequenceStatusKey] || EMAIL_SEQUENCE_STATUS['not-started']
                         const isSendingThis = sendingEmailId === c.id
                         const hasProjectManager = c.members.some(m => m.role === 'project-manager')
                         const canAssignThisCharity = c.status === 'unassigned' && canAssignPM && !hasProjectManager
@@ -461,7 +538,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                 <StatusPill
                                                     label={status.title}
                                                     color={statusColor}
-                                                    title={canAssignThisCharity ? 'Click to assign a project manager' : status.title}
+                                                    title={canAssignThisCharity ? 'Click to assign a project manager' : CHARITY_WORKFLOW_STATUS[c.status]?.description ?? status.title}
                                                     className={cn(
                                                         canAssignThisCharity && 'cursor-pointer hover:opacity-90 transition-opacity',
                                                     )}
@@ -545,6 +622,17 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         ) : (
                                             <div className="text-center text-sm text-muted-foreground">-</div>
                                         )}
+                                    </TableCell>
+
+                                    {/* Email sequence status, separate from delivery status of the latest scorecard email. */}
+                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
+                                        <Badge
+                                            className="max-w-full truncate px-1 py-0 text-[9px]"
+                                            title={sequenceMeta.description}
+                                            style={{ backgroundColor: sequenceMeta.label === 'Completed' ? '#10B981' : sequenceMeta.label === 'In Progress' ? '#266DD3' : sequenceMeta.label === 'Paused' ? '#F59E0B' : '#98A2B3', color: '#fff', border: 'none' }}
+                                        >
+                                            {sequenceMeta.label}
+                                        </Badge>
                                     </TableCell>
 
                                     {/* Audit Start Date */}

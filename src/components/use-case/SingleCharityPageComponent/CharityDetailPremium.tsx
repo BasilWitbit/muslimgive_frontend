@@ -4,17 +4,18 @@ import React, { FC, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
 import { BadgeCheck, CheckCircle2, CircleDashed, XCircle } from 'lucide-react'
+import { CHARITY_WORKFLOW_STATUS } from '@/lib/status-labels'
 
 export const premiumCardClass =
     'overflow-hidden border border-[#E8EEF5]/90 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition-shadow duration-300 hover:shadow-[0_12px_40px_rgba(15,23,42,0.07)]'
 
 export const CHARITY_STATUS_LABELS: Record<string, string> = {
-    'pending-eligibility': 'Pending Eligibility Review',
-    unassigned: 'Unassigned',
-    'open-to-review': 'Open To Review',
-    'pending-admin-review': 'Pending Approval',
-    approved: 'Approved',
-    ineligible: 'Ineligible',
+    'pending-eligibility': CHARITY_WORKFLOW_STATUS['pending-eligibility'].label,
+    unassigned: CHARITY_WORKFLOW_STATUS.unassigned.label,
+    'open-to-review': CHARITY_WORKFLOW_STATUS['open-to-review'].label,
+    'pending-admin-review': CHARITY_WORKFLOW_STATUS['pending-admin-review'].label,
+    approved: CHARITY_WORKFLOW_STATUS.approved.label,
+    ineligible: CHARITY_WORKFLOW_STATUS.ineligible.label,
 }
 
 type PremiumSectionCardProps = {

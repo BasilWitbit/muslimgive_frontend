@@ -27,14 +27,16 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import FilterIcon from '@/components/common/IconComponents/FilterIcon'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import ColumnHeadingHelp from '@/components/common/ColumnHeadingHelp'
+import { ASSESSMENT_STATUS_TOOLTIP, CHARITY_WORKFLOW_STATUS, CHARITY_WORKFLOW_STATUS_TOOLTIP } from '@/lib/status-labels'
 
 const STATUS_KEYS = [
-    { id: 'unassigned', label: 'Unassigned' },
-    { id: 'pending-eligibility', label: 'Pending Eligibility Review' },
-    { id: 'open-to-review', label: 'Open To Review' },
-    { id: 'pending-admin-review', label: 'Pending Approval' },
-    { id: 'approved', label: 'Approved' },
-    { id: 'ineligible', label: 'Ineligible' },
+    { id: 'unassigned', label: CHARITY_WORKFLOW_STATUS.unassigned.label },
+    { id: 'pending-eligibility', label: CHARITY_WORKFLOW_STATUS['pending-eligibility'].label },
+    { id: 'open-to-review', label: CHARITY_WORKFLOW_STATUS['open-to-review'].label },
+    { id: 'pending-admin-review', label: CHARITY_WORKFLOW_STATUS['pending-admin-review'].label },
+    { id: 'approved', label: CHARITY_WORKFLOW_STATUS.approved.label },
+    { id: 'ineligible', label: CHARITY_WORKFLOW_STATUS.ineligible.label },
 ]
 
 const CATEGORY_KEYS = [
@@ -93,6 +95,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
     // Filter states
     const [statusFilters, setStatusFilters] = useState<string[]>([])
     const [categoryFilters, setCategoryFilters] = useState<string[]>([])
+    const [countryFilter, setCountryFilter] = useState<'united-kingdom' | 'united-states' | 'canada' | ''>('')
     const [zakatFilter, setZakatFilter] = useState<boolean | undefined>(undefined)
     const [islamicFilter, setIslamicFilter] = useState<boolean | undefined>(undefined)
     const [assessmentProgressFilters, setAssessmentProgressFilters] = useState<Partial<Record<AssessmentProgressKey, AssessmentProgress>>>({})
@@ -157,6 +160,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                 search,
                 status: filters.status,
                 categories: filters.categories,
+                countryCode: filters.countryCode || undefined,
                 doesCharityGiveZakat: filters.zakat,
                 isIslamic: filters.islamic,
                 ...filters.assessmentProgress,
@@ -221,6 +225,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                 fetchCharities(queryInput, {
                     status: statusFilters,
                     categories: categoryFilters,
+                    countryCode: countryFilter,
                     zakat: zakatFilter,
                     islamic: islamicFilter,
                     assessmentProgress: assessmentProgressFilters,
@@ -242,6 +247,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
         const loadCharities = () => fetchCharities(queryInput, {
             status: statusFilters,
             categories: categoryFilters,
+            countryCode: countryFilter,
             zakat: zakatFilter,
             islamic: islamicFilter,
             assessmentProgress: assessmentProgressFilters,
@@ -257,7 +263,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
 
         const handler = setTimeout(loadCharities, 800)
         return () => clearTimeout(handler)
-    }, [queryInput, statusFilters, categoryFilters, zakatFilter, islamicFilter, assessmentProgressFilters, sortBy, order])
+    }, [queryInput, statusFilters, categoryFilters, countryFilter, zakatFilter, islamicFilter, assessmentProgressFilters, sortBy, order])
 
     // Fuzzy search is now server-side, but we keep the searchedRows variable name to avoid breaking JSX
     const searchedRows = charities
@@ -285,6 +291,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                         <Button variant="ghost" size="sm" className="h-auto p-0 text-[#266DD3] hover:text-[#1D5BB8]" onClick={() => {
                                             setStatusFilters([])
                                             setCategoryFilters([])
+                                            setCountryFilter('')
                                             setZakatFilter(undefined)
                                             setIslamicFilter(undefined)
                                             setAssessmentProgressFilters({})
@@ -292,6 +299,23 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-4 p-4">
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="charity-country-filter" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Country</Label>
+                                    <Select
+                                        value={countryFilter || 'all'}
+                                        onValueChange={(value) => setCountryFilter(value === 'all' ? '' : value as typeof countryFilter)}
+                                    >
+                                        <SelectTrigger id="charity-country-filter" className="h-10 rounded-xl border-[#E4E7EC] bg-white text-sm">
+                                            <SelectValue placeholder="All countries" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All countries</SelectItem>
+                                            <SelectItem value="united-kingdom">United Kingdom (UK)</SelectItem>
+                                            <SelectItem value="united-states">United States (US)</SelectItem>
+                                            <SelectItem value="canada">Canada</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                                 <div className="flex flex-col gap-2">
                                     <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Eligibility</span>
                                     <div className="flex items-center justify-between rounded-xl border border-[#EEF2F6] bg-[#FBFCFE] px-3 py-2">
@@ -313,7 +337,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Status</span>
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]"><ColumnHeadingHelp description={CHARITY_WORKFLOW_STATUS_TOOLTIP}>Charity Workflow Status</ColumnHeadingHelp></span>
                                     {STATUS_KEYS.map((s) => (
                                         <div key={s.id} className="flex items-center justify-between rounded-xl border border-[#EEF2F6] bg-[#FBFCFE] px-3 py-2">
                                             <Label htmlFor={`status-${s.id}`} className="text-sm font-medium text-[#344054]">{s.label}</Label>
@@ -329,7 +353,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Assessment progress</span>
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]"><ColumnHeadingHelp description={ASSESSMENT_STATUS_TOOLTIP}>Assessment Status</ColumnHeadingHelp></span>
                                     {ASSESSMENT_PROGRESS_FILTERS.map(({ key, label }) => (
                                         <div key={key} className="flex items-center justify-between gap-3 rounded-xl border border-[#EEF2F6] bg-[#FBFCFE] px-3 py-2">
                                             <Label htmlFor={`assessment-${key}`} className="text-sm font-medium text-[#344054]">{label}</Label>
@@ -445,7 +469,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                         {view === "kanban" ? (
                             <KanbanView charities={searchedRows} projectManagers={assignmentCandidatesByRole?.projectManager ?? []} />
                         ) : null}
-                        {view === "tabular" ? <TabularView charities={searchedRows} assignmentCandidatesByRole={assignmentCandidatesByRole} onRefresh={() => fetchCharities(queryInput, { status: statusFilters.length ? statusFilters : undefined, categories: categoryFilters.length ? categoryFilters : undefined, zakat: zakatFilter, islamic: islamicFilter, assessmentProgress: assessmentProgressFilters, sortBy, order })} /> : null}
+                        {view === "tabular" ? <TabularView charities={searchedRows} assignmentCandidatesByRole={assignmentCandidatesByRole} onRefresh={() => fetchCharities(queryInput, { status: statusFilters.length ? statusFilters : undefined, categories: categoryFilters.length ? categoryFilters : undefined, countryCode: countryFilter, zakat: zakatFilter, islamic: islamicFilter, assessmentProgress: assessmentProgressFilters, sortBy, order })} /> : null}
                     </>
                 ) : null}
             </div>

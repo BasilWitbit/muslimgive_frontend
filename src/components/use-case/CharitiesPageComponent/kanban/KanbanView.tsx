@@ -1,6 +1,7 @@
 import React, { FC } from 'react'
 import KanbanColumn from './KanbanColumn'
 import KanbanEffect from './KanbanEffect'
+import { CHARITY_WORKFLOW_STATUS } from '@/lib/status-labels'
 
 export type KanbanColType = {
     color: string
@@ -196,32 +197,32 @@ const KanbanView: FC<IProps> = ({ charities, projectManagers = [] }) => {
     const COLS: KanbanColType[] = [
         {
             color: '#F25CD4',
-            title: 'Unassigned',
+            title: CHARITY_WORKFLOW_STATUS.unassigned.label,
             id: 'unassigned',
         },
         {
             color: '#F25F5C',
-            title: 'Pending Eligibility Review',
+            title: CHARITY_WORKFLOW_STATUS['pending-eligibility'].label,
             id: 'pending-eligibility',
         },
         {
             color: '#5CD9F2',
-            title: 'Open To Review',
+            title: CHARITY_WORKFLOW_STATUS['open-to-review'].label,
             id: 'open-to-review',
         },
         {
             color: '#266DD3',
-            title: 'Pending Approval',
+            title: CHARITY_WORKFLOW_STATUS['pending-admin-review'].label,
             id: 'pending-admin-review',
         },
         {
             color: '#5CF269',
-            title: 'Approved',
+            title: CHARITY_WORKFLOW_STATUS.approved.label,
             id: 'approved',
         },
         {
             color: '#112133',
-            title: 'Ineligible',
+            title: CHARITY_WORKFLOW_STATUS.ineligible.label,
             id: 'ineligible',
         },
     ]

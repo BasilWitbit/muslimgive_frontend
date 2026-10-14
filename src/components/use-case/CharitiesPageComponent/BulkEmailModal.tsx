@@ -10,6 +10,7 @@ import ControlledSearchBarComponent from '@/components/common/SearchBarComponent
 import { sendBulkEmailReportAction } from '@/app/actions/charities'
 import { toast } from 'sonner'
 import StatusPill from '@/components/common/StatusPill'
+import { CHARITY_WORKFLOW_STATUS } from '@/lib/status-labels'
 import { CHARITY_STATUS_COLORS } from '@/lib/chip-styles'
 import { cn } from '@/lib/utils'
 
@@ -21,12 +22,12 @@ type StatusTypeCompProps = {
 }
 
 const STATUS_LABELS: Record<StatusType, string> = {
-    'pending-eligibility': 'Pending Eligibility Review',
-    unassigned: 'Unassigned',
-    'open-to-review': 'Open To Review',
-    'pending-admin-review': 'Pending Approval',
-    approved: 'Approved',
-    ineligible: 'Ineligible',
+    'pending-eligibility': CHARITY_WORKFLOW_STATUS['pending-eligibility'].label,
+    unassigned: CHARITY_WORKFLOW_STATUS.unassigned.label,
+    'open-to-review': CHARITY_WORKFLOW_STATUS['open-to-review'].label,
+    'pending-admin-review': CHARITY_WORKFLOW_STATUS['pending-admin-review'].label,
+    approved: CHARITY_WORKFLOW_STATUS.approved.label,
+    ineligible: CHARITY_WORKFLOW_STATUS.ineligible.label,
 }
 
 export const StatusTypeComp: FC<StatusTypeCompProps> = ({ status, className }) => (

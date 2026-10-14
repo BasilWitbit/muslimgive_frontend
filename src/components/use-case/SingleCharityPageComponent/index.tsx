@@ -32,7 +32,7 @@ import { capitalizeWords, kebabToTitle } from '@/lib/helpers'
 import { getCurrencyCode, getCurrencySymbol } from '@/lib/utils'
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
-import { addCharityCommentAction, approveCharityAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, sendBulkEmailReportAction, startCharityReassessmentAction } from '@/app/actions/charities'
+import { addCharityCommentAction, approveCharityAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
 import { AlertTriangle, Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2, Table2 } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
@@ -133,7 +133,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
     const [isSubmittingComment, setIsSubmittingComment] = useState(false)
     const [showReassessModal, setShowReassessModal] = useState(false)
     const [isReassessing, setIsReassessing] = useState(false)
-    const [isSendingReportEmail, setIsSendingReportEmail] = useState(false)
     const [isApproving, setIsApproving] = useState(false)
     const { isAllowed, me } = usePermissions()
     const effectiveUserId = currentUserId ?? me?.id ?? null
@@ -536,31 +535,13 @@ const SingleCharityPageComponent: FC<IProps> = ({
         }
     }
 
-    const handleSendReportEmail = async () => {
-        if (!canManageCharity) return
-        setIsSendingReportEmail(true)
-        try {
-            const res = await sendBulkEmailReportAction({ charities: [charityId] })
-            if (res.ok) {
-                toast.success('Report email sent. Sequence started.')
-            } else {
-                toast.error(res.message || 'Failed to send report email.')
-            }
-        } catch (error) {
-            console.error(error)
-            toast.error('An unexpected error occurred.')
-        } finally {
-            setIsSendingReportEmail(false)
-        }
-    }
-
     const handleApprove = async () => {
         if (!canManageCharity) return
         setIsApproving(true)
         try {
             const res = await approveCharityAction(charityId)
             if (res.ok) {
-                toast.success('Charity approved.')
+                toast.success('Charity approved. Workflow paused here; no email sequence was started.')
                 router.refresh()
             } else {
                 toast.error(res.message || 'Failed to approve charity.')
@@ -839,7 +820,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                     {status === 'pending-admin-review' ? (
                         <PremiumSectionCard
                             heading="Admin Review"
-                            description="Final scoring, reporting, and reassessment actions."
+                            description="Review the completed assessments before manual approval. The workflow pauses at this stage."
                             accent="from-[#7C3AED] via-[#266DD3] to-[#5CD9F2]"
                         >
                             <div className="flex flex-col gap-3">
@@ -859,17 +840,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                     <LinkComponent to={`/reports/${charityId}`} openInNewTab>
                                         <Button variant="outline" className="w-full rounded-xl">View Report</Button>
                                     </LinkComponent>
-                                    {canManageCharity ? (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full rounded-xl"
-                                            onClick={handleSendReportEmail}
-                                            loading={isSendingReportEmail}
-                                            disabled={isSendingReportEmail}
-                                        >
-                                            {isSendingReportEmail ? 'Sending...' : 'Send Report Email'}
-                                        </Button>
-                                    ) : null}
                                     {canManageCharity ? (
                                         <Button variant="outline" className="w-full rounded-xl" onClick={() => setShowReassessModal(true)}>
                                             Re-Assess

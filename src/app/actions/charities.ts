@@ -295,7 +295,7 @@ export const updateCharityEligibilityAction = async (charityId: string, payload:
 
 /**
  * PATCH /charities/{id}/approve
- * Final step of the status flow: Pending Approval → Approved.
+ * Records manual approval. The workflow pauses here; email sequencing is deferred.
  */
 export const approveCharityAction = async (charityId: string): Promise<ResponseType> => {
     return await _patch(`/charities/${charityId}/approve`, {});

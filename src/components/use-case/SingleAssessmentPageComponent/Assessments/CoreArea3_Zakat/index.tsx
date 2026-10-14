@@ -1,7 +1,7 @@
 'use client'
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import React, { FC, useState, useEffect, useRef } from 'react'
+import React, { FC, useState, useEffect, useRef, useCallback } from 'react'
 import AssessmentSectionCard from '../../UI/AuditSectionCard';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -192,6 +192,12 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [autosaveState, setAutosaveState] = useState<'saved' | 'saving' | 'error'>('saved');
+    const [changeRevision, setChangeRevision] = useState(0);
+    const changeRevisionRef = useRef(0);
+    const lastSavedRevisionRef = useRef(0);
+    const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true));
+    const latestDraftRef = useRef({ answers, optionalSkipped, revision: changeRevision });
     const [openSidebarSections, setOpenSidebarSections] = useState<string[]>([]);
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
     const isReady = Boolean(rubric?.sections);
@@ -218,6 +224,98 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
     );
     const isManager = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
     const canEdit = isEditable || isZakatAssessor || isManager;
+
+    const markAssessmentChanged = () => {
+        const nextRevision = changeRevisionRef.current + 1;
+        changeRevisionRef.current = nextRevision;
+        setChangeRevision(nextRevision);
+        setAutosaveState('saving');
+    };
+
+    const updateAnswer = (criterionId: string, patch: Partial<AnswerItem>) => {
+        setAnswers((previous) => ({
+            ...previous,
+            [criterionId]: { ...previous[criterionId], ...patch },
+        }));
+        markAssessmentChanged();
+    };
+
+    const buildDraftPayload = useCallback((draftAnswers: Record<string, AnswerItem>, skipOptional: boolean) => {
+        const cleanedAnswers: Record<string, any> = {};
+        for (const [criterionId, ans] of Object.entries(draftAnswers)) {
+            const cleaned: any = {};
+            if (Object.prototype.hasOwnProperty.call(ans, 'rating')) cleaned.rating = ans.rating;
+            if (Object.prototype.hasOwnProperty.call(ans, 'discretionary_points')) {
+                cleaned.discretionary_points = ans.discretionary_points;
+            }
+            if (Object.prototype.hasOwnProperty.call(ans, 'note')) cleaned.note = ans.note;
+            if (Object.prototype.hasOwnProperty.call(ans, 'links')) cleaned.links = ans.links;
+            cleanedAnswers[criterionId] = cleaned;
+        }
+        return {
+            charityId,
+            coreArea: 3,
+            answers: { optional_skipped: skipOptional, ...cleanedAnswers },
+        };
+    }, [charityId, rubric]);
+
+    const persistDraft = useCallback(async (draftAnswers: Record<string, AnswerItem>, skipOptional: boolean) => {
+        const payload = buildDraftPayload(draftAnswers, skipOptional);
+        const { submitAssessmentAction, editAssessmentAction } = await import('@/app/actions/assessments');
+        return status === 'submitted' || status === 'completed'
+            ? editAssessmentAction(payload)
+            : submitAssessmentAction(payload);
+    }, [buildDraftPayload, status]);
+
+    const enqueueDraftSave = useCallback((draftAnswers: Record<string, AnswerItem>, skipOptional: boolean) => {
+        const queuedSave = saveQueueRef.current
+            .catch(() => false)
+            .then(async () => {
+                try {
+                    const response = await persistDraft(draftAnswers, skipOptional);
+                    return response.ok;
+                } catch (error) {
+                    console.error('Failed to save Zakah assessment progress', error);
+                    return false;
+                }
+            });
+        saveQueueRef.current = queuedSave;
+        return queuedSave;
+    }, [persistDraft]);
+
+    latestDraftRef.current = { answers, optionalSkipped, revision: changeRevision };
+
+    useEffect(() => () => {
+        const latest = latestDraftRef.current;
+        if (!isLoading && latest.revision > lastSavedRevisionRef.current) {
+            void enqueueDraftSave(latest.answers, latest.optionalSkipped);
+        }
+    }, [enqueueDraftSave, isLoading]);
+
+    useEffect(() => {
+        if (isLoading || !rubric || !canEdit || changeRevision === 0 || lastSavedRevisionRef.current === changeRevision) {
+            return;
+        }
+
+        const revisionToSave = changeRevision;
+        const answersToSave = answers;
+        const optionalSkippedToSave = optionalSkipped;
+        const timer = window.setTimeout(() => {
+            if (lastSavedRevisionRef.current >= revisionToSave) return;
+            setAutosaveState('saving');
+            const queuedSave = enqueueDraftSave(answersToSave, optionalSkippedToSave);
+            void queuedSave.then((saved) => {
+                if (saved) {
+                    lastSavedRevisionRef.current = Math.max(lastSavedRevisionRef.current, revisionToSave);
+                }
+                if (changeRevisionRef.current === revisionToSave) {
+                    setAutosaveState(saved ? 'saved' : 'error');
+                }
+            });
+        }, 700);
+
+        return () => window.clearTimeout(timer);
+    }, [answers, optionalSkipped, changeRevision, isLoading, rubric, canEdit, enqueueDraftSave]);
 
     const scrollToTop = () => {
         if (typeof window !== 'undefined') {
@@ -307,49 +405,14 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
 
         setIsSubmitting(true);
         try {
-            const { submitAssessmentAction, editAssessmentAction } = await import('@/app/actions/assessments');
-
-            // Clean payload: only include discretionary_points when required
-            const cleanedAnswers: Record<string, any> = {};
-            for (const [criterionId, ans] of Object.entries(answers)) {
-                const criterion = rubric.criteria.find(c => c.id === criterionId);
-                const cleaned: any = { rating: ans.rating };
-                if (criterion && isDiscretionarySelection(criterion, ans.rating) && ans.discretionary_points != null) {
-                    cleaned.discretionary_points = ans.discretionary_points;
-                }
-                if (ans.note) cleaned.note = ans.note;
-                if (ans.links && ans.links.length > 0) cleaned.links = ans.links;
-                cleanedAnswers[criterionId] = cleaned;
-            }
-
-            const payloadAnswers = {
-                optional_skipped: optionalSkipped,
-                ...cleanedAnswers
-            };
-
-            const payload = {
-                charityId,
-                coreArea: 3,
-                answers: payloadAnswers
-            };
-
-            console.log("Submitting CA3 Draft Payload:", JSON.stringify(payload, null, 2));
-
-            const isEdit = status === 'submitted' || status === 'completed';
-
-            let res;
-            if (isEdit) {
-                res = await editAssessmentAction(payload);
-            } else {
-                res = await submitAssessmentAction(payload);
-            }
-
-            if (!res.ok) {
-                toast.error(res.message || "Failed to save draft.");
-                console.error("Save error payload:", res);
+            const saved = await enqueueDraftSave(answers, optionalSkipped);
+            if (!saved) {
+                toast.error("Failed to save assessment progress.");
                 return false;
             }
 
+            lastSavedRevisionRef.current = changeRevisionRef.current;
+            setAutosaveState('saved');
             return true;
         } catch (e: any) {
             console.error("Failed to save draft", e);
@@ -403,8 +466,17 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
     const isEditMode = status === 'submitted' || status === 'completed';
 
     const handleResetAssessment = () => {
-        setAnswers({});
+        const clearedAnswers = Object.fromEntries(
+            (rubric?.criteria ?? []).map((criterion) => [criterion.id, {
+                rating: null,
+                discretionary_points: null,
+                note: '',
+                links: [],
+            }]),
+        ) as Record<string, AnswerItem>;
+        setAnswers(clearedAnswers);
         setOptionalSkipped(false);
+        markAssessmentChanged();
         setStep(0);
         setScrollTargetId(null);
         setOpenSidebarSections([]);
@@ -615,6 +687,18 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                 <div className="mb-6 flex flex-col gap-2">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="text-sm font-medium text-gray-500">Page {step + 1} of {sections.length}</div>
+                        {canEdit ? (
+                            <div role="status" aria-live="polite" className={cn(
+                                'text-xs font-medium',
+                                autosaveState === 'error' ? 'text-rose-700' : autosaveState === 'saving' ? 'text-[#667085]' : 'text-emerald-700',
+                            )}>
+                                {autosaveState === 'saving'
+                                    ? 'Saving progress…'
+                                    : autosaveState === 'error'
+                                        ? 'Autosave failed — keep this page open and try again.'
+                                        : 'In Progress · All changes saved'}
+                            </div>
+                        ) : null}
                         {sectionScoreSummary && (
                             <div className="flex flex-col items-end gap-1 text-sm">
                                 <div className="flex items-center gap-2">
@@ -660,7 +744,10 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                             <Switch
                                 id="optional-skip"
                                 checked={optionalSkipped}
-                                onCheckedChange={setOptionalSkipped}
+                                onCheckedChange={(checked) => {
+                                    setOptionalSkipped(checked);
+                                    markAssessmentChanged();
+                                }}
                             />
                             <Label htmlFor="optional-skip" className="font-medium text-blue-900 cursor-pointer">
                                 Skip this optional section
@@ -702,13 +789,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                             <RadioGroup
                                                 value={ans.rating || ""}
                                                 onValueChange={(val: any) => {
-                                                    setAnswers(prev => ({
-                                                        ...prev,
-                                                        [criterion.id]: {
-                                                            ...prev[criterion.id],
-                                                            rating: val
-                                                        }
-                                                    }))
+                                                    updateAnswer(criterion.id, { rating: val });
                                                 }}
                                                 disabled={!canEdit}
                                                 className={cn(
@@ -751,13 +832,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                                         const val = parsed === null || Number.isNaN(parsed)
                                                             ? null
                                                             : Math.min(Math.max(parsed, 0), criterion.pointsPossible);
-                                                        setAnswers(prev => ({
-                                                            ...prev,
-                                                            [criterion.id]: {
-                                                                ...prev[criterion.id],
-                                                                discretionary_points: val
-                                                            }
-                                                        }))
+                                                        updateAnswer(criterion.id, { discretionary_points: val });
                                                     }}
                                                 />
                                                 {ans.discretionary_points == null && (
@@ -786,13 +861,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                                                 disabled={!canEdit}
                                                                 value={ans.note || ""}
                                                                 onChange={(e) => {
-                                                                    setAnswers(prev => ({
-                                                                        ...prev,
-                                                                        [criterion.id]: {
-                                                                            ...prev[criterion.id],
-                                                                            note: e.target.value
-                                                                        }
-                                                                    }))
+                                                                    updateAnswer(criterion.id, { note: e.target.value });
                                                                 }}
                                                             />
                                                         </div>
@@ -808,13 +877,7 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                                                 value={(ans.links || [])[0] || ''}
                                                                 onChange={(e) => {
                                                                     const link = e.target.value.trim();
-                                                                    setAnswers(prev => ({
-                                                                        ...prev,
-                                                                        [criterion.id]: {
-                                                                            ...prev[criterion.id],
-                                                                            links: link ? [link] : []
-                                                                        }
-                                                                    }))
+                                                                    updateAnswer(criterion.id, { links: link ? [link] : [] });
                                                                 }}
                                                             />
                                                         </div>
@@ -879,8 +942,22 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                                 goToStep(step - 1);
                                 return;
                             }
-                            setIsCancelling(true);
-                            router.push(`/charities/${charityId}`);
+                            void (async () => {
+                                setIsCancelling(true);
+                                if (changeRevisionRef.current > lastSavedRevisionRef.current) {
+                                    setAutosaveState('saving');
+                                    const saved = await enqueueDraftSave(answers, optionalSkipped);
+                                    if (!saved) {
+                                        setAutosaveState('error');
+                                        setIsCancelling(false);
+                                        toast.error('Could not save the latest progress. Please try again before leaving.');
+                                        return;
+                                    }
+                                    lastSavedRevisionRef.current = changeRevisionRef.current;
+                                    setAutosaveState('saved');
+                                }
+                                router.push(`/charities/${charityId}`);
+                            })();
                         }}
                     >
                         {step === 0 ? (isCancelling ? 'Leaving...' : 'Cancel') : 'Back'}

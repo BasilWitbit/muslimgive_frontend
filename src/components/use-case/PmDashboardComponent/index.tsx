@@ -437,10 +437,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                 setApprovalNotice(res.message || 'Approval failed. Please try again.')
                 return
             }
-            const data = res.payload?.data?.data ?? res.payload?.data
-            setApprovalNotice(data?.emailSequenceStarted
-                ? 'Charity approved and the email sequence has started.'
-                : 'Charity approved. The email sequence could not start; check the charity contact email and mail settings.')
+            setApprovalNotice('Charity approved. The workflow is paused at approval; no email sequence was started.')
             await refreshApprovalTasks()
         } catch {
             setApprovalNotice('Approval failed. Please try again.')

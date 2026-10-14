@@ -15,9 +15,7 @@ export type SubmitAssessmentPayload = {
  * Submits an assessment for a charity
  */
 export const submitAssessmentAction = async (payload: SubmitAssessmentPayload): Promise<ResponseType> => {
-    console.log('[submitAssessmentAction] Payload:', JSON.stringify(payload, null, 2));
     const res = await _post('/audits/submissions', payload);
-    console.log('[submitAssessmentAction] Response:', JSON.stringify(res, null, 2));
     if (res.ok) {
         revalidatePath(`/charities/${payload.charityId}`, 'layout');
     }
@@ -55,9 +53,7 @@ export const getAssessmentAction = async (charityId: string, coreArea: number): 
  * Allows editing an already-submitted/completed audit.
  */
 export const editAssessmentAction = async (payload: SubmitAssessmentPayload): Promise<ResponseType> => {
-    console.log('[editAssessmentAction] Payload:', JSON.stringify(payload, null, 2));
     const res = await _patch('/audits/submissions/edit', payload);
-    console.log('[editAssessmentAction] Response:', JSON.stringify(res, null, 2));
     if (res.ok) {
         revalidatePath(`/charities/${payload.charityId}`, 'layout');
     }

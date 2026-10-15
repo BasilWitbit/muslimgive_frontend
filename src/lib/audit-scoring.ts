@@ -75,13 +75,10 @@ export function computeCoreArea4Score(
         score += MEMBERSHIP_SCORES[answers[field] ?? ''] ?? 0;
     }
 
-    if (answers.ceo_identification === 'yes') score += 1;
-    if (answers.minimum_3_board_members_at_arms_length === 'yes') score += 1;
-
-    if (isUk) {
-        score *= 1.25;
-        return { score, totalScore: 12.5 };
-    }
+    // UK charities do not use the arm's-length board metric; its point is
+    // reallocated to CEO identification so every country remains out of 10.
+    if (answers.ceo_identification === 'yes') score += isUk ? 2 : 1;
+    if (!isUk && answers.minimum_3_board_members_at_arms_length === 'yes') score += 1;
 
     return { score, totalScore: 10 };
 }

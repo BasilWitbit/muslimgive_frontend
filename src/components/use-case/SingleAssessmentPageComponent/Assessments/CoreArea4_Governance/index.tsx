@@ -131,7 +131,9 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
     React.useEffect(() => {
         if (appliedDeepLinkRef.current || isLoading || !questionFromUrl) return;
 
-        const question = currentForm.questions.find(q => q.code === questionFromUrl);
+        const question = currentForm.questions.find(q =>
+            q.code === questionFromUrl && (!isUk || getQuestionFieldKey(q) !== 'minimum_3_board_members_at_arms_length'),
+        );
         if (!question) return;
 
         appliedDeepLinkRef.current = true;
@@ -204,7 +206,7 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
     };
 
     const allRequiredFilled = currentForm.questions
-        .filter(q => q.required)
+        .filter(q => q.required && (!isUk || getQuestionFieldKey(q) !== 'minimum_3_board_members_at_arms_length'))
         .every(q => Boolean(formVals[getQuestionFieldKey(q)]));
 
     if (isLoading) {
@@ -242,7 +244,9 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
                         <RatingBandBadge ratingBand={liveRatingBand} />
                     </div>
                 )}
-                {currentForm.questions.map(question => renderQuestion(question))}
+                {currentForm.questions
+                    .filter(question => !isUk || getQuestionFieldKey(question) !== 'minimum_3_board_members_at_arms_length')
+                    .map(question => renderQuestion(question))}
             </div>
 
             <div className='flex gap-4 mb-8 mt-8'>

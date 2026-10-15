@@ -14,9 +14,12 @@ export const CORE_AREA_4_METRIC_MAX_POINTS: Record<string, number> = {
     minimum_3_board_members_at_arms_length: 1,
 }
 
-export function getCoreArea4MetricDescriptor(fieldKey: string, value?: string | null) {
+export function getCoreArea4MetricDescriptor(fieldKey: string, value?: string | null, isUk = false) {
     if (!value) return null
-    if (fieldKey === 'ceo_identification') return YES_NO_DESCRIPTORS[value] ?? null
+    if (fieldKey === 'ceo_identification') {
+        const descriptor = YES_NO_DESCRIPTORS[value];
+        return descriptor ? { ...descriptor, score: value === 'yes' && isUk ? 2 : descriptor.score } : null;
+    }
     if (fieldKey === 'minimum_3_board_members_at_arms_length') {
         return value === 'yes'
             ? { descriptor: 'At least three board members are independent and at arm’s length.', outcome: 'strong' as const, score: 1 }

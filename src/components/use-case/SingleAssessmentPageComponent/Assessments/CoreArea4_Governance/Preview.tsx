@@ -225,8 +225,10 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                         const key = getQuestionFieldKey(question);
                                         const value = assessmentVals[key];
                                         if (!value) return null;
-                                        const metric = getCoreArea4MetricDescriptor(key, value);
-                                        const max = CORE_AREA_4_METRIC_MAX_POINTS[key] ?? 0;
+                                        const metric = getCoreArea4MetricDescriptor(key, value, isUk);
+                                        const max = key === 'ceo_identification' && isUk
+                                            ? 2
+                                            : CORE_AREA_4_METRIC_MAX_POINTS[key] ?? 0;
 
                                         return (
                                             <tr

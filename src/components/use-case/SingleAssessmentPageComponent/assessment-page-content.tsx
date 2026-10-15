@@ -74,12 +74,8 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                     const data = res.payload.data.data;
                     setIsEditable(typeof data.isEditable === 'boolean' ? data.isEditable : true);
                     setScore(data.score);
-                    const defaultTotal = coreAreaId === 2
-                        ? 40
-                        : coreAreaId === 4 && location === 'united-kingdom'
-                            ? 12.5
-                            : 10;
-                    const resolvedTotalScore = data.totalScore ?? defaultTotal;
+                    const defaultTotal = coreAreaId === 2 ? 40 : 10;
+                    const resolvedTotalScore = coreAreaId === 4 ? 10 : data.totalScore ?? defaultTotal;
                     setTotalScore(resolvedTotalScore);
                     if (coreAreaId === 1) {
                         setRatingBand(

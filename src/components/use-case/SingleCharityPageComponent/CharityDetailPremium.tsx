@@ -1,9 +1,9 @@
 'use client'
 
-import React, { FC, ReactNode } from 'react'
+import React, { FC, ReactNode, useId, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
-import { BadgeCheck, CheckCircle2, CircleDashed, XCircle } from 'lucide-react'
+import { BadgeCheck, CheckCircle2, ChevronDown, CircleDashed, XCircle } from 'lucide-react'
 import { CHARITY_WORKFLOW_STATUS } from '@/lib/status-labels'
 
 export const premiumCardClass =
@@ -26,6 +26,7 @@ type PremiumSectionCardProps = {
     className?: string
     accent?: string
     bodyClassName?: string
+    collapsible?: boolean
 }
 
 export const PremiumSectionCard: FC<PremiumSectionCardProps> = ({
@@ -36,12 +37,16 @@ export const PremiumSectionCard: FC<PremiumSectionCardProps> = ({
     className,
     accent = 'from-[#266DD3] via-[#3B82E8] to-[#5CD9F2]',
     bodyClassName,
-}) => (
-    <div className={cn(premiumCardClass, 'relative rounded-2xl', className)}>
+    collapsible = false,
+) => {
+    const [collapsed, setCollapsed] = useState(false)
+    const contentId = useId()
+
+    return <div className={cn(premiumCardClass, 'relative rounded-2xl', className)}>
         <div className={cn('absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r', accent)} />
         {(heading || description) ? (
-            <div className="flex flex-col gap-3 border-b border-[#E8EEF5]/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+            <div className="flex items-center justify-between gap-3 border-b border-[#E8EEF5]/80 px-4 py-3">
+                <div className="min-w-0">
                     {heading ? (
                         <h3 className="text-base font-semibold tracking-[-0.02em] text-[#101928]">{heading}</h3>
                     ) : null}
@@ -49,12 +54,26 @@ export const PremiumSectionCard: FC<PremiumSectionCardProps> = ({
                         <p className="mt-1 text-sm leading-5 text-[#667085]">{description}</p>
                     ) : null}
                 </div>
-                {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
+                <div className="flex shrink-0 items-center gap-2">
+                    {headerAction ? <div>{headerAction}</div> : null}
+                    {collapsible ? (
+                        <button
+                            type="button"
+                            aria-label={collapsed ? `Show ${heading || 'section'}` : `Hide ${heading || 'section'}`}
+                            aria-expanded={!collapsed}
+                            aria-controls={contentId}
+                            onClick={() => setCollapsed((value) => !value)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#667085] transition-colors hover:bg-[#F2F6FB] hover:text-[#266DD3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#266DD3]/30"
+                        >
+                            <ChevronDown className={cn('h-4 w-4 transition-transform', collapsed && '-rotate-90')} />
+                        </button>
+                    ) : null}
+                </div>
             </div>
         ) : null}
-        <div className={cn('p-5', bodyClassName)}>{children}</div>
+        <div id={contentId} hidden={collapsed} className={cn('p-4', bodyClassName)}>{children}</div>
     </div>
-)
+}
 
 type HeroStatTileProps = {
     icon: ReactNode
@@ -81,7 +100,7 @@ export const HeroStatTile: FC<HeroStatTileProps> = ({
 )
 
 export const PremiumInfoRow: FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-    <div className="flex flex-col gap-1 rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="flex flex-col gap-1 rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <TypographyComponent variant="body2" className="text-[#667085]">
             {label}
         </TypographyComponent>

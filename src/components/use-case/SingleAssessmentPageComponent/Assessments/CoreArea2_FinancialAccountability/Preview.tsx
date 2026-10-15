@@ -1,5 +1,5 @@
 'use client'
-import { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page';
+import type { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page';
 import { AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS';
 import React, { FC, useEffect, useState } from 'react'
 import LinkComponent from '@/components/common/LinkComponent';

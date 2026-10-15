@@ -2,12 +2,14 @@ import { AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS';
 import { capitalizeWords } from '@/lib/helpers';
 import React, { FC } from 'react'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
+import { formatAuditScore } from '@/lib/audit-score-display'
 
 type IProps = {
     title: string,
     subTitle: string,
     ratingBand?: string | null,
     score: number,
+    displayMax: number,
     status: AssessmentStatus
     accentColor: string
     mandatoryResult?: 'pass' | 'fail' | null
@@ -22,7 +24,7 @@ const statusDisplayMeta: Record<AssessmentStatus, { label: string; bg: string; t
     completed: { label: 'Completed', bg: '#ECFDF5', text: '#047857', border: '#6EE7B7' },
 }
 
-const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, status, accentColor, mandatoryResult, mandatoryApplicable = true }) => {
+const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, displayMax, status, accentColor, mandatoryResult, mandatoryApplicable = true }) => {
     const statusStyle = statusDisplayMeta[status]
     const isPending = status === 'pending'
     return (
@@ -67,8 +69,8 @@ const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, statu
                             className="font-mono text-sm font-bold tabular-nums"
                             style={{ color: accentColor }}
                         >
-                            {score}
-                            <span className="text-[#98A2B3]"> / 100</span>
+                            {formatAuditScore(score)}
+                            <span className="text-[#98A2B3]"> / {displayMax}</span>
                         </span>
                     )}
                 </div>

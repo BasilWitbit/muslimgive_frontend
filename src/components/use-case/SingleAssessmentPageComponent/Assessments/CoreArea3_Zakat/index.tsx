@@ -28,6 +28,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useRouteLoader } from '@/components/common/route-loader-provider';
 import AssessmentResetButton from '../../UI/AssessmentResetButton';
+import AssessmentSectionResetButton from '../../UI/AssessmentSectionResetButton';
 import {
     useAssessmentContentReveal,
     useAssessmentNavigationDismiss,
@@ -482,6 +483,22 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
         setOpenSidebarSections([]);
     };
 
+    const handleResetSection = () => {
+        const sectionCriteria = rubric.criteria.filter((criterion) => criterion.sectionId === currentSection.id);
+        const clearedSectionAnswers = Object.fromEntries(
+            sectionCriteria.map((criterion) => [criterion.id, {
+                rating: null,
+                discretionary_points: null,
+                note: '',
+                links: [],
+            }]),
+        ) as Record<string, AnswerItem>;
+
+        setAnswers((previous) => ({ ...previous, ...clearedSectionAnswers }));
+        if (currentSection.optional) setOptionalSkipped(false);
+        markAssessmentChanged();
+    };
+
     const handleNext = () => {
         if (step < sections.length - 1) {
             goToStep(step + 1);
@@ -677,9 +694,14 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                     </div>
                 )}
                 {canEdit ? (
-                    <div className="mb-4 flex justify-end">
+                    <div className="mb-4 flex flex-col items-end gap-1.5">
                         <AssessmentResetButton
                             onReset={handleResetAssessment}
+                            disabled={isSubmitting || isCancelling}
+                        />
+                        <AssessmentSectionResetButton
+                            sectionTitle={currentSection.title}
+                            onReset={handleResetSection}
                             disabled={isSubmitting || isCancelling}
                         />
                     </div>

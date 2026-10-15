@@ -99,11 +99,10 @@ function validateRow(row: CharityRow): string | null {
     if (!row.isEligible) return 'Eligibility selection is required'
 
     if (row.countryCode === 'united-kingdom' && !row.regNumber.trim()) return 'Charity number is required'
-    if (row.countryCode === 'canada' && !row.regNumber.trim()) return 'Registration number is required'
     if (row.countryCode === 'united-states' && !row.regNumber.trim()) return 'EIN is required'
 
     if (row.profileUrl.trim() && !isPlausibleUrl(row.profileUrl.trim())) {
-        return 'Commission/CRA link must be a valid web address'
+        return 'Government register link must be a valid web address'
     }
     if (row.websiteUrl.trim() && !isPlausibleUrl(row.websiteUrl.trim())) {
         return 'Website must be a valid web address'
@@ -378,7 +377,7 @@ const CreateCharityStandalonePage = () => {
                                         'Category',
                                         'Start year/date',
                                         'Reg #',
-                                        'Commission/CRA Link',
+                                        'Government register link',
                                         'Website',
                                         'CEO',
                                         'Islamic Charity',
@@ -561,7 +560,7 @@ const CreateCharityStandalonePage = () => {
                                                             row.countryCode === 'united-states'
                                                                 ? 'EIN *'
                                                                 : row.countryCode === 'canada'
-                                                                  ? 'CRA # *'
+                                                                  ? 'CRA # (optional)'
                                                                   : 'Charity # *'
                                                         }
                                                         className={cn(cellInputClass, 'min-w-[110px]')}
@@ -572,28 +571,31 @@ const CreateCharityStandalonePage = () => {
                                                             Already used by &ldquo;{dupCheck.regNumberMatch.name}&rdquo;
                                                         </p>
                                                     ) : null}
+                                                    {row.countryCode === 'canada' && !row.regNumber.trim() ? (
+                                                        <p className="mt-1 text-[9px] leading-snug text-amber-700">Missing — add registration number later</p>
+                                                    ) : null}
                                                 </td>
                                                 <td className="px-2.5 py-2">
-                                                    {row.countryCode === 'united-states' ? (
-                                                        <span className="text-[10px] text-[#C4CDD8]">
-                                                            Not applicable
-                                                        </span>
-                                                    ) : (
-                                                        <Input
-                                                            value={row.profileUrl}
-                                                            onChange={(e) =>
-                                                                updateRow(row.key, { profileUrl: e.target.value })
-                                                            }
-                                                            placeholder={
-                                                                row.countryCode === 'united-kingdom'
-                                                                    ? 'Charity Commission link'
-                                                                    : row.countryCode === 'canada'
-                                                                      ? 'CRA page link'
-                                                                      : 'Link (optional)'
-                                                            }
-                                                            className={cn(cellInputClass, 'min-w-[120px]')}
-                                                        />
-                                                    )}
+                                                    <Input
+                                                        value={row.profileUrl}
+                                                        onChange={(e) =>
+                                                            updateRow(row.key, { profileUrl: e.target.value })
+                                                        }
+                                                        placeholder={
+                                                            row.countryCode === 'united-kingdom'
+                                                                ? 'Charity Commission link'
+                                                                : row.countryCode === 'canada'
+                                                                  ? 'CRA register link (optional)'
+                                                                  : row.countryCode === 'united-states'
+                                                                    ? 'IRS tax-exempt search link'
+                                                                    : 'Select country first'
+                                                        }
+                                                        disabled={!row.countryCode}
+                                                        className={cn(cellInputClass, 'min-w-[120px]')}
+                                                    />
+                                                    {row.countryCode === 'canada' && !row.profileUrl.trim() ? (
+                                                        <p className="mt-1 text-[9px] leading-snug text-amber-700">Missing — add CRA link later</p>
+                                                    ) : null}
                                                 </td>
                                                 <td className="px-2.5 py-2">
                                                     <Input

@@ -382,7 +382,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
 
     const pageItems = charities.slice(start, end)
 
-    const colCount = 13 // number of table columns
+    const colCount = 11 // number of table columns
     const headCell =
         'px-2 py-3 text-left text-[10px] font-semibold uppercase leading-none tracking-[0.06em] text-[#98A2B3]'
     const bodyCell = 'px-2 py-2.5 align-middle'
@@ -395,6 +395,11 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                         <TableHead className={cn(headCell, 'w-[14%]')} title={TABLE_COLUMN_HELP.charity.description}>
                             {TABLE_COLUMN_HELP.charity.title}
                         </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[5%] text-center xl:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.twoPlusYears.description}>
+                                {TABLE_COLUMN_HELP.twoPlusYears.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
                         <TableHead className={cn(headCell, 'w-[9%]')}>
                             <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.charityWorkflowStatus.description}>
                                 <span className="inline-block text-left leading-tight">
@@ -404,29 +409,24 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                 </span>
                             </ColumnHeadingHelp>
                         </TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>
-                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.createdBy.description}>
-                                {TABLE_COLUMN_HELP.createdBy.title}
-                            </ColumnHeadingHelp>
-                        </TableHead>
                         <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>
                             <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.team.description}>
                                 {TABLE_COLUMN_HELP.team.title}
                             </ColumnHeadingHelp>
                         </TableHead>
-                        <TableHead className={cn(headCell, 'w-[7%] text-center')}>
-                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentsCompletedCount.description}>
-                                {TABLE_COLUMN_HELP.assessmentsCompletedCount.title}
-                            </ColumnHeadingHelp>
-                        </TableHead>
-                        <TableHead className={cn(headCell, 'w-[7%] text-center')}>
+                        <TableHead className={cn(headCell, 'w-[9%] text-center')}>
                             <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentProgress.description}>
-                                {TABLE_COLUMN_HELP.assessmentProgress.title}
+                                Assessments<br />Progress
                             </ColumnHeadingHelp>
                         </TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[5%] text-center xl:table-cell')}>
-                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.twoPlusYears.description}>
-                                {TABLE_COLUMN_HELP.twoPlusYears.title}
+                        <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentStarted.description}>
+                                {TABLE_COLUMN_HELP.assessmentStarted.title}
+                            </ColumnHeadingHelp>
+                        </TableHead>
+                        <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>
+                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentsCompletedDate.description}>
+                                {TABLE_COLUMN_HELP.assessmentsCompletedDate.title}
                             </ColumnHeadingHelp>
                         </TableHead>
                         <TableHead className={cn(headCell, 'hidden w-[7%] xl:table-cell')}>
@@ -454,16 +454,6 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                     <br />
                                     sequence
                                 </span>
-                            </ColumnHeadingHelp>
-                        </TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[6%] xl:table-cell')}>
-                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentStarted.description}>
-                                {TABLE_COLUMN_HELP.assessmentStarted.title}
-                            </ColumnHeadingHelp>
-                        </TableHead>
-                        <TableHead className={cn(headCell, 'hidden w-[7%] lg:table-cell')}>
-                            <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.assessmentsCompletedDate.description}>
-                                {TABLE_COLUMN_HELP.assessmentsCompletedDate.title}
                             </ColumnHeadingHelp>
                         </TableHead>
                         <TableHead className={cn(headCell, 'w-[8%] text-center')}>
@@ -519,15 +509,18 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                             />
                                             <div className="min-w-0">
                                                 <div className="truncate font-semibold text-[#101928]" title={c.charityTitle}>{c.charityTitle}</div>
-                                                {isFinanceAssessor || isZakatAssessor ? (
-                                                    <div className="truncate text-[9px] font-medium text-[#667085]">
-                                                        {isFinanceAssessor ? `Financial: ${formatAssignmentLabel(c.members, 'finance-assessor', me?.id)}` : null}
-                                                        {isFinanceAssessor && isZakatAssessor ? ' · ' : null}
-                                                        {isZakatAssessor ? `Zakah: ${formatAssignmentLabel(c.members, 'zakat-assessor', me?.id)}` : null}
-                                                    </div>
-                                                ) : null}
                                             </div>
                                         </div>
+                                    </TableCell>
+
+                                    <TableCell className={cn(bodyCell, 'hidden text-center xl:table-cell')}>
+                                        {meetsTwoYearAge === undefined ? (
+                                            <span className="text-muted-foreground">-</span>
+                                        ) : meetsTwoYearAge ? (
+                                            <span className="text-green-500" title="Operating for 2+ years">✓</span>
+                                        ) : (
+                                            <span className="text-red-500" title="Under 2 years old">✕</span>
+                                        )}
                                     </TableCell>
 
                                     <TableCell className={cn(bodyCell, 'max-w-0')}>
@@ -563,10 +556,6 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         </div>
                                     </TableCell>
 
-                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 lg:table-cell')}>
-                                        <span className="block truncate text-[#344054]" title={c.charityOwnerName}>{c.charityOwnerName}</span>
-                                    </TableCell>
-
                                     <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
                                         <CharityTeamPopover
                                             charityId={c.id}
@@ -577,8 +566,6 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         />
                                     </TableCell>
 
-                                    <TableCell className={cn(bodyCell, 'text-center font-medium text-[#344054]')}>{`${c.assessmentsCompleted}/4`}</TableCell>
-
                                     <TableCell className={cn(bodyCell, 'max-w-0')}>
                                         <div className="mx-auto w-full min-w-0">
                                             <div className="h-2 w-full overflow-hidden rounded-full bg-[#EEF2F6]">
@@ -588,13 +575,25 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         </div>
                                     </TableCell>
 
-                                    <TableCell className={cn(bodyCell, 'hidden text-center xl:table-cell')}>
-                                        {meetsTwoYearAge === undefined ? (
-                                            <span className="text-muted-foreground">-</span>
-                                        ) : meetsTwoYearAge ? (
-                                            <span className="text-green-500" title="Operating for 2+ years">✓</span>
+                                    {/* Assessment dates follow the combined progress column. */}
+                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
+                                        {timeline?.startedAt ? (
+                                            <span className="block truncate text-[11px] text-[#344054]" title={formatDate(timeline.startedAt)}>
+                                                {formatDate(timeline.startedAt)}
+                                            </span>
                                         ) : (
-                                            <span className="text-red-500" title="Under 2 years old">✕</span>
+                                            <span className="text-xs text-muted-foreground italic">Not started</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 lg:table-cell')}>
+                                        {timeline?.completedAt ? (
+                                            <span className="block truncate text-[11px] text-[#344054]" title={formatDate(timeline.completedAt)}>
+                                                {formatDate(timeline.completedAt)}
+                                            </span>
+                                        ) : (
+                                            <Badge variant="secondary" className="max-w-full truncate px-1 py-0 text-[9px] bg-amber-50 text-amber-700 border-amber-200" title="In Progress">
+                                                In Progress
+                                            </Badge>
                                         )}
                                     </TableCell>
 
@@ -633,34 +632,6 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                         >
                                             {sequenceMeta.label}
                                         </Badge>
-                                    </TableCell>
-
-                                    {/* Audit Start Date */}
-                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 xl:table-cell')}>
-                                        {timeline?.startedAt ? (
-                                            <span className="block truncate text-[11px] text-[#344054]" title={formatDate(timeline.startedAt)}>
-                                                {formatDate(timeline.startedAt)}
-                                            </span>
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground italic">Not started</span>
-                                        )}
-                                    </TableCell>
-
-                                    {/* Audit Completion Date */}
-                                    <TableCell className={cn(bodyCell, 'hidden max-w-0 lg:table-cell')}>
-                                        {timeline?.completedAt ? (
-                                            <span className="block truncate text-[11px] text-[#344054]" title={formatDate(timeline.completedAt)}>
-                                                {formatDate(timeline.completedAt)}
-                                            </span>
-                                        ) : (
-                                            <Badge
-                                                variant="secondary"
-                                                className="max-w-full truncate px-1 py-0 text-[9px] bg-amber-50 text-amber-700 border-amber-200"
-                                                title="In Progress"
-                                            >
-                                                In Progress
-                                            </Badge>
-                                        )}
                                     </TableCell>
 
                                     <TableCell className={cn(bodyCell, 'max-w-0')}>
@@ -859,12 +830,6 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                                     <div className="space-y-1">
                                                                                         <div className="font-mono text-2xl font-bold tabular-nums" style={{ color: meta.color }}>
                                                                                             {formatAuditScore(zakatScores.weightageScore)}/{AUDIT_DISPLAY_MAX.core3Weightage}
-                                                                                        </div>
-                                                                                        <div className="text-[10px] leading-tight text-[#667085]">
-                                                                                            Assessment score
-                                                                                            <span className="ml-1 font-mono text-sm font-semibold tabular-nums text-[#344054]">
-                                                                                                {formatAuditScore(zakatScores.assessmentScore)}/{AUDIT_DISPLAY_MAX.core3Assessment}
-                                                                                            </span>
                                                                                         </div>
                                                                                     </div>
                                                                                 ) : (

@@ -22,6 +22,8 @@ type AssessmentPageContentProps = {
     charityId: string;
     charityTitle: string;
     websiteUrl?: string | null;
+    governmentRecordUrl?: string | null;
+    governmentRecordLabel?: string | null;
     assessmentSlug: AssessmentSlug;
     assessmentTitle: string;
     assessmentDescription: string;
@@ -34,6 +36,8 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
     charityId,
     charityTitle,
     websiteUrl,
+    governmentRecordUrl,
+    governmentRecordLabel,
     assessmentSlug,
     location,
     status,
@@ -142,7 +146,7 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                 </div>
                 <div className="flex flex-col gap-3">
                     <TypographyComponent variant='h2'>{charityTitle}</TypographyComponent>
-                    <CharityWebsiteLink websiteUrl={websiteUrl} />
+                    <CharityWebsiteLink websiteUrl={websiteUrl} governmentRecordUrl={governmentRecordUrl} governmentRecordLabel={governmentRecordLabel} />
                     {score !== null && (
                         <div className="flex items-center gap-2 flex-wrap">
                             <TypographyComponent className='text-sm font-medium'>Current Score:</TypographyComponent>

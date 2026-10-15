@@ -166,13 +166,13 @@ function SectionCollapseButton({
     return (
         <button
             type="button"
+            aria-label={collapsed ? 'Expand section' : 'Collapse section'}
             aria-expanded={!collapsed}
             aria-controls={controls}
             onClick={onClick}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#667085] transition-colors hover:bg-[#F2F6FB] hover:text-[#266DD3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#266DD3]/30"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#667085] transition-colors hover:bg-[#F2F6FB] hover:text-[#266DD3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#266DD3]/30"
         >
-            {collapsed ? 'Expand' : 'Collapse'}
-            <ChevronDown className={cn('h-4 w-4 transition-transform', !collapsed && 'rotate-180')} />
+            <ChevronDown className={cn('h-4 w-4 transition-transform', collapsed && '-rotate-90')} />
         </button>
     )
 }
@@ -1061,7 +1061,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
 
                 {showApprovalTasks ? (
                     <section className={cn(shellClass, 'overflow-hidden')}>
-                        <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F6] px-5 py-4">
+                        <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F6] bg-gradient-to-r from-[#F8FBFF] via-white to-[#F7FFFB] px-5 py-4">
                             <div>
                                 <h2 className="text-base font-semibold text-[#101928]">Operations Manager Tasks</h2>
                                 <p className="mt-0.5 text-sm text-[#667085]">Final review and manual approval for completed charity assessments.</p>

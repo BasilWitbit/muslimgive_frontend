@@ -24,7 +24,9 @@ import { cn } from '@/lib/utils'
 import {
     AUDIT_DISPLAY_MAX,
     formatAuditScore,
+    getAreaDisplayScore,
     getOverallDisplayScore,
+    getZakatDisplayScores,
 } from '@/lib/audit-score-display'
 import { computeRatingBand } from '@/lib/audit-scoring'
 import RatingBandBadge from '@/components/common/RatingBandBadge'
@@ -184,13 +186,21 @@ const AssessmentHistoryPage = () => {
         // (Financial/Zakah data is siloed to that area's assessors).
         if (!coreAreaData) return null
 
-        const normalizedScore = coreAreaData.totalScore > 0
-            ? Math.round(((coreAreaData.score ?? 0) / coreAreaData.totalScore) * 100)
-            : 0;
+        const displayMax = coreAreaKey === 'core1'
+            ? AUDIT_DISPLAY_MAX.core1
+            : coreAreaKey === 'core2'
+                ? AUDIT_DISPLAY_MAX.core2
+                : coreAreaKey === 'core3'
+                    ? AUDIT_DISPLAY_MAX.core3Weightage
+                    : AUDIT_DISPLAY_MAX.core4
+        const displayScore = coreAreaKey === 'core3'
+            ? getZakatDisplayScores(coreAreaData).weightageScore
+            : getAreaDisplayScore(coreAreaData, displayMax)
 
         return {
             status: mapStatusToAssessmentStatus(coreAreaData.status),
-            score: normalizedScore,
+            score: displayScore ?? 0,
+            displayMax,
             ratingBand: coreAreaData.ratingBand ?? null,
             mandatoryResult: coreAreaData.mandatoryResult ?? null,
         }
@@ -314,6 +324,7 @@ const AssessmentHistoryPage = () => {
                                             subTitle={AUDIT_DEFINITIONS[eachAssessment].title.split('(')[0].trim()}
                                             ratingBand={assessmentData.ratingBand}
                                             score={assessmentData.score}
+                                            displayMax={assessmentData.displayMax}
                                             status={assessmentData.status}
                                             accentColor={areaMeta.color}
                                             mandatoryResult={eachAssessment === 'core-area-4' ? null : assessmentData.mandatoryResult}

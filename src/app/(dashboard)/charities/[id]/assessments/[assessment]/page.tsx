@@ -42,6 +42,9 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
         charityTitle: c.name,
         country: c.countryCode || c.country,
         websiteUrl: c.websiteUrl ?? null,
+        ukCharityCommissionUrl: c.ukCharityCommissionUrl ?? null,
+        caCraUrl: c.caCraUrl ?? null,
+        usIrsUrl: c.usIrsUrl ?? null,
     }
 
     const assessmentDefinition = AUDIT_DEFINITIONS[assessment]
@@ -65,6 +68,14 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
 
     const resolvedCountry: CountryCode = countryFromQuery || fetchedCountryCode;
     const resolvedCountryName = CountryEnum[resolvedCountry] || CountryEnum['united-states']
+    const governmentRecordUrl = resolvedCountry === 'united-kingdom'
+        ? charity.ukCharityCommissionUrl
+        : resolvedCountry === 'canada'
+          ? charity.caCraUrl
+          : charity.usIrsUrl
+    const governmentRecordLabel = resolvedCountry === 'united-kingdom'
+        ? 'Charity Commission'
+        : resolvedCountry === 'canada' ? 'CRA' : 'IRS'
 
     const charityTitle = `${charity.charityTitle} (${resolvedCountryName} Version)`
 
@@ -75,7 +86,7 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
         return (
             <div className="flex flex-col gap-4">
                 <h1 className="text-xl font-semibold text-[#101928]">{charityTitle}</h1>
-                <CharityWebsiteLink websiteUrl={charity.websiteUrl} />
+                <CharityWebsiteLink websiteUrl={charity.websiteUrl} governmentRecordUrl={governmentRecordUrl} governmentRecordLabel={governmentRecordLabel} />
                 <Preview assessmentedBy={{
                     name: "Rahima Issa",
                     time: "2024-06-01T12:00:00Z"
@@ -99,6 +110,8 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
             charityId={charity.id}
             charityTitle={charityTitle}
             websiteUrl={charity.websiteUrl}
+            governmentRecordUrl={governmentRecordUrl}
+            governmentRecordLabel={governmentRecordLabel}
             location={resolvedCountry}
             status={assessmentStatus}
             currentUserRoles={currentUserRoles}

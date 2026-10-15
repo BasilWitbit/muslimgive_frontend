@@ -1,5 +1,5 @@
 'use client'
-import { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page';
+import type { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page';
 import { AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS';
 import React, { FC, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button';
@@ -99,7 +99,7 @@ const RatingCell = ({ rating }: { rating?: string | null }) => {
 
 const MANDATORY_STATUS_STYLES: Record<'clean' | 'caution' | 'concern', { label: string; bg: string; text: string; dot: string }> = {
     clean: { label: 'PASS', bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
-    caution: { label: 'PASS', bg: 'bg-amber-50', text: 'text-amber-800', dot: 'bg-amber-500' },
+    caution: { label: 'PASS', bg: 'bg-emerald-50', text: 'text-emerald-800', dot: 'bg-emerald-500' },
     concern: { label: 'FAIL', bg: 'bg-rose-50', text: 'text-rose-800', dot: 'bg-rose-500' },
 };
 
@@ -124,12 +124,14 @@ const MetricTile = ({
     max,
     footer,
     emphasize,
+    skipped = false,
 }: {
     label: string
     score?: unknown
     max?: unknown
     footer?: React.ReactNode
     emphasize?: boolean
+    skipped?: boolean
 }) => {
     const fill = scoreFillPercent(score, max);
     return (
@@ -142,17 +144,27 @@ const MetricTile = ({
             )}
         >
             <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#667085]">{label}</p>
-            <p className="mt-2 text-[22px] font-semibold leading-none tracking-tight tabular-nums text-[#101928]">
-                {formatPoints(score)}
-                <span className="text-[13px] font-medium text-[#98A2B3]">/{formatPoints(max)}</span>
-            </p>
-            <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-[#E8EEF5]">
-                <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#10B981] to-[#34D399] transition-[width]"
-                    style={{ width: `${fill}%` }}
-                />
-            </div>
-            {footer ? <div className="mt-auto pt-3">{footer}</div> : <div className="mt-auto" />}
+            {skipped ? (
+                <div className="mt-3">
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        Skipped
+                    </span>
+                </div>
+            ) : (
+                <>
+                    <p className="mt-2 text-[22px] font-semibold leading-none tracking-tight tabular-nums text-[#101928]">
+                        {formatPoints(score)}
+                        <span className="text-[13px] font-medium text-[#98A2B3]">/{formatPoints(max)}</span>
+                    </p>
+                    <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-[#E8EEF5]">
+                        <div
+                            className="h-full rounded-full bg-gradient-to-r from-[#10B981] to-[#34D399] transition-[width]"
+                            style={{ width: `${fill}%` }}
+                        />
+                    </div>
+                    {footer ? <div className="mt-auto pt-3">{footer}</div> : <div className="mt-auto" />}
+                </>
+            )}
         </div>
     );
 };
@@ -380,8 +392,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                 {scoring.auto_concern ? (
                                     <>
                                         Final outcome is Concern regardless of the calculated Zakat score (
-                                        {formatPoints(isV15 ? scoring.raw_grand_total : scoring.grand_total)} /{' '}
-                                        {formatPoints(isV15 ? scoring.raw_grand_max : scoring.grand_max)}).
+                                        {formatPoints(scoring.grand_total)} / {formatPoints(scoring.grand_max)}).
                                     </>
                                 ) : (
                                     <>Calculated band is kept; a caution note is attached.</>
@@ -458,6 +469,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                     label="Charity services extra"
                                     score={charityServicesExtraSection.score}
                                     max={charityServicesExtraSection.max}
+                                    skipped={Boolean(scoring?.optional_skipped)}
                                     footer={
                                         <RatingCell
                                             rating={getLegacyDonorSupportProfile(
@@ -495,7 +507,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
 
                     <div className="border-t border-[#EEF2F6] bg-white px-4 py-2.5 text-[10px] leading-relaxed text-[#8B95A5] sm:px-5">
                         {isV15
-                            ? 'Bands (out of 80): Strong >68–80 · Moderate >54–68 · Needs Improvement 40–54 · Concern <40. Out of 40 (÷2): >34 · >27 · 20–27 · <20. Unrounded scores. Donor Support is excluded from the Zakat score.'
+                            ? 'Bands (out of 40): Strong >34 · Moderate >27 · Needs Improvement 20–27 · Concern <20. Unrounded scores. Donor Support is excluded from the Zakat score.'
                             : 'Bands (out of 40): Strong 34.74–40.00 · Moderate 26.84–34.73 · Needs Improvement 21.05–26.83 · Concern 0.00–21.04'}
                         {scoring.auto_concern ? ' · Mandatory override applies' : ''}
                     </div>

@@ -1,5 +1,5 @@
 
-import { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page'
+import type { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page'
 import ArrowIcon from '@/components/common/IconComponents/ArrowIcon'
 import LinkComponent from '@/components/common/LinkComponent'
 import { Button } from '@/components/ui/button'

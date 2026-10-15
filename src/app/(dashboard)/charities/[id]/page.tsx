@@ -118,6 +118,7 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
         startDateFromFinancialAssessment: Boolean(c.startDateFromFinancialAssessment),
         startYear: c.startYear ?? null,
         isEligible: c.isEligible ?? null,
+        pendingEligibilityReason: c.pendingEligibilityReason ?? null,
         ukCharityNumber: c.ukCharityNumber ?? null,
         ukCharityCommissionUrl: c.ukCharityCommissionUrl ?? null,
         caRegistrationNumber: c.caRegistrationNumber ?? null,

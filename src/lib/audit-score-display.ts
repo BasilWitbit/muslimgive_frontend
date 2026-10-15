@@ -1,7 +1,7 @@
 export const AUDIT_DISPLAY_MAX = {
     core1: 10,
     core2: 40,
-    core3Assessment: 80,
+    core3Assessment: 40,
     core3Weightage: 40,
     core4: 10,
     overall: 100,
@@ -83,11 +83,7 @@ export function getZakatDisplayScores(area: AuditReviewLike) {
     const weightageScore =
         area.weightedScore ??
         area.weightageScore ??
-        (assessmentScore !== null
-            ? Number(
-                  ((assessmentScore / AUDIT_DISPLAY_MAX.core3Assessment) * AUDIT_DISPLAY_MAX.core3Weightage).toFixed(1),
-              )
-            : null)
+        assessmentScore
 
     return { assessmentScore, weightageScore }
 }
@@ -121,6 +117,6 @@ export function getOverallDisplayScore(
     },
     overallScorePercent?: number | null,
 ): number | null {
-    if (typeof overallScorePercent === 'number') return overallScorePercent
-    return computeOverallFromReviews(reviews)
+    const computed = computeOverallFromReviews(reviews)
+    return computed ?? (typeof overallScorePercent === 'number' ? overallScorePercent : null)
 }

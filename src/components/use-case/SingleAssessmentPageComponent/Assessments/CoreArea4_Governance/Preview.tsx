@@ -1,5 +1,5 @@
 'use client'
-import { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page';
+import type { CountryCode } from '@/app/(dashboard)/charities/[id]/assessments/[assessment]/page';
 import { AssessmentStatus } from '@/DUMMY_ASSESSMENT_VALS';
 import React, { FC, useEffect, useState, useMemo } from 'react'
 import { AssessmentHistoryPreviewFrame, AssessmentPreviewLoading } from '../../UI/AssessmentHistoryPreviewFrame';
@@ -247,7 +247,7 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                                     </div>
                                                 </td>
                                                 <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top">
-                                                    {metric ? <RatingBandBadge ratingBand={metric.outcome === 'moderate' ? 'Moderate' : metric.outcome === 'strong' ? 'Strong' : 'Concern'} /> : <span className="text-gray-400">—</span>}
+                                                    {metric?.outcome ? <RatingBandBadge ratingBand={metric.outcome === 'moderate' ? 'Moderate' : metric.outcome === 'strong' ? 'Strong' : 'Concern'} /> : <span className="text-gray-400">—</span>}
                                                 </td>
                                                 <td className="border-r border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[10px] leading-snug text-[#667085]">
                                                     {metric?.descriptor ?? <span className="text-[#C4CDD8]">—</span>}

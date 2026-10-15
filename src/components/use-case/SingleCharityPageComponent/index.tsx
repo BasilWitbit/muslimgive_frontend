@@ -42,6 +42,7 @@ import { usePermissions } from '@/components/common/permissions-provider'
 import { PERMISSIONS } from '@/lib/permissions-config'
 import EligibilityOverrideModal from './models/EligibilityOverrideModal'
 import EligibilityTest from './models/EligibilityTest'
+import { buildEligibilitySuggestion } from '@/components/common/EligibilitySuggestionCard'
 import { Progress } from '@/components/ui/progress'
 import { AUDIT_DEFINITIONS } from '../SingleAssessmentPageComponent/ASSESSMENT_DEFINITIONS'
 import EditCharityDetailsModal from './models/EditCharityDetailsModal'
@@ -111,6 +112,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     reassessmentCycle,
     overallScorePercent,
     currentUserRoles = [],
+    pendingEligibilityReason,
 }) => {
     const router = useRouter();
     const searchParams = useSearchParams()
@@ -156,6 +158,16 @@ const SingleCharityPageComponent: FC<IProps> = ({
     }
 
     const resolvedCountry = resolveCountry(country)
+    const eligibilitySuggestion = React.useMemo(() => buildEligibilitySuggestion({
+        annualRevenue: annualRevenue ?? null,
+        isIslamic: Boolean(isThisMuslimCharity),
+        category,
+        assessmentRequested: Boolean(assessmentRequested),
+        startDate: startDate ?? null,
+        startYear: startYear ?? null,
+        countryCode: country,
+    }), [annualRevenue, isThisMuslimCharity, category, assessmentRequested, startDate, startYear, country])
+    const ineligibilityReasons = eligibilitySuggestion.reasons.filter((reason) => !reason.ok)
 
     const handleOpenModel = (nameOfModel: TaskIds | 'manage-team' | 'configure-role' | 'eligibility-override' | 'eligibility-test' | 'assign-finance-assessor' | 'assign-zakat-assessor' | 'assign-read-only' | 'edit-charity-details') => {
         setModelState(prevState => ({ ...prevState, nameOfModel }));
@@ -386,7 +398,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
 
         if (assessmentId === 'core-area-3') {
             const zakatScores = getZakatDisplayScores(review)
-            return `Assessment: ${formatAuditScore(zakatScores.assessmentScore)}/${AUDIT_DISPLAY_MAX.core3Assessment} · Weightage: ${formatAuditScore(zakatScores.weightageScore)}/${AUDIT_DISPLAY_MAX.core3Weightage}`
+            return `Score: ${formatAuditScore(zakatScores.weightageScore)}/${AUDIT_DISPLAY_MAX.core3Weightage}`
         }
 
         const displayMax = assessmentId === 'core-area-2'
@@ -738,6 +750,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                     heading="Progress Overview"
                     description="Track eligibility, assignments, assessments, and final review status."
                     accent="from-[#12B76A] via-[#266DD3] to-[#5CD9F2]"
+                    collapsible
                 >
                     <div className="flex flex-col gap-4">
                         <div className="flex items-center justify-between rounded-2xl border border-[#E8EEF5] bg-gradient-to-r from-[#F8FBFF] to-white px-4 py-3">
@@ -802,6 +815,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             heading="Admin Review"
                             description="Review the completed assessments before manual approval. The workflow pauses at this stage."
                             accent="from-[#7C3AED] via-[#266DD3] to-[#5CD9F2]"
+                            collapsible
                         >
                             <div className="flex flex-col gap-3">
                                 <InfoRow label="Overall Score:" value={overallScoreLabel ?? '-'} />
@@ -833,6 +847,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         heading="Eligibility Details"
                         description="Category, revenue, and charity classification."
                         accent="from-[#F79009] via-[#F59E0B] to-[#FCD34D]"
+                        collapsible
                     >
                         <div className="flex flex-col gap-3">
                             {status === 'pending-eligibility' && canManageCharity ? (
@@ -856,6 +871,20 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 </Button>
                             ) : null}
                             <InfoRow label="Category:" value={category ? kebabToTitle(category) : '-'} />
+                            {status === 'ineligible' ? (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Reason for ineligibility</p>
+                                    {pendingEligibilityReason ? (
+                                        <p className="mt-1 text-sm text-amber-900">{pendingEligibilityReason}</p>
+                                    ) : ineligibilityReasons.length ? (
+                                        <ul className="mt-1 list-inside list-disc space-y-0.5 text-sm text-amber-900">
+                                            {ineligibilityReasons.map((reason) => <li key={reason.text}>{reason.text}</li>)}
+                                        </ul>
+                                    ) : (
+                                        <p className="mt-1 text-sm text-amber-900">Marked ineligible during the eligibility review.</p>
+                                    )}
+                                </div>
+                            ) : null}
                             <InfoRow
                                 label="Start Date:"
                                 value={(
@@ -895,6 +924,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         heading="Registration"
                         description="Official registration numbers and commission links."
                         accent="from-[#266DD3] via-[#3B82E8] to-[#5CD9F2]"
+                        collapsible
                     >
                         <div className="flex flex-col gap-3">
                             <InfoRow
@@ -971,6 +1001,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         )}
                         accent="from-[#12B76A] via-[#10B981] to-[#5CD9F2]"
                         bodyClassName="pt-2"
+                        collapsible
                     >
                         <div className="flex flex-col gap-3 pt-3">
                             {assessmentMeta.map((item) => {
@@ -1105,6 +1136,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 heading="Comments"
                 description="Team notes and discussion for this charity."
                 accent="from-[#266DD3] via-[#6366F1] to-[#8B5CF6]"
+                collapsible
             >
                 <div className="flex flex-col gap-3">
                     {isCommentsLoading ? (

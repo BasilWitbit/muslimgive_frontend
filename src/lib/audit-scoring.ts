@@ -72,13 +72,14 @@ export function computeCoreArea4Score(
 
     let score = 0;
     for (const field of membershipFields) {
-        score += MEMBERSHIP_SCORES[answers[field] ?? ''] ?? 0;
+        const value = answers[field]?.trim().toLowerCase() ?? '';
+        score += MEMBERSHIP_SCORES[value] ?? 0;
     }
 
     // UK charities do not use the arm's-length board metric; its point is
     // reallocated to CEO identification so every country remains out of 10.
-    if (answers.ceo_identification === 'yes') score += isUk ? 2 : 1;
-    if (!isUk && answers.minimum_3_board_members_at_arms_length === 'yes') score += 1;
+    if (answers.ceo_identification?.trim().toLowerCase() === 'yes') score += isUk ? 2 : 1;
+    if (!isUk && answers.minimum_3_board_members_at_arms_length?.trim().toLowerCase() === 'yes') score += 1;
 
     return { score, totalScore: 10 };
 }

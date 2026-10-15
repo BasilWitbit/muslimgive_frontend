@@ -147,10 +147,7 @@ const ReportPage = async ({ params }: { params: Promise<{ charityId: string }> }
                             {area.coreArea === 3 && zakatScores ? (
                                 <>
                                     <TypographyComponent variant="caption" className="block text-[#667085] font-mono tabular-nums">
-                                        Assessment Score: {formatAuditScore(zakatScores.assessmentScore)}/{AUDIT_DISPLAY_MAX.core3Assessment}
-                                    </TypographyComponent>
-                                    <TypographyComponent variant="caption" className="block text-[#667085] font-mono tabular-nums">
-                                        Overall Weightage: {formatAuditScore(zakatScores.weightageScore)}/{AUDIT_DISPLAY_MAX.core3Weightage}
+                                        Score: {formatAuditScore(zakatScores.weightageScore)}/{AUDIT_DISPLAY_MAX.core3Weightage}
                                     </TypographyComponent>
                                     {area.ratingBand ? (
                                         <div className="mt-1 flex flex-wrap items-center gap-2">

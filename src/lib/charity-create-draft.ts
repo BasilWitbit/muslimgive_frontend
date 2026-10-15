@@ -56,7 +56,7 @@ export type CharityRow = {
     startYear: string
     startDate: string
     regNumber: string
-    /** Country regulator link (Charity Commission / CRA) — not applicable for US. */
+    /** Country regulator link (Charity Commission / CRA / IRS). */
     profileUrl: string
     /** The charity's own general website — optional, any country. */
     websiteUrl: string
@@ -123,8 +123,7 @@ export function rowToDraft(row: CharityRow): CharityCreateDraft {
         caRegistrationNumber: isCa ? row.regNumber || null : null,
         caCraUrl: isCa ? row.profileUrl || null : null,
         usEin: isUs ? row.regNumber || null : null,
-        // US charities don't collect a regulator link (the IRS site doesn't allow deep links).
-        usIrsUrl: null,
+        usIrsUrl: isUs ? row.profileUrl || null : null,
         ceoName: row.ceoName.trim(),
         submittedByEmail: row.submittedByEmail.trim() || null,
         isIslamic: row.isIslamic === 'yes',
@@ -406,13 +405,13 @@ export function buildCharityPreviewView(draft: CharityCreateDraft): CharityPrevi
             ? draft.ukCharityCommissionUrl
             : draft.countryCode === 'canada'
               ? draft.caCraUrl
-              : null
+              : draft.usIrsUrl
     const regulatorLabel =
         draft.countryCode === 'united-kingdom'
             ? 'Charity Commission'
             : draft.countryCode === 'canada'
               ? 'CRA'
-              : null
+              : 'IRS'
 
     const registrationNumber =
         draft.countryCode === 'united-kingdom'

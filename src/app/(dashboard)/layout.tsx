@@ -41,6 +41,9 @@ export default async function DashboardScreensLayout({
     if (me?.canAccessPmDashboard) {
         resolvedPermissions.push(PERMISSIONS.PM_DASHBOARD_ACCESS_OVERRIDE);
     }
+    if (me?.canAccessFaAssessmentSheet) {
+        resolvedPermissions.push(PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE);
+    }
 
     const pendingPayload = pendingRes.ok ? (pendingRes.payload?.data as any) : null;
     const pendingCount = pendingPayload?.data?.meta?.total ?? pendingPayload?.meta?.total ?? 0;

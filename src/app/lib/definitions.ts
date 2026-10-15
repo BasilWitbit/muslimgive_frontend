@@ -43,6 +43,7 @@ export type UserProfile = {
     profilePicture?: string;
     isDeleted?: boolean;
     canAccessPmDashboard?: boolean;
+    canAccessFaAssessmentSheet?: boolean;
     receiveDailyProgressEmail?: boolean;
 }
 

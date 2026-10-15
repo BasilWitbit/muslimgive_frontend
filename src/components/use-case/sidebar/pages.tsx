@@ -65,6 +65,7 @@ export const PAGES: Page[] = [
                 PERMISSIONS.VIEW_CHARITIES,
                 PERMISSIONS.AUDIT_CHARITY_VIEW,
                 PERMISSIONS.AUDIT_SUBMISSION_CREATE,
+                PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE,
             ],
         },
     },

@@ -33,6 +33,8 @@ export const PERMISSIONS = {
     CREATE_CHARITY_COMMENT: "create:charity_comment",
     /** Synthetic, per-user flag (not a real role-granted permission) — set client-side from the user's own `canAccessPmDashboard` field. Lets an admin grant PM Dashboard access to one user without assigning the full Project Manager role. */
     PM_DASHBOARD_ACCESS_OVERRIDE: "pm_dashboard:access_override",
+    /** Synthetic per-user Config grant for the Financial Accountability assessment sheet. */
+    FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE: "fa_assessment_sheet:access_override",
 } as const;
 
 export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
@@ -66,6 +68,18 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
                 PERMISSIONS.VIEW_CHARITIES,
                 PERMISSIONS.AUDIT_CHARITY_VIEW,
                 PERMISSIONS.AUDIT_SUBMISSION_CREATE,
+                PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE,
+            ],
+        },
+    },
+    {
+        pattern: /^\/assessment-sheet\/[^/]+$/,
+        requirement: {
+            anyOf: [
+                PERMISSIONS.VIEW_CHARITIES,
+                PERMISSIONS.AUDIT_CHARITY_VIEW,
+                PERMISSIONS.AUDIT_SUBMISSION_CREATE,
+                PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE,
             ],
         },
     },

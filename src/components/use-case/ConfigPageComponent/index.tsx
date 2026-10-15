@@ -5,7 +5,7 @@ import EligibilityRulesSettings from './settings/EligibilityRulesSettings'
 import PmDashboardAccessSettings from './PmDashboardAccessSettings'
 import { listPermissionsAction, listRolesAction } from '@/app/actions/roles'
 import { getEligibilityRulesAction } from '@/app/actions/eligibility-rules'
-import { listUsersAction, listPmDashboardAccessAction } from '@/app/actions/users'
+import { listUsersAction, listPmDashboardAccessAction, listFaAssessmentSheetAccessAction } from '@/app/actions/users'
 import {
     Layers3,
     ScanSearch,
@@ -38,12 +38,13 @@ const mapPermissions = (raw: any): Permission[] => {
 }
 
 const ConfigPageComponent = async () => {
-    const [rolesRes, permsRes, rulesRes, allUsersRes, pmDashboardAccessRes] = await Promise.all([
+    const [rolesRes, permsRes, rulesRes, allUsersRes, pmDashboardAccessRes, faAssessmentSheetAccessRes] = await Promise.all([
         listRolesAction(),
         listPermissionsAction(),
         getEligibilityRulesAction(),
         listUsersAction({ limit: 500 }),
         listPmDashboardAccessAction(),
+        listFaAssessmentSheetAccessAction(),
     ])
 
     const unwrap = <K,>(res: { ok: boolean; payload?: { data?: K | { data?: K } } | null }): K | null => {
@@ -69,6 +70,10 @@ const ConfigPageComponent = async () => {
         ? pmDashboardAccessRes.payload.data
         : []
     const pmDashboardAccessIds = pmDashboardAccessRaw.map((u) => u.id).filter(Boolean)
+    const faAssessmentSheetAccessRaw: any[] = Array.isArray(faAssessmentSheetAccessRes?.payload?.data)
+        ? faAssessmentSheetAccessRes.payload.data
+        : []
+    const faAssessmentSheetAccessIds = faAssessmentSheetAccessRaw.map((u) => u.id).filter(Boolean)
 
     const customRoles = initialRoles.filter((role) => role.rolePolicy === 'custom').length
     const managedRoles = initialRoles.filter((role) => role.rolePolicy === 'managed').length
@@ -175,6 +180,22 @@ const ConfigPageComponent = async () => {
                         <PmDashboardAccessSettings
                             users={pmDashboardUsers}
                             initialSelectedIds={pmDashboardAccessIds}
+                        />
+                    </div>
+                </section>
+
+                <section className="overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.045)]">
+                    <div className="border-b border-[#E8EEF5] bg-gradient-to-br from-[#F8FBFF] to-white px-5 py-4">
+                        <h3 className="text-lg font-semibold text-[#101928]">FA Assessment Sheet Access</h3>
+                        <p className="mt-1 text-sm text-[#667085]">
+                            Grant individual users access to the Financial Accountability assessment sheet without changing their role.
+                        </p>
+                    </div>
+                    <div className="p-5">
+                        <PmDashboardAccessSettings
+                            users={pmDashboardUsers}
+                            initialSelectedIds={faAssessmentSheetAccessIds}
+                            accessType="fa-assessment-sheet"
                         />
                     </div>
                 </section>

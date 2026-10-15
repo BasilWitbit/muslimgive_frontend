@@ -4,11 +4,12 @@ import React, { FC, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import AssignProjectManager from '@/components/use-case/SingleCharityPageComponent/models/AssignProjectManager'
-import { updatePmDashboardAccessAction } from '@/app/actions/users'
+import { updateFaAssessmentSheetAccessAction, updatePmDashboardAccessAction } from '@/app/actions/users'
 
 type IProps = {
     users: Array<{ id: string; name: string; email?: string | null }>
     initialSelectedIds: string[]
+    accessType?: 'pm-dashboard' | 'fa-assessment-sheet'
 }
 
 /**
@@ -16,7 +17,7 @@ type IProps = {
  * Dashboard without assigning them the full Project Manager role (which also
  * grants submission/completion rights they may not need).
  */
-const PmDashboardAccessSettings: FC<IProps> = ({ users, initialSelectedIds }) => {
+const PmDashboardAccessSettings: FC<IProps> = ({ users, initialSelectedIds, accessType = 'pm-dashboard' }) => {
     const router = useRouter()
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -31,15 +32,18 @@ const PmDashboardAccessSettings: FC<IProps> = ({ users, initialSelectedIds }) =>
 
         setIsSubmitting(true)
         try {
-            const res = await updatePmDashboardAccessAction({ add: toAdd, remove: toRemove })
+            const updateAccess = accessType === 'fa-assessment-sheet'
+                ? updateFaAssessmentSheetAccessAction
+                : updatePmDashboardAccessAction
+            const res = await updateAccess({ add: toAdd, remove: toRemove })
             if (res.ok) {
-                toast.success('PM Dashboard access updated')
+                toast.success(accessType === 'fa-assessment-sheet' ? 'FA Assessment Sheet access updated' : 'PM Dashboard access updated')
                 router.refresh()
             } else {
-                toast.error(res.message || 'Failed to update PM Dashboard access')
+                toast.error(res.message || `Failed to update ${accessType === 'fa-assessment-sheet' ? 'FA Assessment Sheet' : 'PM Dashboard'} access`)
             }
         } catch (error) {
-            console.error('Failed to update PM Dashboard access', error)
+            console.error('Failed to update page access', error)
             toast.error('An unexpected error occurred')
         } finally {
             setIsSubmitting(false)
@@ -54,7 +58,9 @@ const PmDashboardAccessSettings: FC<IProps> = ({ users, initialSelectedIds }) =>
             actionLabel="Save Access List"
             isSubmitting={isSubmitting}
             allowEmpty
-            emptyMessage="No one currently has PM Dashboard access via this override."
+            emptyMessage={accessType === 'fa-assessment-sheet'
+                ? 'No one currently has FA Assessment Sheet access via this override.'
+                : 'No one currently has PM Dashboard access via this override.'}
             onSelection={handleSave}
         />
     )

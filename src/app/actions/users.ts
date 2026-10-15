@@ -144,6 +144,18 @@ export const updatePmDashboardAccessAction = async (payload: UpdatePmDashboardAc
     return res;
 }
 
+/** GET /users/fa-assessment-sheet-access */
+export const listFaAssessmentSheetAccessAction = async (): Promise<ResponseType> => {
+    return await _get('/users/fa-assessment-sheet-access');
+}
+
+/** PATCH /users/fa-assessment-sheet-access */
+export const updateFaAssessmentSheetAccessAction = async (payload: UpdatePmDashboardAccessPayload): Promise<ResponseType> => {
+    const res = await _patch('/users/fa-assessment-sheet-access', payload);
+    if (res.ok) revalidateTag('user-me');
+    return res;
+}
+
 /**
  * Payload for updating the current user's profile
  */

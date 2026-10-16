@@ -3,6 +3,7 @@
 import React, { FC } from 'react'
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Mail, ExternalLink, ChevronLeft, ChevronRight, Trash2, ChevronDown, Loader2, History } from 'lucide-react'
 import CopyCharityLinkButton from '@/components/common/CopyCharityLinkButton'
@@ -210,6 +211,9 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     // Delete states
     const [showDeleteModal, setShowDeleteModal] = React.useState<string | null>(null)
     const [isDeleting, setIsDeleting] = React.useState(false)
+    const [selectedCharityIds, setSelectedCharityIds] = React.useState<string[]>([])
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = React.useState(false)
+    const [isDeletingBulk, setIsDeletingBulk] = React.useState(false)
 
     // Assign role states
     const [assignRoleState, setAssignRoleState] = React.useState<AssignRoleState>(null)
@@ -322,6 +326,38 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
         }
     }
 
+    const handleBulkDeleteCharities = async () => {
+        if (selectedCharityIds.length === 0) return
+        setIsDeletingBulk(true)
+        const deletedIds: string[] = []
+        const failedIds: string[] = []
+
+        try {
+            for (const charityId of selectedCharityIds) {
+                try {
+                    const res = await deleteCharityAction(charityId)
+                    if (res.ok) deletedIds.push(charityId)
+                    else failedIds.push(charityId)
+                } catch {
+                    failedIds.push(charityId)
+                }
+            }
+
+            setSelectedCharityIds(failedIds)
+            setShowBulkDeleteModal(false)
+            if (deletedIds.length > 0) {
+                toast.success(`${deletedIds.length} ${deletedIds.length === 1 ? 'charity' : 'charities'} deleted`)
+                onRefresh?.()
+                router.refresh()
+            }
+            if (failedIds.length > 0) {
+                toast.error(`${failedIds.length} ${failedIds.length === 1 ? 'charity' : 'charities'} could not be deleted`)
+            }
+        } finally {
+            setIsDeletingBulk(false)
+        }
+    }
+
     const handleRowClick = async (charityId: string) => {
         if (expandedId === charityId) {
             setExpandedId(null)
@@ -381,6 +417,13 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     const end = Math.min(start + rowsPerPage, total)
 
     const pageItems = charities.slice(start, end)
+    const allPageItemsSelected = pageItems.length > 0 && pageItems.every((charity) => selectedCharityIds.includes(charity.id))
+    const togglePageSelection = (checked: boolean) => {
+        const pageIds = pageItems.map((charity) => charity.id)
+        setSelectedCharityIds((current) => checked
+            ? Array.from(new Set([...current, ...pageIds]))
+            : current.filter((id) => !pageIds.includes(id)))
+    }
 
     const colCount = 11 // number of table columns
     const headCell =
@@ -389,11 +432,38 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
 
     return (
         <div className="overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.045)]">
+            {canDeleteCharity && selectedCharityIds.length > 0 ? (
+                <div className="flex items-center justify-between gap-3 border-b border-[#E8EEF5] bg-[#FFF8F7] px-4 py-3">
+                    <span className="text-sm font-medium text-[#344054]">{selectedCharityIds.length} selected</span>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setSelectedCharityIds([])}>
+                            Clear selection
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-red-200 text-red-700 hover:bg-red-50"
+                            onClick={() => setShowBulkDeleteModal(true)}
+                        >
+                            <Trash2 className="mr-1.5 h-4 w-4" /> Delete selected
+                        </Button>
+                    </div>
+                </div>
+            ) : null}
             <Table className="w-full table-fixed text-[11px] [&_th]:align-middle [&_td]:align-middle">
                 <TableHeader>
                     <TableRow className="border-b border-[#E8EEF5] bg-gradient-to-r from-[#FAFBFC] to-[#F8FBFF] hover:bg-gradient-to-r hover:from-[#FAFBFC] hover:to-[#F8FBFF]">
                         <TableHead className={cn(headCell, 'w-[14%]')} title={TABLE_COLUMN_HELP.charity.description}>
-                            {TABLE_COLUMN_HELP.charity.title}
+                            <div className="flex items-center gap-2">
+                                {canDeleteCharity ? (
+                                    <Checkbox
+                                        aria-label="Select all charities on this page"
+                                        checked={allPageItemsSelected}
+                                        onCheckedChange={(checked) => togglePageSelection(checked === true)}
+                                    />
+                                ) : null}
+                                {TABLE_COLUMN_HELP.charity.title}
+                            </div>
                         </TableHead>
                         <TableHead className={cn(headCell, 'hidden w-[5%] text-center xl:table-cell')}>
                             <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.twoPlusYears.description}>
@@ -504,6 +574,16 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                 >
                                     <TableCell className={cn(bodyCell, 'max-w-0')}>
                                         <div className="flex min-w-0 items-center gap-1.5">
+                                            {canDeleteCharity ? (
+                                                <Checkbox
+                                                    aria-label={`Select ${c.charityTitle}`}
+                                                    checked={selectedCharityIds.includes(c.id)}
+                                                    onCheckedChange={(checked) => setSelectedCharityIds((current) => checked === true
+                                                        ? Array.from(new Set([...current, c.id]))
+                                                        : current.filter((id) => id !== c.id))}
+                                                    onClick={(event) => event.stopPropagation()}
+                                                />
+                                            ) : null}
                                             <ChevronDown
                                                 className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                                             />
@@ -590,9 +670,13 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                             <span className="block truncate text-[11px] text-[#344054]" title={formatDate(timeline.completedAt)}>
                                                 {formatDate(timeline.completedAt)}
                                             </span>
-                                        ) : (
+                                        ) : timeline?.startedAt ? (
                                             <Badge variant="secondary" className="max-w-full truncate px-1 py-0 text-[9px] bg-amber-50 text-amber-700 border-amber-200" title="In Progress">
                                                 In Progress
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="secondary" className="max-w-full truncate px-1 py-0 text-[9px] bg-slate-50 text-slate-600 border-slate-200" title="Not Started">
+                                                Not Started
                                             </Badge>
                                         )}
                                     </TableCell>
@@ -998,6 +1082,19 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                     confirmText="Delete"
                 />
             )}
+            {showBulkDeleteModal ? (
+                <ConfirmActionModal
+                    open={showBulkDeleteModal}
+                    onOpenChange={(open) => {
+                        if (!open) setShowBulkDeleteModal(false)
+                    }}
+                    title="Delete selected charities"
+                    description={`Permanently delete ${selectedCharityIds.length} selected ${selectedCharityIds.length === 1 ? 'charity' : 'charities'}? This action cannot be undone.`}
+                    onConfirm={handleBulkDeleteCharities}
+                    isLoading={isDeletingBulk}
+                    confirmText={`Delete ${selectedCharityIds.length}`}
+                />
+            ) : null}
         </div>
     )
 }

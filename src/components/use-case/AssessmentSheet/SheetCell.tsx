@@ -5,6 +5,10 @@ import { cn } from '@/lib/utils'
 import type { SheetColumn } from '@/lib/assessment-sheet/columns'
 import { formatSheetValue } from '@/lib/assessment-sheet/columns'
 import { parseFinancialAmount } from '@/lib/assessment-sheet/financial'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+/** Radix Select can't take an empty-string item value — this stands in for "clear to —". */
+const SHEET_CELL_CLEAR_VALUE = '__clear__'
 
 type PillTone = 'positive' | 'warning' | 'negative' | 'neutral'
 
@@ -78,7 +82,7 @@ export function SheetCell({
   ariaLabel,
 }: SheetCellProps) {
   const [draft, setDraft] = useState(value == null ? '' : String(value))
-  const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null)
+  const inputRef = useRef<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>(null)
   const editable = column.editable && !disabled
 
   useEffect(() => {
@@ -155,29 +159,39 @@ export function SheetCell({
   }
 
   if (column.type === 'select' && column.options) {
+    const currentValue = draft === '' ? SHEET_CELL_CLEAR_VALUE : draft
     return (
-      <select
-        ref={inputRef as React.RefObject<HTMLSelectElement>}
-        aria-label={ariaLabel}
-        value={draft}
-        onChange={(e) => {
-          setDraft(e.target.value)
-          onCommit(e.target.value === '' ? null : e.target.value)
+      <Select
+        value={currentValue}
+        onValueChange={(next) => {
+          const resolved = next === SHEET_CELL_CLEAR_VALUE ? '' : next
+          setDraft(resolved)
+          onCommit(resolved === '' ? null : resolved)
         }}
-        onBlur={commit}
-        className={cn(
-          'h-full min-h-9 w-full border-0 bg-[#EEF4FC] px-3 text-[13px] text-[#1A2332] outline-none ring-1 ring-inset ring-[#266DD3]/50',
-          'font-[family-name:var(--font-kanit)]',
-          className,
-        )}
+        onOpenChange={(open) => {
+          if (!open) commit()
+        }}
       >
-        <option value="">—</option>
-        {column.options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          ref={inputRef as React.RefObject<HTMLButtonElement>}
+          aria-label={ariaLabel}
+          className={cn(
+            'h-full min-h-9 w-full justify-start rounded-none border-0 bg-[#EEF4FC] px-3 text-[13px] text-[#1A2332] shadow-none outline-none ring-1 ring-inset ring-[#266DD3]/50 hover:bg-[#EEF4FC] focus-visible:ring-[#266DD3]/50 data-[state=open]:ring-[#266DD3]/50',
+            'font-[family-name:var(--font-kanit)]',
+            className,
+          )}
+        >
+          <SelectValue placeholder="—" />
+        </SelectTrigger>
+        <SelectContent className="font-[family-name:var(--font-kanit)]">
+          <SelectItem value={SHEET_CELL_CLEAR_VALUE}>—</SelectItem>
+          {column.options.map((opt) => (
+            <SelectItem key={opt} value={opt}>
+              {opt}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     )
   }
 

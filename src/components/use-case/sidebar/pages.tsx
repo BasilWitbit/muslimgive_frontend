@@ -90,6 +90,7 @@ export const PAGES: Page[] = [
         type: 'menu',
         show: true,
         permissions: {
+            roles: ['finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor'],
             anyOf: [PERMISSIONS.CHARITY_MANAGE],
         },
     },

@@ -8,6 +8,8 @@ import { toast } from 'sonner'
 import { saveFxRateAction, type FxRateCurrency, type FxRateRecord } from '@/app/actions/fx-rates'
 import { cn } from '@/lib/utils'
 import { Save, Plus } from 'lucide-react'
+import { usePermissions } from '@/components/common/permissions-provider'
+import { PERMISSIONS } from '@/lib/permissions-config'
 
 const CURRENCIES: FxRateCurrency[] = ['CAD', 'GBP']
 
@@ -16,6 +18,11 @@ type FxRatesSettingsProps = {
 }
 
 const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
+    // Client spec: viewing is open to anyone who works on assessments (finance
+    // assessors included), but adding/updating rates is admin-only.
+    const { isAdmin, hasAny } = usePermissions()
+    const canManage = isAdmin || hasAny([PERMISSIONS.CHARITY_MANAGE])
+
     const [rates, setRates] = useState<FxRateRecord[]>(initialRates)
     const [savingKey, setSavingKey] = useState<string | null>(null)
     const [drafts, setDrafts] = useState<Record<string, string>>({})
@@ -111,24 +118,30 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
                                         <tr key={key}>
                                             <td className="border-b border-[#F5F7FA] px-2 py-2 text-[#344054]">{rate.year}</td>
                                             <td className="border-b border-[#F5F7FA] px-2 py-2">
-                                                <Input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    value={draft}
-                                                    onChange={(e) => setDrafts((prev) => ({ ...prev, [key]: e.target.value }))}
-                                                    className="h-9 w-32 rounded-lg border-[#DDE7F3]"
-                                                />
+                                                {canManage ? (
+                                                    <Input
+                                                        type="number"
+                                                        step="0.0001"
+                                                        value={draft}
+                                                        onChange={(e) => setDrafts((prev) => ({ ...prev, [key]: e.target.value }))}
+                                                        className="h-9 w-32 rounded-lg border-[#DDE7F3]"
+                                                    />
+                                                ) : (
+                                                    <span className="text-[#344054]">{rate.rate}</span>
+                                                )}
                                             </td>
                                             <td className="border-b border-[#F5F7FA] px-2 py-2">
-                                                <Button
-                                                    variant="outline"
-                                                    disabled={!isDirty || savingKey === key}
-                                                    onClick={() => save(currency, rate.year, Number(draft))}
-                                                    className="h-9 rounded-lg px-3 text-xs"
-                                                >
-                                                    <Save className="size-3.5" />
-                                                    {savingKey === key ? 'Saving...' : 'Save'}
-                                                </Button>
+                                                {canManage ? (
+                                                    <Button
+                                                        variant="outline"
+                                                        disabled={!isDirty || savingKey === key}
+                                                        onClick={() => save(currency, rate.year, Number(draft))}
+                                                        className="h-9 rounded-lg px-3 text-xs"
+                                                    >
+                                                        <Save className="size-3.5" />
+                                                        {savingKey === key ? 'Saving...' : 'Save'}
+                                                    </Button>
+                                                ) : null}
                                             </td>
                                         </tr>
                                     )
@@ -146,6 +159,12 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
                 </div>
             ))}
 
+            {!canManage ? (
+                <div className="rounded-2xl border border-[#E8EEF5] bg-[#F7F9FC] p-4 text-xs text-[#667085]">
+                    You can view the FX rates used to convert charity figures to USD. Only admins can add or update
+                    rates — reach out to an admin if a rate needs to change.
+                </div>
+            ) : (
             <div className="rounded-2xl border border-[#E8EEF5] bg-white p-4">
                 <div className="mb-3 font-semibold text-[#101928]">Add a rate</div>
                 <div className="grid gap-3 sm:grid-cols-4 sm:items-end">
@@ -202,6 +221,7 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
                     it per-assessment with a note.
                 </p>
             </div>
+            )}
         </div>
     )
 }

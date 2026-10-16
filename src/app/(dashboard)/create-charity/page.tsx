@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { AlertTriangle, ArrowLeft, Layers, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Building2, Clock3, ExternalLink, Layers, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -365,6 +365,82 @@ const CreateCharityStandalonePage = () => {
                         ) : null}
                     </div>
                 </div>
+
+                <section
+                    aria-labelledby="government-registers-heading"
+                    className="overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_8px_28px_rgba(15,23,42,0.04)]"
+                >
+                    <div className="flex items-start gap-3 border-b border-[#EEF2F6] bg-gradient-to-r from-[#F8FBFF] to-white px-4 py-4 sm:px-5">
+                        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EEF4FD] text-[#266DD3]">
+                            <Building2 className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                            <h2 id="government-registers-heading" className="text-sm font-semibold text-[#101928]">
+                                Government charity registers
+                            </h2>
+                            <p className="mt-0.5 text-xs leading-relaxed text-[#667085]">
+                                Open the official register for the charity’s country, confirm the record, then paste that link into the form below.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-3 p-4 sm:p-5 lg:grid-cols-3">
+                        {([
+                            {
+                                href: 'https://apps.irs.gov/app/eos/',
+                                country: 'USA',
+                                agency: 'Internal Revenue Service (IRS)',
+                                tool: 'Tax Exempt Organization Search',
+                                blurb: 'Verify tax-exempt status, deductible-donation eligibility, and Form 990 filings.',
+                            },
+                            {
+                                href: 'https://register-of-charities.charitycommission.gov.uk/en/charity-search',
+                                country: 'UK',
+                                agency: 'Charity Commission for England and Wales',
+                                tool: 'Register of Charities',
+                                blurb: 'Search by name, charity number, or purpose. Review trustees, finances, and regulatory actions.',
+                            },
+                            {
+                                href: 'https://apps.cra-arc.gc.ca/ebci/hacc/srch/pub/',
+                                country: 'Canada',
+                                agency: 'Canada Revenue Agency (CRA)',
+                                tool: 'List of Charities',
+                                blurb: 'Search by name or registration number for status, activities, and annual return details.',
+                                note: 'Unavailable daily 02:00–06:00 EST for maintenance.',
+                            },
+                        ] as const).map((register) => (
+                            <a
+                                key={register.country}
+                                href={register.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group flex h-full flex-col rounded-2xl border border-[#E8EEF5] bg-[#FAFBFC] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B7D0F5] hover:bg-white hover:shadow-[0_10px_28px_rgba(38,109,211,0.08)]"
+                            >
+                                <span className="flex items-start justify-between gap-3">
+                                    <span className="inline-flex items-center rounded-full bg-[#EEF4FD] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#266DD3]">
+                                        {register.country}
+                                    </span>
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#98A2B3] shadow-sm ring-1 ring-[#E8EEF5] transition-colors group-hover:text-[#266DD3] group-hover:ring-[#C9DBF7]">
+                                        <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
+                                    </span>
+                                </span>
+
+                                <span className="mt-3 text-sm font-semibold leading-snug text-[#101928]">
+                                    {register.agency}
+                                </span>
+                                <span className="mt-1 text-xs font-medium text-[#475467]">{register.tool}</span>
+                                <span className="mt-2 flex-1 text-xs leading-relaxed text-[#667085]">{register.blurb}</span>
+
+                                {'note' in register && register.note ? (
+                                    <span className="mt-3 inline-flex items-start gap-1.5 rounded-xl border border-amber-200/80 bg-amber-50/90 px-2.5 py-2 text-[11px] leading-relaxed text-amber-800">
+                                        <Clock3 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                        <span>{register.note}</span>
+                                    </span>
+                                ) : null}
+                            </a>
+                        ))}
+                    </div>
+                </section>
 
                 <div className="overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_10px_40px_rgba(15,23,42,0.05)]">
                     <div className="overflow-x-auto">

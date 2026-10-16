@@ -230,6 +230,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     const router = useRouter()
     const { navigateToCharity, navigateToCharitySection, navigateToAssessments } = useCharityNavigation()
     const { isAllowed, me } = usePermissions()
+    const canViewCharityOverview = isAllowed({ anyOf: [PERMISSIONS.VIEW_CHARITY_OVERVIEW, PERMISSIONS.AUDIT_CHARITY_SUMMARY_VIEW, PERMISSIONS.AUDIT_CHARITY_VIEW] })
 
     React.useEffect(() => {
         const savedRowsPerPage = window.localStorage.getItem('charities.rowsPerPage')
@@ -273,8 +274,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     const currentUserRoles = me?.roles?.map((r: any) => r.slug || r) || []
     const canDeleteCharity = isAllowed({ anyOf: [PERMISSIONS.DELETE_CHARITY] }) || currentUserRoles.includes('operation-manager')
     const canAssignPM = isAllowed({ anyOf: [PERMISSIONS.ASSIGN_PM_CHARITY] }) || currentUserRoles.includes('operation-manager')
-    const canAssignAssessor = canAssignPM
-        || isAllowed({ anyOf: [PERMISSIONS.CHARITY_MANAGE] })
+    const canAssignAssessor = isAllowed({ anyOf: [PERMISSIONS.CHARITY_MANAGE] })
         || currentUserRoles.includes('operation-manager')
     const isFinanceAssessor = currentUserRoles.some((r: string) => CHARITY_ROLE_ALIASES['finance-assessor'].includes(r))
     const isZakatAssessor = currentUserRoles.some((r: string) => CHARITY_ROLE_ALIASES['zakat-assessor'].includes(r))
@@ -359,6 +359,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     }
 
     const handleRowClick = async (charityId: string) => {
+        if (!canViewCharityOverview) return
         if (expandedId === charityId) {
             setExpandedId(null)
             return
@@ -565,7 +566,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                 {/* Main row – clickable to expand */}
                                 <TableRow
                                     id={`charity-${c.id}`}
-                                    className="cursor-pointer border-b border-[#EEF2F6] transition-colors hover:bg-[#F8FBFF]"
+                                    className={`${canViewCharityOverview ? 'cursor-pointer hover:bg-[#F8FBFF]' : ''} border-b border-[#EEF2F6] transition-colors`}
                                     onClick={(e) => {
                                         const target = e.target as HTMLElement | null
                                         if (target && target.closest("button,input,textarea,select,a")) return
@@ -584,9 +585,9 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                     onClick={(event) => event.stopPropagation()}
                                                 />
                                             ) : null}
-                                            <ChevronDown
+                                            {canViewCharityOverview ? <ChevronDown
                                                 className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                                            />
+                                            /> : null}
                                             <div className="min-w-0">
                                                 <div className="truncate font-semibold text-[#101928]" title={c.charityTitle}>{c.charityTitle}</div>
                                             </div>
@@ -736,7 +737,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                     )}
                                                 </Button>
                                             </Can>
-                                            <Button
+                                            {canViewCharityOverview ? <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-7 w-7 shrink-0 rounded-md p-0 text-[#667085] hover:bg-[#EEF4FD] hover:text-[#266DD3]"
@@ -747,8 +748,8 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                 title="Open charity"
                                             >
                                                 <ExternalLink className="h-3.5 w-3.5" />
-                                            </Button>
-                                            <CopyCharityLinkButton charityId={c.id} />
+                                            </Button> : null}
+                                            {canViewCharityOverview ? <CopyCharityLinkButton charityId={c.id} /> : null}
                                             {canDeleteCharity && (
                                                 <Button
                                                     variant="ghost"
@@ -764,7 +765,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                 </TableRow>
 
                                 {/* Expanded audit scores row */}
-                                {isExpanded && (
+                                {canViewCharityOverview && isExpanded && (
                                     <TableRow id={`charity-info-${c.id}`} className="bg-gradient-to-br from-[#F8FBFF] to-[#FAFBFC] hover:bg-gradient-to-br hover:from-[#F8FBFF] hover:to-[#FAFBFC]">
                                         <TableCell colSpan={colCount} className="max-w-0 p-0">
                                             <div className="relative overflow-hidden border-t border-[#E8EEF5] bg-gradient-to-br from-[#F8FBFF] via-white to-[#F4FBFD] px-5 py-5">

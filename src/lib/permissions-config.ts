@@ -18,6 +18,7 @@ export const PERMISSIONS = {
     USER_UPDATE: "user:update",
     USER_VIEW: "user:view",
     VIEW_CHARITIES: "view:charities",
+    VIEW_CHARITY_OVERVIEW: "view:charity:overview",
     DELETE_CHARITY: "delete:charity",
     ASSIGN_PM_CHARITY: "assign:pm_charity",
     SEND_EMAIL_CHARITY_OWNER: "send:email_charity_owner",
@@ -44,17 +45,17 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
     },
     {
         pattern: /^\/charities\/[^/]+$/,
-        requirement: { anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.CHARITY_MANAGE] },
+        requirement: { anyOf: [PERMISSIONS.VIEW_CHARITY_OVERVIEW, PERMISSIONS.AUDIT_CHARITY_SUMMARY_VIEW, PERMISSIONS.AUDIT_CHARITY_VIEW] },
     },
     {
         pattern: /^\/charities\/[^/]+\/assessments$/,
-        requirement: { anyOf: [PERMISSIONS.VIEW_CHARITIES, PERMISSIONS.AUDIT_CHARITY_SUMMARY_VIEW, PERMISSIONS.AUDIT_CHARITY_VIEW] },
+        requirement: { anyOf: [PERMISSIONS.VIEW_CHARITY_OVERVIEW, PERMISSIONS.AUDIT_CHARITY_SUMMARY_VIEW, PERMISSIONS.AUDIT_CHARITY_VIEW] },
     },
     {
         pattern: /^\/charities\/[^/]+\/assessments\/[^/]+$/,
         requirement: {
             anyOf: [
-                PERMISSIONS.VIEW_CHARITIES,
+                PERMISSIONS.VIEW_CHARITY_OVERVIEW,
                 PERMISSIONS.AUDIT_CHARITY_VIEW,
                 PERMISSIONS.AUDIT_SUBMISSION_CREATE,
                 PERMISSIONS.AUDIT_SUBMISSION_COMPLETE,
@@ -65,7 +66,7 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
         pattern: /^\/assessment-sheet$/,
         requirement: {
             anyOf: [
-                PERMISSIONS.VIEW_CHARITIES,
+                PERMISSIONS.VIEW_CHARITY_OVERVIEW,
                 PERMISSIONS.AUDIT_CHARITY_VIEW,
                 PERMISSIONS.AUDIT_SUBMISSION_CREATE,
                 PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE,
@@ -76,7 +77,7 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
         pattern: /^\/assessment-sheet\/[^/]+$/,
         requirement: {
             anyOf: [
-                PERMISSIONS.VIEW_CHARITIES,
+                PERMISSIONS.VIEW_CHARITY_OVERVIEW,
                 PERMISSIONS.AUDIT_CHARITY_VIEW,
                 PERMISSIONS.AUDIT_SUBMISSION_CREATE,
                 PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE,
@@ -87,7 +88,7 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
         pattern: /^\/assessment-sheet\/[^/]+$/,
         requirement: {
             anyOf: [
-                PERMISSIONS.VIEW_CHARITIES,
+                PERMISSIONS.VIEW_CHARITY_OVERVIEW,
                 PERMISSIONS.AUDIT_CHARITY_VIEW,
                 PERMISSIONS.AUDIT_SUBMISSION_CREATE,
             ],

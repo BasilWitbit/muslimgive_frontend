@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import FilterIcon from '@/components/common/IconComponents/FilterIcon'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import ColumnHeadingHelp from '@/components/common/ColumnHeadingHelp'
 import { ASSESSMENT_STATUS_TOOLTIP, CHARITY_WORKFLOW_STATUS, CHARITY_WORKFLOW_STATUS_TOOLTIP } from '@/lib/status-labels'
 
@@ -99,6 +100,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
     const [zakatFilter, setZakatFilter] = useState<boolean | undefined>(undefined)
     const [islamicFilter, setIslamicFilter] = useState<boolean | undefined>(undefined)
     const [assessmentProgressFilters, setAssessmentProgressFilters] = useState<Partial<Record<AssessmentProgressKey, AssessmentProgress>>>({})
+    const [teamMemberFilter, setTeamMemberFilter] = useState('')
     const [openFilterPopover, setOpenFilterPopover] = useState(false)
 
     // Sort state — each option bundles a field + direction into one named choice.
@@ -265,8 +267,14 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
         return () => clearTimeout(handler)
     }, [queryInput, statusFilters, categoryFilters, countryFilter, zakatFilter, islamicFilter, assessmentProgressFilters, sortBy, order])
 
-    // Fuzzy search is now server-side, but we keep the searchedRows variable name to avoid breaking JSX
-    const searchedRows = charities
+    // Charity name search is server-side; assignment member search is applied to the
+    // loaded assignment data so all assigned roles (PM, assessors, and users) match.
+    const normalizedTeamMemberFilter = teamMemberFilter.trim().toLocaleLowerCase()
+    const searchedRows = normalizedTeamMemberFilter
+        ? charities.filter((charity) => charity.members.some((member) =>
+            member.name.toLocaleLowerCase().includes(normalizedTeamMemberFilter),
+        ))
+        : charities
 
 
     return (
@@ -295,10 +303,21 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                                             setZakatFilter(undefined)
                                             setIslamicFilter(undefined)
                                             setAssessmentProgressFilters({})
+                                            setTeamMemberFilter('')
                                         }}>Clear all</Button>
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-4 p-4">
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="charity-team-member-filter" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Assigned team member</Label>
+                                    <Input
+                                        id="charity-team-member-filter"
+                                        value={teamMemberFilter}
+                                        onChange={(event) => setTeamMemberFilter(event.target.value)}
+                                        placeholder="Search by team member name..."
+                                        className="h-10 rounded-xl border-[#E4E7EC] bg-white text-sm"
+                                    />
+                                </div>
                                 <div className="flex flex-col gap-2">
                                     <Label htmlFor="charity-country-filter" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Country</Label>
                                     <Select

@@ -51,6 +51,7 @@ const SingleCharityCard: FC<IProps> = ({
     const router = useRouter()
     const { navigateToCharity } = useCharityNavigation()
     const { isAllowed, me } = usePermissions()
+    const canViewCharityOverview = isAllowed({ anyOf: [PERMISSIONS.VIEW_CHARITY_OVERVIEW, PERMISSIONS.AUDIT_CHARITY_SUMMARY_VIEW, PERMISSIONS.AUDIT_CHARITY_VIEW] })
     const currentUserRoles = me?.roles?.map((r: any) => r.slug || r) || []
     const canDeleteCharity = isAllowed({ anyOf: [PERMISSIONS.DELETE_CHARITY] }) || currentUserRoles.includes('operation-manager')
     // Managers see every area's assignment info; assessors only see their own area.
@@ -87,11 +88,11 @@ const SingleCharityCard: FC<IProps> = ({
     return (
         <>
             <LinkComponent
-                to={`/charities/${id}`}
-                className="block w-full text-left"
+                to={canViewCharityOverview ? `/charities/${id}` : '/charities'}
+                className={`block w-full text-left ${canViewCharityOverview ? '' : 'cursor-default'}`}
                 onClick={(e) => {
                     e.preventDefault()
-                    navigateToCharity(id, charityTitle)
+                    if (canViewCharityOverview) navigateToCharity(id, charityTitle)
                 }}
             >
                 <Card className='relative flex flex-col gap-1.5 rounded-2xl border border-[#E8EEF5] bg-white p-3 shadow-[0_4px_18px_rgba(15,23,42,0.03)] transition-shadow duration-200 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]'>

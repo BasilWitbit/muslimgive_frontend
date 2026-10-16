@@ -453,7 +453,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
         }
     }
 
-    usePageNavigationDismiss(!metrics)
+    usePageNavigationDismiss(false)
 
     const progressFromUrl = (searchParams.get('progress') as ProgressFilter) || 'all'
     const [progress, setProgress] = useState<ProgressFilter>(progressFromUrl)
@@ -470,6 +470,8 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
         outcomeCore1, outcomeCore2, outcomeCore3, outcomeCore4,
     }
     const page = Math.max(1, Number(searchParams.get('page') || '1'))
+    const requestedLimit = Number(searchParams.get('limit'))
+    const rowsPerPage = [10, 25, 50, 100].includes(requestedLimit) ? requestedLimit : 100
     const now = new Date()
     const periodType = (searchParams.get('periodType') as 'month' | 'year') || 'month'
     const periodYear = Number(searchParams.get('periodYear')) || now.getFullYear()
@@ -604,7 +606,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
             try {
                 const params: DashboardAssessmentsParams = {
                     page,
-                    limit: 25,
+                    limit: rowsPerPage,
                     progress: progress === 'all' ? 'all' : progress,
                     sortBy,
                     order: 'DESC',
@@ -644,6 +646,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
         }
     }, [
         page,
+        rowsPerPage,
         progress,
         countryCode,
         sortBy,
@@ -997,7 +1000,19 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     )
 
     if (!metrics) {
-        return null
+        return (
+            <div className="mx-auto flex min-h-[45vh] w-full max-w-3xl items-center justify-center px-4 py-10">
+                <div className="w-full rounded-2xl border border-[#E8EEF5] bg-white p-8 text-center shadow-[0_10px_40px_rgba(15,23,42,0.05)]">
+                    <h1 className="text-lg font-semibold text-[#101928]">PM Dashboard data unavailable</h1>
+                    <p className="mt-2 text-sm text-[#667085]">
+                        We couldn&apos;t load the dashboard data for this account. Please try again, or ask an administrator to check your PM Dashboard access.
+                    </p>
+                    <Button className="mt-5" onClick={() => router.refresh()}>
+                        Try again
+                    </Button>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -1612,10 +1627,26 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         </Table>
                     </div>
 
-                    {meta && meta.totalPages > 1 ? (
-                        <div className="flex items-center justify-between border-t border-[#EEF2F6] bg-[#FAFBFC]/60 px-5 py-3.5">
+                    {meta ? (
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#EEF2F6] bg-[#FAFBFC]/60 px-5 py-3.5">
+                            <div className="flex items-center gap-2 text-xs font-medium text-[#667085]">
+                                <span>Rows per page</span>
+                                <Select
+                                    value={String(rowsPerPage)}
+                                    onValueChange={(value) => updateParams({ limit: value })}
+                                >
+                                    <SelectTrigger className="h-9 w-[82px] rounded-xl border-[#E4E7EC] bg-white">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {[10, 25, 50, 100].map((option) => (
+                                            <SelectItem key={option} value={String(option)}>{option}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <p className="text-xs font-medium text-[#667085]">
-                                Page {meta.page} of {meta.totalPages}
+                                Page {meta.page} of {Math.max(1, meta.totalPages)}
                             </p>
                             <div className="flex items-center gap-2">
                                 <Button

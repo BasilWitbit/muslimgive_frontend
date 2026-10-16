@@ -4,7 +4,7 @@ import React, { FC } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { capitalizeWords, formatLabel, kebabToTitle } from '@/lib/helpers'
+import { formatLabel, kebabToTitle } from '@/lib/helpers'
 import { getUserRoleColor, USER_STATUS_COLORS } from '@/lib/chip-styles'
 import StatusPill from '@/components/common/StatusPill'
 import ProfilePictureUpload from './ProfilePictureUpload'
@@ -133,7 +133,7 @@ const ProfilePageView: FC<ProfilePageViewProps> = ({
 
                         <div className="space-y-0.5">
                             <h2 className="text-lg font-bold tracking-tight text-[#101928]">
-                                {capitalizeWords(firstName)} {capitalizeWords(lastName)}
+                                {firstName} {lastName}
                             </h2>
                             <p className="flex items-center justify-center gap-1.5 text-xs text-[#667085]">
                                 <Mail className="h-3 w-3 shrink-0" />
@@ -191,8 +191,8 @@ const ProfilePageView: FC<ProfilePageViewProps> = ({
                         onEdit={onEditPersonalInfo}
                     >
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <ProfileField label={formatLabel('firstName')} value={capitalizeWords(firstName)} />
-                            <ProfileField label={formatLabel('lastName')} value={capitalizeWords(lastName)} />
+                            <ProfileField label={formatLabel('firstName')} value={firstName} />
+                            <ProfileField label={formatLabel('lastName')} value={lastName} />
                         </div>
                     </ProfileSection>
 

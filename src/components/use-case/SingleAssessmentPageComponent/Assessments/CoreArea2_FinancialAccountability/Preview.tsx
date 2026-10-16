@@ -27,6 +27,29 @@ export type PreviewPageCommonProps = {
 
 type IProps = PreviewPageCommonProps;
 
+type MetricCutoff = { full: number; half: number }
+
+type FinanceTierThresholds = {
+    program: MetricCutoff
+    revenueSpent: MetricCutoff
+    fundraising: MetricCutoff
+    admin: MetricCutoff
+    compensation: MetricCutoff
+    reserves: MetricCutoff
+}
+
+type FinanceWeights = {
+    cyFinancials: number
+    pyFinancials: number
+    impactReport: number
+    program: number
+    fundraising: number
+    admin: number
+    compensation: number
+    revenueSpent: number
+    reserves: number
+}
+
 type FinanceScoring = {
     tier: 'tier_1' | 'tier_2'
     scores: {
@@ -48,6 +71,9 @@ type FinanceScoring = {
     }
     ratingBand: 'Strong' | 'Moderate' | 'Needs Improvement' | 'Concern'
     finalResult: string
+    /** The exact rules this score was computed with — lets the legend below stay live instead of a hardcoded copy. */
+    weights?: FinanceWeights
+    thresholds?: FinanceTierThresholds
 }
 
 const CORE_AREA_2_ACCENT = '#8B5CF6';
@@ -100,35 +126,71 @@ const getCategoryIndexById = (rows: SectionRow[]) => {
     return categoryIndexById;
 };
 
-/** Mirrors the thresholds in the backend's finance-assessment.ts TIER_THRESHOLDS — keep in sync. */
-const FINANCE_TIER_RULES: Record<'tier_1' | 'tier_2', Array<{ metric: string; full: string; half: string; zero: string }>> = {
-    tier_1: [
-        { metric: 'Program spend % (7)', full: '≥ 80.00%', half: '70.00% – 79.99%', zero: '< 70.00%' },
-        { metric: 'Fundraising spend % (7)', full: '≤ 10.00%', half: '10.01% – 15.00%', zero: '> 15.00%' },
-        { metric: 'Admin spend % (7)', full: '≤ 10.00%', half: '10.01% – 15.00%', zero: '> 15.00%' },
-        { metric: 'Compensation % (3)', full: '≤ 20.00%', half: '20.01% – 25.00%', zero: '> 25.00%' },
-        { metric: 'Revenue spent % (4)', full: '≥ 80.00%', half: '70.00% – 79.99%', zero: '< 70.00%' },
-        { metric: 'Reserves, months (4)', full: '≤ 24.00', half: '24.01 – 36.00', zero: '> 36.00' },
-    ],
-    tier_2: [
-        { metric: 'Program spend % (7)', full: '≥ 82.50%', half: '75.00% – 82.49%', zero: '< 75.00%' },
-        { metric: 'Fundraising spend % (7)', full: '≤ 10.00%', half: '10.01% – 15.00%', zero: '> 15.00%' },
-        { metric: 'Admin spend % (7)', full: '≤ 5.00%', half: '5.01% – 10.00%', zero: '> 10.00%' },
-        { metric: 'Compensation % (3)', full: '≤ 15.00%', half: '15.01% – 20.00%', zero: '> 20.00%' },
-        { metric: 'Revenue spent % (4)', full: '≥ 82.50%', half: '75.00% – 82.49%', zero: '< 75.00%' },
-        { metric: 'Reserves, months (4)', full: '≤ 12.00', half: '12.01 – 24.00', zero: '> 24.00' },
-    ],
+/** Higher-is-better metrics are scored with >= cut-offs; the rest are <= (lower is better). */
+const HIGHER_IS_BETTER_METRICS = new Set<keyof FinanceTierThresholds>(['program', 'revenueSpent']);
+
+const METRIC_LABELS: Record<keyof FinanceTierThresholds, string> = {
+    program: 'Program spend %',
+    fundraising: 'Fundraising spend %',
+    admin: 'Admin spend %',
+    compensation: 'Compensation %',
+    revenueSpent: 'Revenue spent %',
+    reserves: 'Reserves, months',
 };
 
-const FinanceScoringRulesLegend = ({ tier }: { tier: 'tier_1' | 'tier_2' }) => {
-    const rules = FINANCE_TIER_RULES[tier];
+const METRIC_WEIGHT_KEYS: Record<keyof FinanceTierThresholds, keyof FinanceWeights> = {
+    program: 'program',
+    fundraising: 'fundraising',
+    admin: 'admin',
+    compensation: 'compensation',
+    revenueSpent: 'revenueSpent',
+    reserves: 'reserves',
+};
+
+const METRIC_ORDER: (keyof FinanceTierThresholds)[] = [
+    'program', 'fundraising', 'admin', 'compensation', 'revenueSpent', 'reserves',
+];
+
+const formatCutoffValue = (value: number, isPercent: boolean) =>
+    isPercent ? `${value.toFixed(2)}%` : value.toFixed(2);
+
+/**
+ * Built from the exact rules this assessment was scored with (passed down via
+ * `scoring.thresholds`/`scoring.weights`) — never hardcoded, so it can never drift
+ * from what an admin has saved on the Finance Scoring Rules page.
+ */
+const FinanceScoringRulesLegend = ({
+    tier,
+    thresholds,
+    weights,
+}: {
+    tier: 'tier_1' | 'tier_2'
+    thresholds: FinanceTierThresholds
+    weights: FinanceWeights
+}) => {
+    const rules = METRIC_ORDER.map((key) => {
+        const cutoff = thresholds[key];
+        const weight = weights[METRIC_WEIGHT_KEYS[key]];
+        const isPercent = key !== 'reserves';
+        const higherIsBetter = HIGHER_IS_BETTER_METRICS.has(key);
+        const full = formatCutoffValue(cutoff.full, isPercent);
+        const half = formatCutoffValue(cutoff.half, isPercent);
+        return {
+            metric: `${METRIC_LABELS[key]} (${weight})`,
+            full: higherIsBetter ? `≥ ${full}` : `≤ ${full}`,
+            half: higherIsBetter ? `${half} – <${full}` : `>${full} – ${half}`,
+            zero: higherIsBetter ? `< ${half}` : `> ${half}`,
+        };
+    });
     return (
         <div className="border-t border-[#EEF2F6] bg-white px-4 py-3">
             <div className="mb-2 flex items-center justify-between">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">
                     Scoring rules — {tier === 'tier_1' ? 'Tier 1 (revenue ≤ $1M)' : 'Tier 2 (revenue > $1M)'}
                 </p>
-                <p className="text-[10px] text-[#98A2B3]">Transparency (both tiers): CY 5 · PY 2 · Impact report 1</p>
+                <p className="text-[10px] text-[#98A2B3]">
+                    Transparency (both tiers): CY {weights.cyFinancials} · PY {weights.pyFinancials} · Impact report {weights.impactReport}
+                </p>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full min-w-[480px] border-collapse text-[11px]">
@@ -637,7 +699,9 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                         {!scoring ? ' Outcome appears once this section has been saved with Core Area 2 answers.' : ''}
                     </div>
 
-                    {scoring ? <FinanceScoringRulesLegend tier={scoring.tier} /> : null}
+                    {scoring?.thresholds && scoring?.weights ? (
+                        <FinanceScoringRulesLegend tier={scoring.tier} thresholds={scoring.thresholds} weights={scoring.weights} />
+                    ) : null}
                 </div>
 
                 <Section title="Transparency & scored metrics" rows={scoredRows} showScore />

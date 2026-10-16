@@ -20,6 +20,7 @@ export type UpdateAssessmentSheetPayload = {
   qdSpend?: number | null
   compensationSpend?: number | null
   fxRateToUsd?: number | null
+  fxRateNote?: string | null
   reportedTotalExpenses?: number | null
   fiscalYearEnd?: string | null
   qdSpendNotReported?: boolean

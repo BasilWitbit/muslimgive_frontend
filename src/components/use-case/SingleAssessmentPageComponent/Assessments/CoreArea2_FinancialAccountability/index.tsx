@@ -22,6 +22,12 @@ import {
 } from './FinancialStatementFigures'
 import { deriveAssessmentMetrics, parseFinancialAmount } from '@/lib/assessment-sheet/financial'
 import { isDateRangeCode, validateDateRange, validateOptionalUrl, URL_FIELD_CODES } from '@/lib/assessment-forms/core-area-2-validation'
+import type { FxRateRecord } from '@/app/actions/fx-rates'
+
+const FX_CURRENCY_BY_COUNTRY: Record<string, 'CAD' | 'GBP' | undefined> = {
+    canada: 'CAD',
+    'united-kingdom': 'GBP',
+}
 
 const REVENUE_CODE = 'F16'
 const FISCAL_YEAR_END_CODE = 'F12'
@@ -60,6 +66,7 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
     const [figures, setFigures] = useState<FinancialFigures>(EMPTY_FINANCIAL_FIGURES)
     const [figureErrors, setFigureErrors] = useState<Record<string, string>>({})
+    const [fxRates, setFxRates] = useState<FxRateRecord[]>([])
 
     const isFinanceAssessor = currentUserRoles.some((r) =>
         ['finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor'].includes(
@@ -194,6 +201,38 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
         }
     }, [charityId])
 
+    // Loaded once — admin-maintained, small table. Drives the FX rate auto-fill below.
+    React.useEffect(() => {
+        let cancelled = false
+        import('@/app/actions/fx-rates')
+            .then(({ getFxRatesAction }) => getFxRatesAction())
+            .then((res) => {
+                if (cancelled || !res.ok) return
+                const data = res.payload?.data?.data ?? res.payload?.data
+                if (Array.isArray(data)) setFxRates(data)
+            })
+            .catch((error) => console.error('Failed to load FX rates', error))
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
+    const suggestedFxCurrency = FX_CURRENCY_BY_COUNTRY[countryCode] ?? null
+    const suggestedFxYear = fiscalYearEnd ? Number(fiscalYearEnd.slice(0, 4)) : null
+    const suggestedFxRate = useMemo(() => {
+        if (!suggestedFxCurrency || !suggestedFxYear) return null
+        const match = fxRates.find((r) => r.currencyCode === suggestedFxCurrency && r.year === suggestedFxYear)
+        return match?.rate ?? null
+    }, [fxRates, suggestedFxCurrency, suggestedFxYear])
+
+    // Auto-fill the FX rate from the suggestion once it's known — only while the
+    // field is still blank, so it never clobbers a value the assessor already
+    // loaded (from the saved charity) or typed in themselves.
+    React.useEffect(() => {
+        if (suggestedFxRate == null) return
+        setFigures((prev) => (prev.fxRateToUsd === '' ? { ...prev, fxRateToUsd: String(suggestedFxRate) } : prev))
+    }, [suggestedFxRate])
+
     const updateFigures = (patch: Partial<FinancialFigures>) => {
         setFigures((prev) => ({ ...prev, ...patch }))
         setFigureErrors((prev) => {
@@ -223,6 +262,7 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
             compensationSpendNotReported: figures.compensationSpendNotReported,
             assuranceLevel: figures.assuranceLevel || null,
             fxRateToUsd: countryCode === 'united-states' ? null : parseFinancialAmount(figures.fxRateToUsd),
+            fxRateNote: countryCode === 'united-states' ? null : figures.fxRateNote || null,
         })
         if (!res.ok) {
             toast.error(res.message || 'Could not save the financial statement figures.')
@@ -232,7 +272,7 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
     }
 
     const validateFinancialFiguresBeforePreview = () => {
-        const errors = validateFinancialFigures(figures, countryCode)
+        const errors = validateFinancialFigures(figures, countryCode, suggestedFxRate)
         setFigureErrors(errors)
         if (Object.keys(errors).length) {
             toast.error('Complete the financial statement figures (assets, liabilities, spends, assurance level and FX rate).')
@@ -489,6 +529,9 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                         figures={figures}
                         figureErrors={figureErrors}
                         onChangeFigures={updateFigures}
+                        suggestedFxRate={suggestedFxRate}
+                        suggestedFxCurrency={suggestedFxCurrency}
+                        suggestedFxYear={suggestedFxYear}
                     />
                 </div>
             </div>

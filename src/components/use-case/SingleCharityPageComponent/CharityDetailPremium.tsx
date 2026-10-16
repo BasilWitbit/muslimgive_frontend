@@ -38,7 +38,7 @@ export const PremiumSectionCard: FC<PremiumSectionCardProps> = ({
     accent = 'from-[#266DD3] via-[#3B82E8] to-[#5CD9F2]',
     bodyClassName,
     collapsible = false,
-) => {
+}) => {
     const [collapsed, setCollapsed] = useState(false)
     const contentId = useId()
 

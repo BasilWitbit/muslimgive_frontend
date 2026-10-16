@@ -87,6 +87,10 @@ type FinanceAssessmentTableProps = {
   figures: FinancialFigures
   figureErrors: Record<string, string>
   onChangeFigures: (patch: Partial<FinancialFigures>) => void
+  /** Auto-fill suggestion from the admin-maintained FX Rates table, for this charity's currency + fiscal year. */
+  suggestedFxRate?: number | null
+  suggestedFxCurrency?: 'CAD' | 'GBP' | null
+  suggestedFxYear?: number | null
 }
 
 export default function FinanceAssessmentTable({
@@ -100,6 +104,9 @@ export default function FinanceAssessmentTable({
   figures,
   figureErrors,
   onChangeFigures,
+  suggestedFxRate = null,
+  suggestedFxCurrency = null,
+  suggestedFxYear = null,
 }: FinanceAssessmentTableProps) {
   const [activeCode, setActiveCode] = useState<string | null>(null)
   const currency = assessmentCurrency(countryCode)
@@ -268,6 +275,12 @@ export default function FinanceAssessmentTable({
                           error={figureErrors.fxRateToUsd}
                           disabled={!canEdit}
                           onChange={(value) => onChangeFigures({ fxRateToUsd: value })}
+                          suggestedRate={suggestedFxRate}
+                          suggestedCurrency={suggestedFxCurrency}
+                          suggestedYear={suggestedFxYear}
+                          note={figures.fxRateNote}
+                          noteError={figureErrors.fxRateNote}
+                          onChangeNote={(value) => onChangeFigures({ fxRateNote: value })}
                           animationDelay={Math.min(rowIndex + groupIndex * 2, 14) * 20}
                         />
                       )
@@ -537,14 +550,30 @@ function FxRateRow({
   error,
   disabled,
   onChange,
+  suggestedRate,
+  suggestedCurrency,
+  suggestedYear,
+  note,
+  noteError,
+  onChangeNote,
   animationDelay,
 }: {
   value: string
   error?: string
   disabled: boolean
   onChange: (value: string) => void
+  suggestedRate?: number | null
+  suggestedCurrency?: 'CAD' | 'GBP' | null
+  suggestedYear?: number | null
+  note: string
+  noteError?: string
+  onChangeNote: (value: string) => void
   animationDelay: number
 }) {
+  const numericValue = parseFloat(value)
+  const isOverridden =
+    suggestedRate != null && Number.isFinite(numericValue) && Math.abs(numericValue - suggestedRate) > 1e-6
+
   return (
     <tr className="group/row scroll-mt-4 transition-colors hover:bg-[#F8FAFD]" style={{ animation: `ca2RowIn 280ms ease-out ${animationDelay}ms both` }}>
       <td className="sticky left-0 z-10 border-b border-r border-[#F0F3F8] bg-white px-4 py-0 group-hover/row:bg-[#F8FAFD]">
@@ -581,6 +610,32 @@ function FxRateRow({
           <p className="mt-1 text-[11px] text-red-600" role="alert">
             {error}
           </p>
+        ) : suggestedRate != null ? (
+          <p className="mt-1 text-[11px] text-[#9AA8BA]">
+            Suggested: {suggestedRate} ({suggestedCurrency}, {suggestedYear}) — from the FX Rates table.
+          </p>
+        ) : null}
+        {isOverridden ? (
+          <div className="mt-2 max-w-[260px]">
+            <textarea
+              disabled={disabled}
+              value={note}
+              onChange={(e) => onChangeNote(e.target.value)}
+              placeholder="Why was the rate changed from the suggested value?"
+              rows={2}
+              className={cn(
+                'w-full resize-none rounded-lg border bg-white px-3 py-2 text-[12px] text-[#1A2332] outline-none',
+                noteError ? 'border-red-300' : 'border-[#D7E2F0] transition-colors hover:border-[#B9C8DC]',
+                'focus:border-[#266DD3] focus:ring-2 focus:ring-[#266DD3]/15',
+                disabled && 'cursor-not-allowed border-[#E8EDF4] bg-[#F7F9FC] text-[#9AA8BA]',
+              )}
+            />
+            {noteError ? (
+              <p className="mt-1 text-[11px] text-red-600" role="alert">
+                {noteError}
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </td>
     </tr>

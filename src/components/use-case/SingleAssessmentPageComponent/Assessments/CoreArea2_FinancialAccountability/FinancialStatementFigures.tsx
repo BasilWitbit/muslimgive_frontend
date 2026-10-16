@@ -23,6 +23,8 @@ export type FinancialFigures = {
     assuranceLevel: string
     /** Local currency -> USD. Only entered for charities based outside the US. */
     fxRateToUsd: string
+    /** Required when fxRateToUsd was changed from the auto-filled suggested rate. */
+    fxRateNote: string
 }
 
 export const EMPTY_FINANCIAL_FIGURES: FinancialFigures = {
@@ -37,6 +39,7 @@ export const EMPTY_FINANCIAL_FIGURES: FinancialFigures = {
     compensationSpendNotReported: false,
     assuranceLevel: '',
     fxRateToUsd: '',
+    fxRateNote: '',
 }
 
 export type FinancialAmountRow = {
@@ -80,6 +83,7 @@ export function figuresFromCharity(charity: Record<string, unknown> | null | und
         compensationSpendNotReported: Boolean(charity.compensationSpendNotReported),
         assuranceLevel: typeof charity.assuranceLevel === 'string' ? charity.assuranceLevel : '',
         fxRateToUsd: toInput(charity.fxRateToUsd),
+        fxRateNote: typeof charity.fxRateNote === 'string' ? charity.fxRateNote : '',
     }
 }
 
@@ -88,8 +92,16 @@ function hasAtMostTwoDecimals(value: number): boolean {
     return Math.abs(Math.round(value * 100) - value * 100) < 1e-6
 }
 
-/** Field-level errors; blank is an error, 0 is valid. `countryCode` gates whether the FX rate is required. */
-export function validateFinancialFigures(figures: FinancialFigures, countryCode: string): Record<string, string> {
+/**
+ * Field-level errors; blank is an error, 0 is valid. `countryCode` gates whether the FX
+ * rate is required. `suggestedFxRate` is the FxRate-table value auto-filled for this
+ * charity's currency/fiscal year (if any) — changing away from it requires a note.
+ */
+export function validateFinancialFigures(
+    figures: FinancialFigures,
+    countryCode: string,
+    suggestedFxRate?: number | null,
+): Record<string, string> {
     const errors: Record<string, string> = {}
     for (const { key, label, notReported } of AMOUNT_ROWS) {
         if (notReported && figures[notReported]) continue
@@ -111,6 +123,12 @@ export function validateFinancialFigures(figures: FinancialFigures, countryCode:
             errors.fxRateToUsd = 'Enter the foreign exchange rate to USD (greater than 0).'
         } else if (!hasAtMostTwoDecimals(fxRate)) {
             errors.fxRateToUsd = 'Enter the foreign exchange rate with no more than 2 decimal places.'
+        } else if (
+            suggestedFxRate != null &&
+            Math.abs(fxRate - suggestedFxRate) > 1e-6 &&
+            !figures.fxRateNote.trim()
+        ) {
+            errors.fxRateNote = `Add a short note explaining why the rate was changed from the suggested ${suggestedFxRate}.`
         }
     }
     return errors

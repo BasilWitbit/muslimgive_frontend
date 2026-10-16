@@ -6,7 +6,7 @@ import DashboardIcon from '@/components/common/IconComponents/pages_icons/Dashbo
 import Profile from '@/components/common/IconComponents/pages_icons/Profile'
 import EmailIcon from '@/components/common/IconComponents/EmailIcon'
 import EmailIconBlack from '@/components/common/IconComponents/EmailIconBlack'
-import { BookOpenCheck, Table2 } from 'lucide-react'
+import { BookOpenCheck, DollarSign, Table2 } from 'lucide-react'
 import type { SidebarIconName } from './pages'
 
 export type SidebarIconProps = {
@@ -27,6 +27,7 @@ const SIDEBAR_ICONS = {
     'email-logs': EmailIconBlack,
     email: EmailIcon,
     'finance-scoring-rules': BookOpenCheck,
+    'fx-rates': DollarSign,
 } as const
 
 export function SidebarNavIcon({

@@ -11,6 +11,7 @@ export type SidebarIconName =
     | 'email-logs'
     | 'email'
     | 'finance-scoring-rules'
+    | 'fx-rates'
 
 export type Page = {
     path: string,
@@ -78,6 +79,17 @@ export const PAGES: Page[] = [
         show: true,
         permissions: {
             roles: ['finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor'],
+            anyOf: [PERMISSIONS.CHARITY_MANAGE],
+        },
+    },
+    {
+        name: 'fx-rates',
+        path: '/fx-rates',
+        heading: 'FX Rates',
+        iconName: 'fx-rates',
+        type: 'menu',
+        show: true,
+        permissions: {
             anyOf: [PERMISSIONS.CHARITY_MANAGE],
         },
     },

@@ -120,7 +120,13 @@ export function SheetCell({
         aria-label={ariaLabel}
         title={isEmpty ? undefined : String(value)}
         disabled={!editable}
-        onClick={onActivate}
+        onDoubleClick={onActivate}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === 'F2') {
+            e.preventDefault()
+            onActivate?.()
+          }
+        }}
         className={cn(
           'sheet-cell group/cell relative flex h-full min-h-9 w-full min-w-0 items-center px-3 text-[13px] transition-colors',
           column.align === 'right' ? 'justify-end' : 'justify-start',

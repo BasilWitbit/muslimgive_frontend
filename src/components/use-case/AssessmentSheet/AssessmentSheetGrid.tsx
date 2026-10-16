@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Rows3, Rows4, RotateCcw } from 'lucide-react'
+import { Rows3, Rows4, RotateCcw, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   ASSESSMENT_SHEET_COLUMNS,
@@ -10,9 +10,27 @@ import {
   type SheetColumn,
   type SheetColumnGroup,
   getRowCellValue,
+  formatSheetValue,
 } from '@/lib/assessment-sheet/columns'
 import { SheetCell } from './SheetCell'
 import { useSidebarNavigation } from '@/hooks/use-sidebar-navigation'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+
+type PendingChange = {
+  rowId: string
+  rowName: string
+  column: SheetColumn
+  oldValue: string | number | null
+  newValue: string | number | null
+}
 
 type ActiveCell = { rowId: string; columnId: string } | null
 type Density = 'compact' | 'comfortable'
@@ -24,7 +42,7 @@ type AssessmentSheetGridProps = {
     rowId: string,
     column: SheetColumn,
     value: string | number | null,
-  ) => void
+  ) => void | Promise<void>
   onRetrySync?: (rowId: string) => void
   retryingRowId?: string | null
   toolbarLeading?: React.ReactNode
@@ -90,7 +108,20 @@ export function AssessmentSheetGrid({
   const [resizingId, setResizingId] = useState<string | null>(null)
   const [density, setDensity] = useState<Density>('comfortable')
   const [scrolledX, setScrolledX] = useState(false)
+  const [pendingChange, setPendingChange] = useState<PendingChange | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
   const hydrated = useRef(false)
+
+  const confirmPendingChange = async () => {
+    if (!pendingChange) return
+    setIsConfirming(true)
+    try {
+      await onCellCommit(pendingChange.rowId, pendingChange.column, pendingChange.newValue)
+    } finally {
+      setIsConfirming(false)
+      setPendingChange(null)
+    }
+  }
 
   useEffect(() => {
     try {
@@ -417,7 +448,15 @@ export function AssessmentSheetGrid({
                             }
                             onCommit={(next) => {
                               setActive(null)
-                              if (next !== raw) onCellCommit(row.id, col, next)
+                              if (next !== raw) {
+                                setPendingChange({
+                                  rowId: row.id,
+                                  rowName: row.name || `Row ${rowIndex + 1}`,
+                                  column: col,
+                                  oldValue: raw,
+                                  newValue: next,
+                                })
+                              }
                             }}
                           />
                         )}
@@ -465,6 +504,57 @@ export function AssessmentSheetGrid({
           </span>
         </div>
       </div>
+
+      <Dialog open={pendingChange !== null} onOpenChange={(open) => !open && !isConfirming && setPendingChange(null)}>
+        <DialogContent className="gap-0 overflow-hidden border-[#E8EEF5] p-0 shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:max-w-[480px]">
+          <div className="bg-gradient-to-br from-[#F8FBFF] via-white to-[#F4FBFD] px-6 pb-5 pt-6">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#266DD3] to-[#3B82E8] text-white shadow-[0_10px_24px_rgba(38,109,211,0.24)]">
+              <Pencil className="size-5" />
+            </div>
+            <DialogHeader className="gap-2 p-0 text-left">
+              <DialogTitle className="text-xl font-semibold tracking-[-0.02em] text-[#101928]">
+                Confirm change
+              </DialogTitle>
+              <DialogDescription className="text-sm leading-6 text-[#667085]">
+                {pendingChange ? (
+                  <>
+                    Update <span className="font-medium text-[#344054]">{pendingChange.column.label}</span> for{' '}
+                    <span className="font-medium text-[#344054]">{pendingChange.rowName}</span>?
+                  </>
+                ) : null}
+              </DialogDescription>
+            </DialogHeader>
+            {pendingChange ? (
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#E4EAF2] bg-white px-4 py-3 text-[13px]">
+                <span className="min-w-0 flex-1 truncate text-[#8A98AB] line-through">
+                  {formatSheetValue(pendingChange.oldValue, pendingChange.column.format)}
+                </span>
+                <span className="shrink-0 text-[#B4C0CF]">→</span>
+                <span className="min-w-0 flex-1 truncate font-medium text-[#101928]">
+                  {formatSheetValue(pendingChange.newValue, pendingChange.column.format)}
+                </span>
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter className="flex flex-row justify-end gap-2 border-t border-[#E8EEF5] bg-[#FBFCFE] px-6 py-4 sm:justify-end">
+            <Button
+              variant="outline"
+              className="h-10 rounded-xl border-[#DDE7F3] bg-white text-[#344054] shadow-none hover:bg-[#F3F6FB]"
+              onClick={() => setPendingChange(null)}
+              disabled={isConfirming}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmPendingChange}
+              disabled={isConfirming}
+              className="h-10 rounded-xl bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-4 text-white shadow-[0_8px_18px_rgba(38,109,211,0.22)]"
+            >
+              {isConfirming ? 'Saving...' : 'Confirm change'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <style jsx global>{`
         @keyframes sheetRowIn {

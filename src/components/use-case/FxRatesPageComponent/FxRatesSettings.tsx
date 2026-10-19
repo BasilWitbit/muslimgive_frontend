@@ -7,21 +7,38 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { saveFxRateAction, type FxRateCurrency, type FxRateRecord } from '@/app/actions/fx-rates'
 import { cn } from '@/lib/utils'
-import { Save, Plus } from 'lucide-react'
+import { Save, Plus, ShieldAlert } from 'lucide-react'
 import { usePermissions } from '@/components/common/permissions-provider'
 import { PERMISSIONS } from '@/lib/permissions-config'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 
 const CURRENCIES: FxRateCurrency[] = ['CAD', 'GBP']
+
+/** Same manage tier as Finance Scoring Rules — the two admin-area pages are treated as one by the client. */
+const MANAGE_ROLES = ['finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor']
+
+type PendingChange = {
+    currencyCode: FxRateCurrency
+    year: number
+    rate: number
+    previousRate: number | null
+    resetAddForm?: boolean
+}
 
 type FxRatesSettingsProps = {
     initialRates: FxRateRecord[]
 }
 
 const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
-    // Client spec: viewing is open to anyone who works on assessments (finance
-    // assessors included), but adding/updating rates is admin-only.
-    const { isAdmin, hasAny } = usePermissions()
-    const canManage = isAdmin || hasAny([PERMISSIONS.CHARITY_MANAGE])
+    const { isAllowed } = usePermissions()
+    const canManage = isAllowed({ roles: MANAGE_ROLES, anyOf: [PERMISSIONS.CHARITY_MANAGE] })
 
     const [rates, setRates] = useState<FxRateRecord[]>(initialRates)
     const [savingKey, setSavingKey] = useState<string | null>(null)
@@ -29,7 +46,8 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
     const [newYear, setNewYear] = useState('')
     const [newCurrency, setNewCurrency] = useState<FxRateCurrency>('CAD')
     const [newRate, setNewRate] = useState('')
-    const [isAdding, setIsAdding] = useState(false)
+    const [pendingChange, setPendingChange] = useState<PendingChange | null>(null)
+    const [isConfirming, setIsConfirming] = useState(false)
 
     const byCurrency = useMemo(() => {
         const map = new Map<FxRateCurrency, FxRateRecord[]>()
@@ -41,12 +59,11 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
 
     const draftKey = (currencyCode: FxRateCurrency, year: number) => `${currencyCode}-${year}`
 
-    const save = async (currencyCode: FxRateCurrency, year: number, rateValue: number) => {
-        if (!Number.isFinite(rateValue) || rateValue <= 0) {
-            toast.error('Enter a rate greater than 0.')
-            return
-        }
+    const commitSave = async () => {
+        if (!pendingChange) return
+        const { currencyCode, year, rate: rateValue, resetAddForm } = pendingChange
         const key = draftKey(currencyCode, year)
+        setIsConfirming(true)
         setSavingKey(key)
         try {
             const res = await saveFxRateAction({ currencyCode, year, rate: rateValue })
@@ -65,16 +82,30 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
                 delete next[key]
                 return next
             })
-            toast.success(`${currencyCode} rate for ${year} saved — new assessments use it immediately.`)
+            if (resetAddForm) {
+                setNewYear('')
+                setNewRate('')
+            }
+            toast.success(`${currencyCode} rate for ${year} saved — applies to assessments scored from now on.`)
         } catch (error) {
             console.error(error)
             toast.error('Failed to save the FX rate.')
         } finally {
             setSavingKey(null)
+            setIsConfirming(false)
+            setPendingChange(null)
         }
     }
 
-    const handleAdd = async () => {
+    const requestRowSave = (currencyCode: FxRateCurrency, year: number, rateValue: number, previousRate: number) => {
+        if (!Number.isFinite(rateValue) || rateValue <= 0) {
+            toast.error('Enter a rate greater than 0.')
+            return
+        }
+        setPendingChange({ currencyCode, year, rate: rateValue, previousRate })
+    }
+
+    const requestAdd = () => {
         const year = Number(newYear)
         const rateValue = Number(newRate)
         if (!Number.isInteger(year) || year < 1950) {
@@ -85,14 +116,14 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
             toast.error('Enter a rate greater than 0.')
             return
         }
-        setIsAdding(true)
-        try {
-            await save(newCurrency, year, rateValue)
-            setNewYear('')
-            setNewRate('')
-        } finally {
-            setIsAdding(false)
-        }
+        const existing = rates.find((r) => r.currencyCode === newCurrency && r.year === year)
+        setPendingChange({
+            currencyCode: newCurrency,
+            year,
+            rate: rateValue,
+            previousRate: existing?.rate ?? null,
+            resetAddForm: true,
+        })
     }
 
     return (
@@ -135,7 +166,7 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
                                                     <Button
                                                         variant="outline"
                                                         disabled={!isDirty || savingKey === key}
-                                                        onClick={() => save(currency, rate.year, Number(draft))}
+                                                        onClick={() => requestRowSave(currency, rate.year, Number(draft), rate.rate)}
                                                         className="h-9 rounded-lg px-3 text-xs"
                                                     >
                                                         <Save className="size-3.5" />
@@ -161,8 +192,8 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
 
             {!canManage ? (
                 <div className="rounded-2xl border border-[#E8EEF5] bg-[#F7F9FC] p-4 text-xs text-[#667085]">
-                    You can view the FX rates used to convert charity figures to USD. Only admins can add or update
-                    rates — reach out to an admin if a rate needs to change.
+                    You can view the FX rates used to convert charity figures to USD. Only admins, charity managers,
+                    and finance assessors can add or update rates — reach out to one of them if a rate needs to change.
                 </div>
             ) : (
             <div className="rounded-2xl border border-[#E8EEF5] bg-white p-4">
@@ -207,12 +238,12 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
                         />
                     </div>
                     <Button
-                        onClick={handleAdd}
-                        disabled={isAdding}
+                        onClick={requestAdd}
+                        disabled={pendingChange !== null}
                         className="h-9 rounded-lg bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-4 text-white"
                     >
                         <Plus className="size-4" />
-                        {isAdding ? 'Adding...' : 'Add / Update'}
+                        Add / Update
                     </Button>
                 </div>
                 <p className="mt-3 text-xs text-[#98A2B3]">
@@ -222,6 +253,56 @@ const FxRatesSettings = ({ initialRates }: FxRatesSettingsProps) => {
                 </p>
             </div>
             )}
+
+            <Dialog open={pendingChange !== null} onOpenChange={(open) => !open && !isConfirming && setPendingChange(null)}>
+                <DialogContent className="gap-0 overflow-hidden border-[#E8EEF5] p-0 shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:max-w-[460px]">
+                    <div className="bg-gradient-to-br from-[#F8FBFF] via-white to-[#F4FBFD] px-6 pb-5 pt-6">
+                        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#266DD3] to-[#3B82E8] text-white shadow-[0_10px_24px_rgba(38,109,211,0.24)]">
+                            <ShieldAlert className="size-5" />
+                        </div>
+                        <DialogHeader className="gap-2 p-0 text-left">
+                            <DialogTitle className="text-xl font-semibold tracking-[-0.02em] text-[#101928]">
+                                {pendingChange?.previousRate != null ? 'Update this rate?' : 'Add this rate?'}
+                            </DialogTitle>
+                            <DialogDescription className="text-sm leading-6 text-[#667085]">
+                                This only affects assessments scored from now on — charities already saved keep the
+                                rate they were given, even after this change.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {pendingChange ? (
+                            <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#E4EAF2] bg-white px-4 py-3 text-[13px]">
+                                <span className="font-medium text-[#344054]">{pendingChange.currencyCode} · {pendingChange.year}</span>
+                                <span className="ml-auto flex items-center gap-2">
+                                    {pendingChange.previousRate != null ? (
+                                        <>
+                                            <span className="text-[#8A98AB] line-through">{pendingChange.previousRate}</span>
+                                            <span className="text-[#B4C0CF]">→</span>
+                                        </>
+                                    ) : null}
+                                    <span className="font-semibold text-[#101928]">{pendingChange.rate}</span>
+                                </span>
+                            </div>
+                        ) : null}
+                    </div>
+                    <DialogFooter className="flex flex-row justify-end gap-2 border-t border-[#E8EEF5] bg-[#FBFCFE] px-6 py-4 sm:justify-end">
+                        <Button
+                            variant="outline"
+                            className="h-10 rounded-xl border-[#DDE7F3] bg-white text-[#344054] shadow-none hover:bg-[#F3F6FB]"
+                            onClick={() => setPendingChange(null)}
+                            disabled={isConfirming}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={commitSave}
+                            disabled={isConfirming}
+                            className="h-10 rounded-xl bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-4 text-white shadow-[0_8px_18px_rgba(38,109,211,0.22)]"
+                        >
+                            {isConfirming ? 'Saving...' : 'Yes, save'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

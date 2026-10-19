@@ -1379,19 +1379,20 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            disabled={exportingFormat !== null || isExportingLedger}
+                                            disabled={exportingFormat !== null}
                                             className="h-8 gap-1.5 rounded-full border-[#E4E7EC] bg-white px-3 text-xs font-semibold text-[#344054] shadow-sm hover:bg-[#F8FAFC]"
+                                            title="A summary scorecard of the charities currently shown below — final scores and outcomes only, no financial detail."
                                         >
-                                            {exportingFormat || isExportingLedger ? (
+                                            {exportingFormat ? (
                                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                             ) : (
                                                 <Download className="h-3.5 w-3.5" />
                                             )}
-                                            Export
+                                            Dashboard summary
                                             <ChevronDown className="h-3 w-3 text-[#98A2B3]" />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-44">
+                                    <DropdownMenuContent align="end" className="w-52">
                                         <DropdownMenuItem onClick={() => handleExport('xlsx')} disabled={exportingFormat !== null}>
                                             <FileSpreadsheet className="mr-2 h-4 w-4 text-[#16794F]" />
                                             Export as Excel
@@ -1400,16 +1401,24 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                                             <FileText className="mr-2 h-4 w-4 text-[#B42318]" />
                                             Export as PDF
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={handleExportFinancialLedger} disabled={isExportingLedger}>
-                                            {isExportingLedger ? (
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <FileSpreadsheet className="mr-2 h-4 w-4 text-[#16794F]" />
-                                            )}
-                                            Financial Ledger (CSV)
-                                        </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleExportFinancialLedger}
+                                    disabled={isExportingLedger}
+                                    className="h-8 gap-1.5 rounded-full border-[#BFE0CC] bg-[#F3FBF6] px-3 text-xs font-semibold text-[#16794F] shadow-sm hover:bg-[#E8F7EE]"
+                                    title="Every charity, one row each — full financial figures, ratios, every score component, tier, and final evaluation."
+                                >
+                                    {isExportingLedger ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                        <FileSpreadsheet className="h-3.5 w-3.5" />
+                                    )}
+                                    Full Financial Ledger (CSV)
+                                </Button>
                             </div>
                         </div>
 

@@ -10,7 +10,15 @@ import {
     type FinanceScoringRulesPayload,
 } from '@/app/actions/finance-scoring-rules'
 import { cn } from '@/lib/utils'
-import { Save } from 'lucide-react'
+import { Save, ShieldAlert } from 'lucide-react'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 
 type MetricKey = 'program' | 'revenueSpent' | 'fundraising' | 'admin' | 'compensation' | 'reserves'
 type TierKey = 'tier1' | 'tier2'
@@ -46,10 +54,27 @@ type FinanceScoringRulesSettingsProps = {
     initialRules: FinanceScoringRulesInitial
 }
 
+/** Only these fields are accepted by the save endpoint — the loaded rules also carry id/version/createdAt/etc., which must never be sent back. */
+const PAYLOAD_KEYS: (keyof FinanceScoringRulesPayload)[] = [
+    'tierRevenueThresholdUsa', 'tierRevenueThresholdCanada', 'tierRevenueThresholdUk',
+    'weightCyFinancials', 'weightPyFinancials', 'weightImpactReport',
+    'weightProgram', 'weightFundraising', 'weightAdmin', 'weightCompensation',
+    'weightRevenueSpent', 'weightReserves',
+    'maxOverheadPercent', 'maxReservesMonths',
+    'tier1', 'tier2',
+]
+
+const toPayload = (rules: FinanceScoringRulesPayload): FinanceScoringRulesPayload => {
+    const payload = {} as FinanceScoringRulesPayload
+    for (const key of PAYLOAD_KEYS) (payload as any)[key] = rules[key]
+    return payload
+}
+
 const FinanceScoringRulesSettings = ({ initialRules }: FinanceScoringRulesSettingsProps) => {
     const [baseline, setBaseline] = useState<FinanceScoringRulesInitial>(initialRules)
     const [rules, setRules] = useState<FinanceScoringRulesPayload>(initialRules)
     const [isSaving, setIsSaving] = useState(false)
+    const [confirmOpen, setConfirmOpen] = useState(false)
 
     const expectedTotal = initialRules.totalScore ?? 40
     const totalWeight = useMemo(
@@ -71,18 +96,23 @@ const FinanceScoringRulesSettings = ({ initialRules }: FinanceScoringRulesSettin
         }))
     }
 
-    const handleSave = async () => {
+    const requestSave = () => {
         if (!weightIsValid) {
             toast.error(`Point weights must add up to exactly ${expectedTotal} (currently ${roundedTotal}).`)
             return
         }
+        setConfirmOpen(true)
+    }
+
+    const handleConfirmSave = async () => {
         setIsSaving(true)
         try {
-            const res = await saveFinanceScoringRulesAction(rules)
+            const res = await saveFinanceScoringRulesAction(toPayload(rules))
             if (res.ok) {
                 const savedVersion = (res.payload?.data as any)?.version ?? (res.payload as any)?.version
                 const next = { ...rules, version: savedVersion, totalScore: expectedTotal }
                 setBaseline(next)
+                setConfirmOpen(false)
                 toast.success('Scoring rules saved — new assessments use these immediately.')
             } else {
                 toast.error(res.message || 'Failed to save scoring rules.')
@@ -206,7 +236,7 @@ const FinanceScoringRulesSettings = ({ initialRules }: FinanceScoringRulesSettin
                     . Saving creates a new version — already-completed assessments keep their original score.
                 </p>
                 <Button
-                    onClick={handleSave}
+                    onClick={requestSave}
                     disabled={isSaving || !isDirty}
                     className="h-11 rounded-xl bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-5 text-white shadow-[0_10px_24px_rgba(38,109,211,0.24)]"
                 >
@@ -214,6 +244,42 @@ const FinanceScoringRulesSettings = ({ initialRules }: FinanceScoringRulesSettin
                     {isSaving ? 'Saving...' : 'Save Scoring Rules'}
                 </Button>
             </div>
+
+            <Dialog open={confirmOpen} onOpenChange={(open) => !isSaving && setConfirmOpen(open)}>
+                <DialogContent className="gap-0 overflow-hidden border-[#E8EEF5] p-0 shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:max-w-[480px]">
+                    <div className="bg-gradient-to-br from-[#F8FBFF] via-white to-[#F4FBFD] px-6 pb-5 pt-6">
+                        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#266DD3] to-[#3B82E8] text-white shadow-[0_10px_24px_rgba(38,109,211,0.24)]">
+                            <ShieldAlert className="size-5" />
+                        </div>
+                        <DialogHeader className="gap-2 p-0 text-left">
+                            <DialogTitle className="text-xl font-semibold tracking-[-0.02em] text-[#101928]">
+                                Save new scoring rules?
+                            </DialogTitle>
+                            <DialogDescription className="text-sm leading-6 text-[#667085]">
+                                This creates a new rules version. It only applies to assessments scored from now on —
+                                charities already assessed keep the score they were given under the previous rules.
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+                    <DialogFooter className="flex flex-row justify-end gap-2 border-t border-[#E8EEF5] bg-[#FBFCFE] px-6 py-4 sm:justify-end">
+                        <Button
+                            variant="outline"
+                            className="h-10 rounded-xl border-[#DDE7F3] bg-white text-[#344054] shadow-none hover:bg-[#F3F6FB]"
+                            onClick={() => setConfirmOpen(false)}
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleConfirmSave}
+                            disabled={isSaving}
+                            className="h-10 rounded-xl bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-4 text-white shadow-[0_8px_18px_rgba(38,109,211,0.22)]"
+                        >
+                            {isSaving ? 'Saving...' : 'Yes, save rules'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

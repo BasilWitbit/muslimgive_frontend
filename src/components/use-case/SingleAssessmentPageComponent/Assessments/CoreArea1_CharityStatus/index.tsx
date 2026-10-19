@@ -62,6 +62,9 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
     const [registrationNumber, setRegistrationNumber] = useState<string | null>(null)
     const [regulatorUrl, setRegulatorUrl] = useState<string | null>(null)
+    const [isEditingRegNumber, setIsEditingRegNumber] = useState(false)
+    const [regNumberDraft, setRegNumberDraft] = useState('')
+    const [isSavingRegNumber, setIsSavingRegNumber] = useState(false)
 
     const isManager = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
     const canEdit = isEditable || isManager;
@@ -87,6 +90,38 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
         const mappedCountry = mapCountry(country);
         return CORE_AREA_1_FORMS.find(f => f.countryCode === mappedCountry) || CORE_AREA_1_FORMS[0];
     }, [country]);
+
+    const regNumberFieldKey = useMemo(() => {
+        const mappedCountry = mapCountry(country);
+        return mappedCountry === 'united-kingdom' ? 'ukCharityNumber' : mappedCountry === 'canada' ? 'caRegistrationNumber' : 'usEin';
+    }, [country]);
+
+    const startEditingRegNumber = () => {
+        setRegNumberDraft(registrationNumber ?? '')
+        setIsEditingRegNumber(true)
+    }
+
+    const saveRegNumber = async () => {
+        const trimmed = regNumberDraft.trim()
+        setIsSavingRegNumber(true)
+        try {
+            const { updateCharityAction } = await import('@/app/actions/charities')
+            const res = await updateCharityAction(charityId, { [regNumberFieldKey]: trimmed || null })
+            if (!res.ok) {
+                const { toast } = await import('sonner')
+                toast.error(res.message || 'Could not save the registration number.')
+                return
+            }
+            setRegistrationNumber(trimmed || null)
+            setIsEditingRegNumber(false)
+        } catch (error) {
+            console.error('Failed to save registration number', error)
+            const { toast } = await import('sonner')
+            toast.error('Could not save the registration number.')
+        } finally {
+            setIsSavingRegNumber(false)
+        }
+    }
 
     const liveScore = useMemo(() => computeCoreArea1Score(formData), [formData]);
     const liveRatingBand = useMemo(
@@ -207,30 +242,73 @@ const CoreArea1: FC<CoreArea1Props> = ({ charityId, country = 'united-kingdom', 
                 >
                     <AssessmentSectionCard>
                         {showCharityNumberHint ? (
-                            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[#D6E4F7] bg-[#F5F9FF] px-3.5 py-2.5">
+                            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-[#D6E4F7] bg-[#F5F9FF] px-3.5 py-2.5">
                                 <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#667085]">
-                                    Charity number on file
+                                    Registration / business number
                                 </span>
-                                {registrationNumber ? (
-                                    regulatorHref ? (
-                                        <a
-                                            href={regulatorHref}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="font-mono text-sm font-semibold tabular-nums text-[#266DD3] underline decoration-dotted underline-offset-2 hover:text-[#1f5bb5]"
-                                            title="Open regulator record"
+                                {isEditingRegNumber ? (
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            autoFocus
+                                            value={regNumberDraft}
+                                            onChange={(e) => setRegNumberDraft(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') saveRegNumber()
+                                                if (e.key === 'Escape') setIsEditingRegNumber(false)
+                                            }}
+                                            placeholder="e.g. 132542705 RR 0001"
+                                            className="h-8 w-56 rounded-lg border border-[#D7E2F0] bg-white px-2.5 font-mono text-sm text-[#101928] outline-none focus:border-[#266DD3] focus:ring-2 focus:ring-[#266DD3]/15"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={saveRegNumber}
+                                            disabled={isSavingRegNumber}
+                                            className="rounded-lg bg-[#266DD3] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1f5bb5] disabled:opacity-60"
                                         >
-                                            {registrationNumber}
-                                        </a>
-                                    ) : (
-                                        <span className="font-mono text-sm font-semibold tabular-nums text-[#101928]">
-                                            {registrationNumber}
-                                        </span>
-                                    )
+                                            {isSavingRegNumber ? 'Saving…' : 'Save'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsEditingRegNumber(false)}
+                                            disabled={isSavingRegNumber}
+                                            className="text-xs font-medium text-[#667085] hover:text-[#344054]"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
                                 ) : (
-                                    <span className="text-sm text-[#98A2B3]">
-                                        Not set on charity profile
-                                    </span>
+                                    <>
+                                        {registrationNumber ? (
+                                            regulatorHref ? (
+                                                <a
+                                                    href={regulatorHref}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="font-mono text-sm font-semibold tabular-nums text-[#266DD3] underline decoration-dotted underline-offset-2 hover:text-[#1f5bb5]"
+                                                    title="Open regulator record"
+                                                >
+                                                    {registrationNumber}
+                                                </a>
+                                            ) : (
+                                                <span className="font-mono text-sm font-semibold tabular-nums text-[#101928]">
+                                                    {registrationNumber}
+                                                </span>
+                                            )
+                                        ) : (
+                                            <span className="text-sm text-[#98A2B3]">
+                                                Not set on charity profile
+                                            </span>
+                                        )}
+                                        {canEdit ? (
+                                            <button
+                                                type="button"
+                                                onClick={startEditingRegNumber}
+                                                className="text-xs font-medium text-[#266DD3] hover:underline"
+                                            >
+                                                {registrationNumber ? 'Edit' : 'Add'}
+                                            </button>
+                                        ) : null}
+                                    </>
                                 )}
                             </div>
                         ) : null}

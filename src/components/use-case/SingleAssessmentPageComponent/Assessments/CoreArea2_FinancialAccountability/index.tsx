@@ -225,6 +225,15 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
         return match?.rate ?? null
     }, [fxRates, suggestedFxCurrency, suggestedFxYear])
 
+    // Options for the FX rate dropdown — every year on file for this charity's currency.
+    const fxRateOptions = useMemo(() => {
+        if (!suggestedFxCurrency) return []
+        return fxRates
+            .filter((r) => r.currencyCode === suggestedFxCurrency)
+            .sort((a, b) => b.year - a.year)
+            .map((r) => ({ year: r.year, rate: r.rate }))
+    }, [fxRates, suggestedFxCurrency])
+
     // Auto-fill the FX rate from the suggestion once it's known — only while the
     // field is still blank, so it never clobbers a value the assessor already
     // loaded (from the saved charity) or typed in themselves.
@@ -532,6 +541,7 @@ const CoreArea2: FC<IProps> = ({ location = 'united-states', charityId, currentU
                         suggestedFxRate={suggestedFxRate}
                         suggestedFxCurrency={suggestedFxCurrency}
                         suggestedFxYear={suggestedFxYear}
+                        fxRateOptions={fxRateOptions}
                     />
                 </div>
             </div>

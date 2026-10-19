@@ -91,6 +91,8 @@ type FinanceAssessmentTableProps = {
   suggestedFxRate?: number | null
   suggestedFxCurrency?: 'CAD' | 'GBP' | null
   suggestedFxYear?: number | null
+  /** Every year on file for this currency, for the FX rate dropdown. */
+  fxRateOptions?: { year: number; rate: number }[]
 }
 
 export default function FinanceAssessmentTable({
@@ -107,6 +109,7 @@ export default function FinanceAssessmentTable({
   suggestedFxRate = null,
   suggestedFxCurrency = null,
   suggestedFxYear = null,
+  fxRateOptions = [],
 }: FinanceAssessmentTableProps) {
   const [activeCode, setActiveCode] = useState<string | null>(null)
   const currency = assessmentCurrency(countryCode)
@@ -278,6 +281,7 @@ export default function FinanceAssessmentTable({
                           suggestedRate={suggestedFxRate}
                           suggestedCurrency={suggestedFxCurrency}
                           suggestedYear={suggestedFxYear}
+                          options={fxRateOptions}
                           note={figures.fxRateNote}
                           noteError={figureErrors.fxRateNote}
                           onChangeNote={(value) => onChangeFigures({ fxRateNote: value })}
@@ -336,6 +340,7 @@ export default function FinanceAssessmentTable({
                             onActivate={() => canEdit && setActiveCode(q.code)}
                             onBlur={() => setActiveCode(null)}
                             onChange={(v) => onChange(q.code, v)}
+                            currency={currency}
                             checkInput={checkInputByCode[q.code] ?? false}
                           />
                         </td>
@@ -545,6 +550,8 @@ function AssuranceRow({
   )
 }
 
+const CUSTOM_FX_OPTION = '__custom__'
+
 function FxRateRow({
   value,
   error,
@@ -553,6 +560,7 @@ function FxRateRow({
   suggestedRate,
   suggestedCurrency,
   suggestedYear,
+  options = [],
   note,
   noteError,
   onChangeNote,
@@ -565,6 +573,7 @@ function FxRateRow({
   suggestedRate?: number | null
   suggestedCurrency?: 'CAD' | 'GBP' | null
   suggestedYear?: number | null
+  options?: { year: number; rate: number }[]
   note: string
   noteError?: string
   onChangeNote: (value: string) => void
@@ -573,6 +582,12 @@ function FxRateRow({
   const numericValue = parseFloat(value)
   const isOverridden =
     suggestedRate != null && Number.isFinite(numericValue) && Math.abs(numericValue - suggestedRate) > 1e-6
+
+  const matchedOption = options.find(
+    (o) => Number.isFinite(numericValue) && Math.abs(o.rate - numericValue) < 1e-6,
+  )
+  const [manualOverride, setManualOverride] = useState(false)
+  const showManualInput = manualOverride || (value !== '' && !matchedOption)
 
   return (
     <tr className="group/row scroll-mt-4 transition-colors hover:bg-[#F8FAFD]" style={{ animation: `ca2RowIn 280ms ease-out ${animationDelay}ms both` }}>
@@ -591,21 +606,55 @@ function FxRateRow({
         </div>
       </td>
       <td className="border-b border-[#F0F3F8] px-3 py-2 align-middle">
-        <input
-          inputMode="decimal"
-          autoComplete="off"
-          disabled={disabled}
-          value={value}
-          onChange={(e) => onChange(sanitizeAmountInput(e.target.value))}
-          placeholder="e.g. 1.35"
+        <select
+          disabled={disabled || options.length === 0}
+          value={showManualInput ? CUSTOM_FX_OPTION : matchedOption ? String(matchedOption.year) : ''}
+          onChange={(e) => {
+            if (e.target.value === CUSTOM_FX_OPTION) {
+              setManualOverride(true)
+              return
+            }
+            setManualOverride(false)
+            const picked = options.find((o) => String(o.year) === e.target.value)
+            if (picked) onChange(String(picked.rate))
+          }}
           className={cn(
-            'h-9 w-full max-w-[260px] rounded-lg border bg-white px-3.5 text-[13px] tabular-nums text-[#1A2332] outline-none',
-            'font-[family-name:var(--font-kanit)] placeholder:text-[#C0C8D4] shadow-[0_1px_2px_rgba(26,35,50,0.04)]',
-            error ? 'border-red-300' : 'border-[#D7E2F0] transition-colors hover:border-[#B9C8DC]',
+            'h-9 w-full max-w-[260px] rounded-lg border bg-white px-3 text-[13px] tabular-nums text-[#1A2332] outline-none',
+            'font-[family-name:var(--font-kanit)] shadow-[0_1px_2px_rgba(26,35,50,0.04)]',
+            error && !showManualInput ? 'border-red-300' : 'border-[#D7E2F0] transition-colors hover:border-[#B9C8DC]',
             'focus:border-[#266DD3] focus:ring-2 focus:ring-[#266DD3]/15',
             disabled && 'cursor-not-allowed border-[#E8EDF4] bg-[#F7F9FC] text-[#9AA8BA]',
           )}
-        />
+        >
+          <option value="" disabled>
+            {options.length === 0 ? 'No rates on file yet' : 'Select a year…'}
+          </option>
+          {options.map((o) => (
+            <option key={o.year} value={o.year}>
+              {o.year} — {o.rate}
+            </option>
+          ))}
+          <option value={CUSTOM_FX_OPTION}>Custom (enter manually)</option>
+        </select>
+
+        {showManualInput ? (
+          <input
+            inputMode="decimal"
+            autoComplete="off"
+            disabled={disabled}
+            value={value}
+            onChange={(e) => onChange(sanitizeAmountInput(e.target.value))}
+            placeholder="e.g. 1.35"
+            className={cn(
+              'mt-2 h-9 w-full max-w-[260px] rounded-lg border bg-white px-3.5 text-[13px] tabular-nums text-[#1A2332] outline-none',
+              'font-[family-name:var(--font-kanit)] placeholder:text-[#C0C8D4] shadow-[0_1px_2px_rgba(26,35,50,0.04)]',
+              error ? 'border-red-300' : 'border-[#D7E2F0] transition-colors hover:border-[#B9C8DC]',
+              'focus:border-[#266DD3] focus:ring-2 focus:ring-[#266DD3]/15',
+              disabled && 'cursor-not-allowed border-[#E8EDF4] bg-[#F7F9FC] text-[#9AA8BA]',
+            )}
+          />
+        ) : null}
+
         {error ? (
           <p className="mt-1 text-[11px] text-red-600" role="alert">
             {error}
@@ -649,6 +698,7 @@ function SheetValueCell({
   onActivate,
   onBlur,
   onChange,
+  currency,
   checkInput = false,
 }: {
   question: Question
@@ -657,6 +707,7 @@ function SheetValueCell({
   onActivate: () => void
   onBlur: () => void
   onChange: (value: any) => void
+  currency?: string | null
   checkInput?: boolean
 }) {
   const inputClass = cn(
@@ -778,6 +829,37 @@ function SheetValueCell({
   }
 
   const isNumber = question.type === 'number'
+
+  // Dollar-amount questions (Total Revenue, F16) get the same currency-badged
+  // input as Total Assets/Liabilities/spend rows, instead of a plain number box.
+  if (isNumber && currency) {
+    return (
+      <div
+        className={cn(
+          'flex h-9 w-full max-w-[260px] items-center overflow-hidden rounded-lg border bg-white shadow-[0_1px_2px_rgba(26,35,50,0.04)] transition-colors',
+          'border-[#D7E2F0] hover:border-[#B9C8DC]',
+          'focus-within:border-[#266DD3] focus-within:ring-2 focus-within:ring-[#266DD3]/15',
+          disabled && 'border-[#E8EDF4] bg-[#F7F9FC]',
+        )}
+      >
+        <span className="flex h-full shrink-0 items-center border-r border-[#EEF1F6] bg-[#FAFBFC] px-2.5 text-[11px] font-semibold tracking-wide text-[#9AA8BA]">
+          {currency}
+        </span>
+        <input
+          inputMode="decimal"
+          autoComplete="off"
+          value={value ?? ''}
+          disabled={disabled}
+          onFocus={onActivate}
+          onBlur={onBlur}
+          onChange={(e) => onChange(sanitizeAmountInput(e.target.value))}
+          placeholder="0"
+          className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-[13px] text-[#1A2332] outline-none font-[family-name:var(--font-kanit)] tabular-nums placeholder:text-[#C0C8D4] disabled:cursor-not-allowed disabled:text-[#9AA8BA]"
+        />
+      </div>
+    )
+  }
+
   return (
     <input
       type={isNumber ? 'number' : 'text'}

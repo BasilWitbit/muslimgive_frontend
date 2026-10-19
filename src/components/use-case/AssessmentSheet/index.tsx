@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Search, Loader2 } from 'lucide-react'
+import { Search, Loader2, FileSpreadsheet } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { listCharitiesAction } from '@/app/actions/charities'
 import { updateAssessmentSheetAction, type UpdateAssessmentSheetPayload } from '@/app/actions/assessment-sheet'
@@ -51,6 +52,7 @@ export default function AssessmentSheetPageComponent() {
   const [hasLoaded, setHasLoaded] = useState(false)
   const [search, setSearch] = useState('')
   const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [isExportingLedger, setIsExportingLedger] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   usePageNavigationDismiss(loading)
@@ -145,6 +147,38 @@ export default function AssessmentSheetPageComponent() {
     }
   }
 
+  const handleExportFinancialLedger = useCallback(async () => {
+    setIsExportingLedger(true)
+    try {
+      const res = await fetch('/api/export/charity-financial-ledger')
+      if (!res.ok) {
+        let message = 'Export failed. Please try again.'
+        try {
+          const data = await res.json()
+          message = data?.message || message
+        } catch { /* noop */ }
+        toast.error(message)
+        return
+      }
+      const blob = await res.blob()
+      const disposition = res.headers.get('content-disposition') || ''
+      const match = disposition.match(/filename="?([^"]+)"?/)
+      const filename = match?.[1] || 'charity-financial-ledger.csv'
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Export failed. Please try again.')
+    } finally {
+      setIsExportingLedger(false)
+    }
+  }, [])
+
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 pb-8">
       <SheetToolbar
@@ -164,17 +198,35 @@ export default function AssessmentSheetPageComponent() {
           rows={rows}
           onCellCommit={onCellCommit}
           toolbarLeading={
-            <div className="relative w-full sm:w-72">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9AA8BA]" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search charities…"
-                className="h-9 rounded-xl border-[#E4EAF2] bg-white pl-9 text-[13px] shadow-[0_1px_2px_rgba(26,35,50,0.04)] focus-visible:ring-[#266DD3]/30"
-              />
-              {loading ? (
-                <Loader2 className="absolute right-3 top-1/2 size-3.5 -translate-y-1/2 animate-spin text-[#9AA8BA]" />
-              ) : null}
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <div className="relative w-full sm:w-72">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#9AA8BA]" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search charities…"
+                  className="h-9 rounded-xl border-[#E4EAF2] bg-white pl-9 text-[13px] shadow-[0_1px_2px_rgba(26,35,50,0.04)] focus-visible:ring-[#266DD3]/30"
+                />
+                {loading ? (
+                  <Loader2 className="absolute right-3 top-1/2 size-3.5 -translate-y-1/2 animate-spin text-[#9AA8BA]" />
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleExportFinancialLedger}
+                disabled={isExportingLedger}
+                className="h-9 gap-1.5 rounded-xl border-[#BFE0CC] bg-[#F3FBF6] px-3 text-xs font-semibold text-[#16794F] shadow-sm hover:bg-[#E8F7EE]"
+                title="Every charity, one row each — full financial figures, ratios, every score component, tier, and final evaluation."
+              >
+                {isExportingLedger ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="size-3.5" />
+                )}
+                Full Financial Ledger (CSV)
+              </Button>
             </div>
           }
         />

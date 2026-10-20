@@ -92,6 +92,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
     const [deletedCharities, setDeletedCharities] = useState<SingleCharityType[]>([])
     const [isDeletedLoading, setIsDeletedLoading] = useState(false)
     const [restoringId, setRestoringId] = useState<string | null>(null)
+    const [deletedSearchQuery, setDeletedSearchQuery] = useState('')
 
     // Filter states
     const [statusFilters, setStatusFilters] = useState<string[]>([])
@@ -193,13 +194,14 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
         }
     }
 
-    const fetchDeletedCharities = async () => {
+    const fetchDeletedCharities = async (search?: string) => {
         setIsDeletedLoading(true)
         try {
             const res = await listDeletedCharitiesAction({
                 limit: 100,
                 sortBy: 'updatedAt',
                 order: 'DESC',
+                search: search || undefined,
             })
             if (res.ok && res.payload?.data?.data?.charities) {
                 const rawCharities = res.payload.data.data.charities
@@ -216,6 +218,23 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
         }
     }
 
+    const deletedModalHasLoadedOnceRef = useRef(false)
+
+    useEffect(() => {
+        if (!openDeletedModal) {
+            deletedModalHasLoadedOnceRef.current = false
+            return
+        }
+        if (!deletedModalHasLoadedOnceRef.current) {
+            deletedModalHasLoadedOnceRef.current = true
+            fetchDeletedCharities(deletedSearchQuery)
+            return
+        }
+        const handler = setTimeout(() => fetchDeletedCharities(deletedSearchQuery), 500)
+        return () => clearTimeout(handler)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [openDeletedModal, deletedSearchQuery])
+
     const handleRestoreCharity = async (id: string) => {
         if (restoringId) return
         setRestoringId(id)
@@ -223,7 +242,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
             const res = await restoreCharityAction(id)
             if (res.ok) {
                 toast.success('Charity restored successfully')
-                await fetchDeletedCharities()
+                await fetchDeletedCharities(deletedSearchQuery)
                 fetchCharities(queryInput, {
                     status: statusFilters,
                     categories: categoryFilters,
@@ -468,8 +487,8 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                             variant="outline"
                             className="h-11 rounded-xl border-[#DDE7F3] bg-white text-[#344054] hover:bg-[#F3F6FB]"
                             onClick={() => {
+                                setDeletedSearchQuery('')
                                 setOpenDeletedModal(true)
-                                fetchDeletedCharities()
                             }}
                         >
                             Deleted Charities
@@ -520,10 +539,18 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
                     description='Restore charities that were previously deleted.'
                 >
                     <div className="flex flex-col gap-3">
+                        <ControlledSearchBarComponent
+                            setQuery={setDeletedSearchQuery}
+                            query={deletedSearchQuery}
+                            placeholder="Search deleted charities by name..."
+                            className="h-11 rounded-xl border-[#DDE7F3] bg-[#F8FAFC]"
+                        />
                         {isDeletedLoading ? (
                             <div className="text-sm text-[#667085]">Loading deleted charities...</div>
                         ) : deletedCharities.length === 0 ? (
-                            <div className="text-sm text-[#667085]">No deleted charities found.</div>
+                            <div className="text-sm text-[#667085]">
+                                {deletedSearchQuery.trim() ? `No deleted charities match "${deletedSearchQuery.trim()}".` : 'No deleted charities found.'}
+                            </div>
                         ) : (
                             deletedCharities.map((charity) => (
                                 <div key={charity.id} className="flex flex-col gap-2 rounded-lg border border-[#E7EEF8] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">

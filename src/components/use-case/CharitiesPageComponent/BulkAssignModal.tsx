@@ -72,17 +72,15 @@ export default function BulkAssignModal({
                 ? prev[activeRole].filter((id) => id !== userId)
                 : [...prev[activeRole], userId],
         }))
-        // Editing the picks after a successful assign invalidates that confirmation until reassigned.
-        setResults((prev) => {
-            if (!prev[activeRole]) return prev
-            const next = { ...prev }
-            delete next[activeRole]
-            return next
-        })
     }
 
+    // Every role with at least one person picked goes out together — picking
+    // people across several tabs and hitting Assign once applies all of them,
+    // not just whichever tab happens to be open.
+    const rolesToSubmit = ASSIGNABLE_ROLE_ORDER.filter((role) => pickedByRole[role].length > 0)
+
     const handleAssign = async () => {
-        if (pickedIds.length === 0) return
+        if (rolesToSubmit.length === 0) return
         setIsSubmitting(true)
         let succeeded = 0
         let failed = 0
@@ -90,7 +88,7 @@ export default function BulkAssignModal({
             for (const charity of charities) {
                 try {
                     const res = await assignRolesByRoleToCharityAction(charity.id, {
-                        roleAssignments: [{ role: activeRole, userIds: pickedIds }],
+                        roleAssignments: rolesToSubmit.map((role) => ({ role, userIds: pickedByRole[role] })),
                     })
                     if (res.ok) succeeded += 1
                     else failed += 1
@@ -98,9 +96,16 @@ export default function BulkAssignModal({
                     failed += 1
                 }
             }
-            setResults((prev) => ({ ...prev, [activeRole]: { userIds: pickedIds, succeededCount: succeeded, failedCount: failed } }))
+            setResults((prev) => {
+                const next = { ...prev }
+                for (const role of rolesToSubmit) {
+                    next[role] = { userIds: pickedByRole[role], succeededCount: succeeded, failedCount: failed }
+                }
+                return next
+            })
             if (succeeded > 0) {
-                toast.success(`${config.roleLabel} assigned to ${succeeded} ${succeeded === 1 ? 'charity' : 'charities'}`)
+                const roleNames = rolesToSubmit.map((role) => ASSIGN_ROLE_MODAL_CONFIG[role].roleLabel).join(', ')
+                toast.success(`${roleNames} assigned to ${succeeded} ${succeeded === 1 ? 'charity' : 'charities'}`)
                 onAssigned?.()
             }
             if (failed > 0) {
@@ -123,8 +128,8 @@ export default function BulkAssignModal({
                     </div>
                     <h2 className="text-xl font-semibold tracking-[-0.02em] text-[#101928]">Bulk assign team members</h2>
                     <p className="mt-1.5 text-sm leading-6 text-[#667085]">
-                        Pick a role, then the person who should hold it — it applies to every charity below. Switch
-                        roles to assign more than one person to this batch.
+                        Switch between roles and pick who should hold each one — one click at the bottom assigns
+                        every role you&apos;ve picked to all of the charities below at once.
                     </p>
 
                     <div className="mt-4 flex flex-wrap items-center gap-1.5">
@@ -148,6 +153,7 @@ export default function BulkAssignModal({
                 <div className="flex flex-wrap gap-1.5 border-t border-[#EEF2F6] bg-[#FBFCFE] px-6 py-3">
                     {ASSIGNABLE_ROLE_ORDER.map((role) => {
                         const done = Boolean(results[role])
+                        const pendingCount = pickedByRole[role].length
                         const active = role === activeRole
                         return (
                             <button
@@ -160,11 +166,23 @@ export default function BulkAssignModal({
                                         ? 'border-[#266DD3] bg-[#266DD3] text-white shadow-sm'
                                         : done
                                           ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
-                                          : 'border-[#E4EAF2] bg-white text-[#4A5A70] hover:border-[#C5D5EA] hover:bg-[#F3F7FC]',
+                                          : pendingCount > 0
+                                            ? 'border-[#F9C980] bg-[#FFF8EC] text-[#92400E] hover:border-[#F3B55A]'
+                                            : 'border-[#E4EAF2] bg-white text-[#4A5A70] hover:border-[#C5D5EA] hover:bg-[#F3F7FC]',
                                 )}
                             >
                                 {done ? <Check className="size-3.5" /> : null}
                                 {ASSIGN_ROLE_MODAL_CONFIG[role].roleLabel}
+                                {!done && pendingCount > 0 ? (
+                                    <span
+                                        className={cn(
+                                            'inline-flex size-4 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums',
+                                            active ? 'bg-white/25 text-white' : 'bg-[#F3B55A] text-white',
+                                        )}
+                                    >
+                                        {pendingCount}
+                                    </span>
+                                ) : null}
                             </button>
                         )
                     })}
@@ -248,15 +266,17 @@ export default function BulkAssignModal({
                         </Button>
                         <Button
                             onClick={handleAssign}
-                            disabled={pickedIds.length === 0 || isSubmitting}
+                            disabled={rolesToSubmit.length === 0 || isSubmitting}
                             className="h-10 rounded-xl bg-gradient-to-r from-[#266DD3] to-[#3B82E8] px-4 text-white shadow-[0_8px_18px_rgba(38,109,211,0.22)]"
                         >
                             {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
                             {isSubmitting
                                 ? 'Assigning...'
-                                : activeResult
-                                  ? `Re-assign ${config.roleLabel}`
-                                  : `Assign to ${charities.length} ${charities.length === 1 ? 'charity' : 'charities'}`}
+                                : rolesToSubmit.length === 0
+                                  ? 'Pick someone to assign'
+                                  : rolesToSubmit.length === 1
+                                    ? `Assign ${ASSIGN_ROLE_MODAL_CONFIG[rolesToSubmit[0]].roleLabel} to ${charities.length} ${charities.length === 1 ? 'charity' : 'charities'}`
+                                    : `Assign ${rolesToSubmit.length} roles to ${charities.length} ${charities.length === 1 ? 'charity' : 'charities'}`}
                         </Button>
                     </div>
                 </div>

@@ -12,6 +12,8 @@ type IProps = {
     confirmText?: string
     cancelText?: string
     isLoading?: boolean
+    /** Extra content rendered between the description and the buttons — e.g. the exact list of items an action affects. */
+    children?: React.ReactNode
 }
 
 const ConfirmActionModal: FC<IProps> = ({
@@ -22,7 +24,8 @@ const ConfirmActionModal: FC<IProps> = ({
     description = "Are you sure you want to proceed with this action?",
     confirmText = "Confirm",
     cancelText = "Cancel",
-    isLoading = false
+    isLoading = false,
+    children,
 }) => {
     const handleConfirm = () => {
         onConfirm()
@@ -36,6 +39,7 @@ const ConfirmActionModal: FC<IProps> = ({
             description={description}
             dialogContentClassName="sm:max-w-[450px]"
         >
+            {children}
             <div className="flex flex-col gap-3 mt-2">
                 <Button
                     variant="primary"

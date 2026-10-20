@@ -1088,7 +1088,24 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                     onConfirm={handleBulkDeleteCharities}
                     isLoading={isDeletingBulk}
                     confirmText={`Delete ${selectedCharityIds.length}`}
-                />
+                >
+                    <div className="mt-3 max-h-[220px] overflow-y-auto rounded-xl border border-red-200 bg-red-50/40">
+                        {charities
+                            .filter((c) => selectedCharityIds.includes(c.id))
+                            .map((c, idx) => (
+                                <div
+                                    key={c.id}
+                                    className={cn(
+                                        'flex items-center gap-2 px-3 py-2 text-sm text-[#344054]',
+                                        idx > 0 && 'border-t border-red-100',
+                                    )}
+                                >
+                                    <Trash2 className="size-3.5 shrink-0 text-red-400" />
+                                    <span className="truncate" title={c.charityTitle}>{c.charityTitle}</span>
+                                </div>
+                            ))}
+                    </div>
+                </ConfirmActionModal>
             ) : null}
         </div>
     )

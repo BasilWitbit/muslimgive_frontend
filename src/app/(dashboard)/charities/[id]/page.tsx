@@ -141,6 +141,8 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
         reviews: c.reviews,
         verificationSummary: c.verificationSummary,
         currentUserRoles: c.currentUserRoles || [],
+        createdAt: c.createdAt ?? null,
+        assessmentStartedAt: c.assessmentStartedAt ?? null,
     }
 
 

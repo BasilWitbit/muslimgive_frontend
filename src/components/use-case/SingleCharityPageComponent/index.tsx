@@ -113,6 +113,8 @@ const SingleCharityPageComponent: FC<IProps> = ({
     overallScorePercent,
     currentUserRoles = [],
     pendingEligibilityReason,
+    createdAt,
+    assessmentStartedAt,
 }) => {
     const router = useRouter();
     const searchParams = useSearchParams()
@@ -328,6 +330,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
 
     const getReview = (key: typeof assessmentMeta[number]['reviewKey']) => {
         return reviews ? (reviews as any)[key] : undefined
+    }
+
+    const getAssessmentStartedAt = (key: typeof assessmentMeta[number]['reviewKey']) => {
+        return assessmentStartedAt ? (assessmentStartedAt as any)[key] as string | null | undefined : null
     }
 
     const getAssessmentStatus = (key: typeof assessmentMeta[number]['statusKey'], reviewKey: typeof assessmentMeta[number]['reviewKey']) => {
@@ -668,6 +674,11 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             </div>
                             <p className="mt-2.5 text-sm text-[#667085]">
                                 Created by <span className="font-medium text-[#344054]">{charityOwnerName}</span>
+                                {createdAt ? (
+                                    <>
+                                        {' '}on <span className="font-medium text-[#344054]">{formatStableDate(createdAt)}</span>
+                                    </>
+                                ) : null}
                             </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
@@ -1053,6 +1064,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                               roleType: 'assessor' as const,
                                           }
                                         : null
+                                const startedAt = getAssessmentStartedAt(item.reviewKey)
                                 const statusLabel = assessmentStatusLabel(status)
                                 const statusTone = isComplete
                                     ? 'bg-emerald-50 text-emerald-700'
@@ -1086,6 +1098,11 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                                     </Button>
                                                 ) : null}
                                             </TypographyComponent>
+                                            {startedAt ? (
+                                                <TypographyComponent variant="caption" className="text-[#666E76]">
+                                                    Started: {formatStableDate(startedAt)}
+                                                </TypographyComponent>
+                                            ) : null}
                                             {scoreLabel ? (
                                                 <TypographyComponent variant="caption" className="text-[#666E76]">
                                                     {scoreLabel}

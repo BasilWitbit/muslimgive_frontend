@@ -155,6 +155,15 @@ export type SingleCharityType = {
         auditsCompleted?: number
         auditsTotal?: number
     } | null,
+    /** When the charity record itself was created. */
+    createdAt?: string | null,
+    /** When each Core Area's assessment was first started (that area's own createdAt). */
+    assessmentStartedAt?: {
+        core1?: string | null
+        core2?: string | null
+        core3?: string | null
+        core4?: string | null
+    } | null,
     reviews?: {
         eligibility: string
         core1: CoreAreaReview

@@ -5,7 +5,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
-import { Mail, ExternalLink, ChevronLeft, ChevronRight, Trash2, ChevronDown, Loader2, History } from 'lucide-react'
+import { Label } from '@/components/ui/label'
+import { Mail, ExternalLink, ChevronLeft, ChevronRight, Trash2, ChevronDown, Loader2, History, UserPlus } from 'lucide-react'
 import CopyCharityLinkButton from '@/components/common/CopyCharityLinkButton'
 import {
     Select,
@@ -219,6 +220,11 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     const [assignRoleState, setAssignRoleState] = React.useState<AssignRoleState>(null)
     const [isAssigningRole, setIsAssigningRole] = React.useState(false)
 
+    // Bulk assign states
+    const [showBulkAssignModal, setShowBulkAssignModal] = React.useState(false)
+    const [bulkAssignRole, setBulkAssignRole] = React.useState<AssignableCharityRole>('finance-assessor')
+    const [isBulkAssigning, setIsBulkAssigning] = React.useState(false)
+
     // Expandable row states
     const [expandedId, setExpandedId] = React.useState<string | null>(null)
     const [reviewsCache, setReviewsCache] = React.useState<Record<string, CharityReviews | null>>({})
@@ -276,6 +282,8 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
     const canAssignPM = isAllowed({ anyOf: [PERMISSIONS.ASSIGN_PM_CHARITY] }) || currentUserRoles.includes('operation-manager')
     const canAssignAssessor = isAllowed({ anyOf: [PERMISSIONS.CHARITY_MANAGE] })
         || currentUserRoles.includes('operation-manager')
+    const canBulkAssign = canAssignAssessor || canAssignPM
+    const canBulkSelect = canDeleteCharity || canBulkAssign
     const isFinanceAssessor = currentUserRoles.some((r: string) => CHARITY_ROLE_ALIASES['finance-assessor'].includes(r))
     const isZakatAssessor = currentUserRoles.some((r: string) => CHARITY_ROLE_ALIASES['zakat-assessor'].includes(r))
 
@@ -302,6 +310,41 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
             toast.error('An unexpected error occurred')
         } finally {
             setIsAssigningRole(false)
+        }
+    }
+
+    const handleBulkAssign = async (userIds: string[]) => {
+        if (selectedCharityIds.length === 0 || userIds.length === 0) return
+        setIsBulkAssigning(true)
+        const succeededIds: string[] = []
+        const failedIds: string[] = []
+        try {
+            for (const charityId of selectedCharityIds) {
+                try {
+                    const res = await assignRolesByRoleToCharityAction(charityId, {
+                        roleAssignments: [{ role: bulkAssignRole, userIds }],
+                    })
+                    if (res.ok) succeededIds.push(charityId)
+                    else failedIds.push(charityId)
+                } catch {
+                    failedIds.push(charityId)
+                }
+            }
+
+            setSelectedCharityIds(failedIds)
+            setShowBulkAssignModal(false)
+            if (succeededIds.length > 0) {
+                toast.success(
+                    `${ASSIGN_ROLE_MODAL_CONFIG[bulkAssignRole].roleLabel} assigned to ${succeededIds.length} ${succeededIds.length === 1 ? 'charity' : 'charities'}`,
+                )
+                onRefresh?.()
+                router.refresh()
+            }
+            if (failedIds.length > 0) {
+                toast.error(`Could not assign to ${failedIds.length} ${failedIds.length === 1 ? 'charity' : 'charities'}`)
+            }
+        } finally {
+            setIsBulkAssigning(false)
         }
     }
 
@@ -433,21 +476,33 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
 
     return (
         <div className="overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.045)]">
-            {canDeleteCharity && selectedCharityIds.length > 0 ? (
+            {canBulkSelect && selectedCharityIds.length > 0 ? (
                 <div className="flex items-center justify-between gap-3 border-b border-[#E8EEF5] bg-[#FFF8F7] px-4 py-3">
                     <span className="text-sm font-medium text-[#344054]">{selectedCharityIds.length} selected</span>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => setSelectedCharityIds([])}>
                             Clear selection
                         </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-red-200 text-red-700 hover:bg-red-50"
-                            onClick={() => setShowBulkDeleteModal(true)}
-                        >
-                            <Trash2 className="mr-1.5 h-4 w-4" /> Delete selected
-                        </Button>
+                        {canBulkAssign ? (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-[#D7E2F0] text-[#266DD3] hover:bg-[#EEF4FC]"
+                                onClick={() => setShowBulkAssignModal(true)}
+                            >
+                                <UserPlus className="mr-1.5 h-4 w-4" /> Assign selected
+                            </Button>
+                        ) : null}
+                        {canDeleteCharity ? (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-red-200 text-red-700 hover:bg-red-50"
+                                onClick={() => setShowBulkDeleteModal(true)}
+                            >
+                                <Trash2 className="mr-1.5 h-4 w-4" /> Delete selected
+                            </Button>
+                        ) : null}
                     </div>
                 </div>
             ) : null}
@@ -456,7 +511,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                     <TableRow className="border-b border-[#E8EEF5] bg-gradient-to-r from-[#FAFBFC] to-[#F8FBFF] hover:bg-gradient-to-r hover:from-[#FAFBFC] hover:to-[#F8FBFF]">
                         <TableHead className={cn(headCell, 'w-[14%]')} title={TABLE_COLUMN_HELP.charity.description}>
                             <div className="flex items-center gap-2">
-                                {canDeleteCharity ? (
+                                {canBulkSelect ? (
                                     <Checkbox
                                         aria-label="Select all charities on this page"
                                         checked={allPageItemsSelected}
@@ -575,7 +630,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                 >
                                     <TableCell className={cn(bodyCell, 'max-w-0')}>
                                         <div className="flex min-w-0 items-center gap-1.5">
-                                            {canDeleteCharity ? (
+                                            {canBulkSelect ? (
                                                 <Checkbox
                                                     aria-label={`Select ${c.charityTitle}`}
                                                     checked={selectedCharityIds.includes(c.id)}
@@ -1068,6 +1123,49 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                         onCancel={() => setAssignRoleState(null)}
                         charityId={assignRoleState.charityId}
                     />
+                </ModelComponentWithExternalControl>
+            ) : null}
+            {showBulkAssignModal ? (
+                <ModelComponentWithExternalControl
+                    title={`Assign to ${selectedCharityIds.length} selected ${selectedCharityIds.length === 1 ? 'charity' : 'charities'}`}
+                    open={showBulkAssignModal}
+                    onOpenChange={(open) => {
+                        if (!open) setShowBulkAssignModal(false)
+                    }}
+                >
+                    <div className="flex flex-col gap-4">
+                        <div>
+                            <Label className="text-sm font-medium">Role</Label>
+                            <Select
+                                value={bulkAssignRole}
+                                onValueChange={(value) => setBulkAssignRole(value as AssignableCharityRole)}
+                                disabled={isBulkAssigning}
+                            >
+                                <SelectTrigger className="mt-1.5 h-10 w-full rounded-lg border-[#D7E2F0] bg-white">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {(Object.keys(ASSIGN_ROLE_MODAL_CONFIG) as AssignableCharityRole[]).map((role) => (
+                                        <SelectItem key={role} value={role}>
+                                            {ASSIGN_ROLE_MODAL_CONFIG[role].title}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="mt-1.5 text-xs text-[#667085]">
+                                This replaces whoever currently holds this role on each of the {selectedCharityIds.length} selected {selectedCharityIds.length === 1 ? 'charity' : 'charities'}.
+                            </p>
+                        </div>
+                        <AssignProjectManager
+                            key={bulkAssignRole}
+                            users={assignmentCandidates[ASSIGN_ROLE_MODAL_CONFIG[bulkAssignRole].candidatesKey]}
+                            roleLabel={ASSIGN_ROLE_MODAL_CONFIG[bulkAssignRole].roleLabel}
+                            actionLabel={`Assign to ${selectedCharityIds.length} ${selectedCharityIds.length === 1 ? 'charity' : 'charities'}`}
+                            isSubmitting={isBulkAssigning}
+                            onSelection={handleBulkAssign}
+                            onCancel={() => setShowBulkAssignModal(false)}
+                        />
+                    </div>
                 </ModelComponentWithExternalControl>
             ) : null}
             {showDeleteModal && (

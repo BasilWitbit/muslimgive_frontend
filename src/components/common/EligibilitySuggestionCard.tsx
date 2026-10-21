@@ -22,7 +22,11 @@ export type EligibilitySuggestionInput = {
 export const buildEligibilitySuggestion = (input: EligibilitySuggestionInput): EligibilitySuggestion => {
     const reasons: Array<{ text: string; ok: boolean }> = []
     const threshold = getRevenueThreshold(input.countryCode)
-    const revenueOk = typeof input.annualRevenue === 'number' && !Number.isNaN(input.annualRevenue) && input.annualRevenue >= threshold
+    const revenueKnown = typeof input.annualRevenue === 'number' && !Number.isNaN(input.annualRevenue)
+    // Revenue "not known" never counts against eligibility — the charity can still be
+    // created and assessed; the real figure (and threshold check) is captured later
+    // when Financial Assessment reports it (see applyFinanceOutputsToCharity).
+    const revenueOk = !revenueKnown || input.annualRevenue! >= threshold
     const islamicOk = input.isIslamic === true
     const reliefOk = input.category === 'local-relief' || input.category === 'international-relief'
 
@@ -49,8 +53,13 @@ export const buildEligibilitySuggestion = (input: EligibilitySuggestionInput): E
     const currencySymbol = getCurrencySymbol(input.countryCode)
 
     const thresholdLabel = `${currencySymbol}${(threshold / 1000).toLocaleString()}k`
-    if (revenueOk) reasons.push({ text: `Annual revenue is at least ${thresholdLabel}.`, ok: true })
-    else reasons.push({ text: `Annual revenue is below ${thresholdLabel}.`, ok: false })
+    if (!revenueKnown) {
+        reasons.push({ text: `Revenue not yet known — will be checked against ${thresholdLabel} once Financial Assessment reports it.`, ok: true })
+    } else if (revenueOk) {
+        reasons.push({ text: `Annual revenue is at least ${thresholdLabel}.`, ok: true })
+    } else {
+        reasons.push({ text: `Annual revenue is below ${thresholdLabel}.`, ok: false })
+    }
 
     if (islamicOk) reasons.push({ text: 'Marked as Islamic charity.', ok: true })
     else reasons.push({ text: 'Not marked as Islamic charity.', ok: false })

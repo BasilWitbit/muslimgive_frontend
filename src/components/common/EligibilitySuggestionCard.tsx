@@ -1,6 +1,6 @@
 import React from 'react'
 import clsx from 'clsx'
-import { getCurrencySymbol } from '@/lib/utils'
+import { getCurrencySymbol, getRevenueThreshold } from '@/lib/utils'
 export type EligibilitySuggestion = {
     suggestedEligible: boolean
     reasons: Array<{
@@ -21,7 +21,8 @@ export type EligibilitySuggestionInput = {
 
 export const buildEligibilitySuggestion = (input: EligibilitySuggestionInput): EligibilitySuggestion => {
     const reasons: Array<{ text: string; ok: boolean }> = []
-    const revenueOk = typeof input.annualRevenue === 'number' && !Number.isNaN(input.annualRevenue) && input.annualRevenue >= 500000
+    const threshold = getRevenueThreshold(input.countryCode)
+    const revenueOk = typeof input.annualRevenue === 'number' && !Number.isNaN(input.annualRevenue) && input.annualRevenue >= threshold
     const islamicOk = input.isIslamic === true
     const reliefOk = input.category === 'local-relief' || input.category === 'international-relief'
 
@@ -47,8 +48,9 @@ export const buildEligibilitySuggestion = (input: EligibilitySuggestionInput): E
 
     const currencySymbol = getCurrencySymbol(input.countryCode)
 
-    if (revenueOk) reasons.push({ text: `Annual revenue is at least ${currencySymbol}500k.`, ok: true })
-    else reasons.push({ text: `Annual revenue is below ${currencySymbol}500k.`, ok: false })
+    const thresholdLabel = `${currencySymbol}${(threshold / 1000).toLocaleString()}k`
+    if (revenueOk) reasons.push({ text: `Annual revenue is at least ${thresholdLabel}.`, ok: true })
+    else reasons.push({ text: `Annual revenue is below ${thresholdLabel}.`, ok: false })
 
     if (islamicOk) reasons.push({ text: 'Marked as Islamic charity.', ok: true })
     else reasons.push({ text: 'Not marked as Islamic charity.', ok: false })

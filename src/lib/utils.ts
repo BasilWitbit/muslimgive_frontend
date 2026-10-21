@@ -17,3 +17,11 @@ export function getCurrencyCode(countryCode?: string | null): string {
   if (countryCode === 'united-states') return 'USD'
   return 'USD'
 }
+
+/** Minimum annual revenue (in the charity's own local currency) to be above the eligibility threshold. */
+export function getRevenueThreshold(countryCode?: string | null): number {
+  if (countryCode === 'united-kingdom') return 400_000
+  if (countryCode === 'canada') return 700_000
+  if (countryCode === 'united-states') return 500_000
+  return 500_000
+}

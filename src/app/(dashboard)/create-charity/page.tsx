@@ -33,7 +33,7 @@ import {
     type CharityRow,
     type RevenueBand,
 } from '@/lib/charity-create-draft'
-import { cn, getCurrencySymbol } from '@/lib/utils'
+import { cn, getCurrencySymbol, getRevenueThreshold } from '@/lib/utils'
 import { checkCharityDuplicateAction, type CheckCharityDuplicateResult } from '@/app/actions/charities'
 
 const COUNTRY_OPTIONS: Array<{ value: CharityCreateCountryCode; label: string }> = [
@@ -51,6 +51,15 @@ const START_YEAR_AUTOCOMPLETE_OPTIONS = START_YEAR_OPTIONS.map((year) => ({
 
 const cellInputClass =
     'h-9 min-w-0 rounded-lg border-[#E4E7EC] bg-white px-2 text-xs shadow-none focus-visible:ring-[#266DD3]/30'
+
+/** The revenue band is never hand-picked — it always follows the entered amount + country threshold. */
+function computeRevenueBand(annualRevenue: string, countryCode: CharityCreateCountryCode | ''): RevenueBand {
+    const trimmed = annualRevenue.trim()
+    if (!trimmed) return 'unknown'
+    const num = Number(trimmed)
+    if (Number.isNaN(num)) return 'unknown'
+    return num >= getRevenueThreshold(countryCode || undefined) ? 'above' : 'below'
+}
 
 /** Loose client-side mirror of the backend's `@IsUrl({ require_protocol: false })` check. */
 function isPlausibleUrl(value: string): boolean {
@@ -81,14 +90,7 @@ function validateRow(row: CharityRow): string | null {
         return 'Annual revenue must be a valid number'
     }
 
-    const revenueNum = row.annualRevenue.trim() ? Number(row.annualRevenue) : null
-    const band =
-        row.revenueBand ||
-        (revenueNum == null
-            ? ''
-            : revenueNum >= 500000
-              ? 'above'
-              : 'below')
+    const band = computeRevenueBand(row.annualRevenue, row.countryCode)
 
     if (band === 'below' && row.isEligible === 'yes' && !row.eligibilityOverride) {
         return 'Below-threshold charities need a revenue override + reason to be eligible'
@@ -212,15 +214,18 @@ const CreateCharityStandalonePage = () => {
                 if (row.key !== key) return row
                 const next = { ...row, ...patch }
 
+                // Revenue band is never hand-picked — always derive it from the amount + country threshold.
+                if (patch.annualRevenue !== undefined || patch.countryCode !== undefined) {
+                    next.revenueBand = computeRevenueBand(next.annualRevenue, next.countryCode)
+                }
+
                 // Auto-suggest eligibility when revenue band / islamic / category / age change
                 const revenueNum = next.annualRevenue.trim() ? Number(next.annualRevenue) : null
-                const effectiveBand =
-                    next.revenueBand ||
-                    (revenueNum == null ? '' : revenueNum >= 500000 ? 'above' : 'below')
+                const effectiveBand = next.revenueBand
 
                 if (
-                    patch.revenueBand !== undefined ||
                     patch.annualRevenue !== undefined ||
+                    patch.countryCode !== undefined ||
                     patch.isIslamic !== undefined ||
                     patch.category !== undefined ||
                     patch.startYear !== undefined ||
@@ -230,12 +235,7 @@ const CreateCharityStandalonePage = () => {
                     patch.eligibilityOverride !== undefined
                 ) {
                     const suggestion = buildEligibilitySuggestion({
-                        annualRevenue:
-                            effectiveBand === 'above'
-                                ? 500000
-                                : effectiveBand === 'below'
-                                  ? 0
-                                  : revenueNum,
+                        annualRevenue: revenueNum,
                         isIslamic: next.isIslamic === 'yes',
                         category: next.category,
                         assessmentRequested: next.assessmentRequested,
@@ -479,12 +479,9 @@ const CreateCharityStandalonePage = () => {
                             <tbody>
                                 {rows.map((row) => {
                                     const currency = getCurrencySymbol(row.countryCode || undefined)
+                                    const revenueThreshold = getRevenueThreshold(row.countryCode || undefined)
                                     const dupCheck = duplicateChecks[row.key]
-                                    const showOverride =
-                                        row.revenueBand === 'below' ||
-                                        (row.annualRevenue.trim() !== '' &&
-                                            !Number.isNaN(Number(row.annualRevenue)) &&
-                                            Number(row.annualRevenue) < 500000)
+                                    const showOverride = row.revenueBand === 'below'
                                     const eligibilityRevenueNum = row.annualRevenue.trim() ? Number(row.annualRevenue) : null
                                     const eligibilitySuggestion = buildEligibilitySuggestion({
                                         annualRevenue: eligibilityRevenueNum,
@@ -735,23 +732,23 @@ const CreateCharityStandalonePage = () => {
                                                     ) : null}
                                                 </td>
                                                 <td className="px-2.5 py-2">
-                                                    <Select
-                                                        value={row.revenueBand || undefined}
-                                                        onValueChange={(v) =>
-                                                            updateRow(row.key, {
-                                                                revenueBand: v as RevenueBand,
-                                                            })
-                                                        }
+                                                    <div
+                                                        title={`Threshold: ${currency}${revenueThreshold.toLocaleString()}`}
+                                                        className={cn(
+                                                            'flex h-9 w-[128px] items-center justify-center rounded-lg border border-dashed px-2 text-center text-[11px] font-medium leading-tight',
+                                                            row.revenueBand === 'above'
+                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                : row.revenueBand === 'below'
+                                                                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                                  : 'border-[#E4E7EC] bg-[#F7F9FC] text-[#98A2B3]',
+                                                        )}
                                                     >
-                                                        <SelectTrigger className={cn(cellInputClass, 'w-[128px]')}>
-                                                            <SelectValue placeholder="Optional" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="above">Above threshold</SelectItem>
-                                                            <SelectItem value="below">Below threshold</SelectItem>
-                                                            <SelectItem value="unknown">Not known</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                                        {row.revenueBand === 'above'
+                                                            ? 'Above threshold'
+                                                            : row.revenueBand === 'below'
+                                                              ? 'Below threshold'
+                                                              : 'Not known'}
+                                                    </div>
                                                 </td>
                                                 <td className="px-2.5 py-2">
                                                     <Input
@@ -869,7 +866,8 @@ const CreateCharityStandalonePage = () => {
                     </div>
                     <div className="border-t border-[#EEF2F6] bg-[#FAFBFC]/80 px-4 py-3">
                         <p className="text-xs text-[#667085]">
-                            Revenue threshold is {getCurrencySymbol()}500k. If unknown, create now — Financial Assessment
+                            Revenue threshold is $500k (US), $700k (Canada), or £400k (UK) — the Revenue column fills
+                            in automatically once an amount is entered. If unknown, create now — Financial Assessment
                             will update the figure later. If Collects Zakah is No, Zakah scoring is excluded.
                         </p>
                     </div>

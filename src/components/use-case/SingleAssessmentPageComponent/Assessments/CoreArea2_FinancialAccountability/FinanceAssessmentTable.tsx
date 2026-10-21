@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import type { Question } from '@/lib/assessment-forms/types'
 import DatePicker from '@/components/common/ControlledDatePickerComponent'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import {
   ASSURANCE_LEVELS,
@@ -606,36 +607,39 @@ function FxRateRow({
         </div>
       </td>
       <td className="border-b border-[#F0F3F8] px-3 py-2 align-middle">
-        <select
+        <Select
           disabled={disabled || options.length === 0}
-          value={showManualInput ? CUSTOM_FX_OPTION : matchedOption ? String(matchedOption.year) : ''}
-          onChange={(e) => {
-            if (e.target.value === CUSTOM_FX_OPTION) {
+          value={showManualInput ? CUSTOM_FX_OPTION : matchedOption ? String(matchedOption.year) : undefined}
+          onValueChange={(val) => {
+            if (val === CUSTOM_FX_OPTION) {
               setManualOverride(true)
               return
             }
             setManualOverride(false)
-            const picked = options.find((o) => String(o.year) === e.target.value)
+            const picked = options.find((o) => String(o.year) === val)
             if (picked) onChange(String(picked.rate))
           }}
-          className={cn(
-            'h-9 w-full max-w-[260px] rounded-lg border bg-white px-3 text-[13px] tabular-nums text-[#1A2332] outline-none',
-            'font-[family-name:var(--font-kanit)] shadow-[0_1px_2px_rgba(26,35,50,0.04)]',
-            error && !showManualInput ? 'border-red-300' : 'border-[#D7E2F0] transition-colors hover:border-[#B9C8DC]',
-            'focus:border-[#266DD3] focus:ring-2 focus:ring-[#266DD3]/15',
-            disabled && 'cursor-not-allowed border-[#E8EDF4] bg-[#F7F9FC] text-[#9AA8BA]',
-          )}
         >
-          <option value="" disabled>
-            {options.length === 0 ? 'No rates on file yet' : 'Select a year…'}
-          </option>
-          {options.map((o) => (
-            <option key={o.year} value={o.year}>
-              {o.year} — {o.rate}
-            </option>
-          ))}
-          <option value={CUSTOM_FX_OPTION}>Custom (enter manually)</option>
-        </select>
+          <SelectTrigger
+            className={cn(
+              'h-9 w-full max-w-[260px] rounded-lg border bg-white px-3 text-[13px] tabular-nums text-[#1A2332] shadow-[0_1px_2px_rgba(26,35,50,0.04)]',
+              'font-[family-name:var(--font-kanit)]',
+              error && !showManualInput ? 'border-red-300' : 'border-[#D7E2F0] transition-colors hover:border-[#B9C8DC]',
+              'focus-visible:border-[#266DD3] focus-visible:ring-2 focus-visible:ring-[#266DD3]/15 data-[state=open]:border-[#266DD3] data-[state=open]:ring-2 data-[state=open]:ring-[#266DD3]/15',
+              disabled && 'cursor-not-allowed border-[#E8EDF4] bg-[#F7F9FC] text-[#9AA8BA]',
+            )}
+          >
+            <SelectValue placeholder={options.length === 0 ? 'No rates on file yet' : 'Select a year…'} />
+          </SelectTrigger>
+          <SelectContent className="font-[family-name:var(--font-kanit)]">
+            {options.map((o) => (
+              <SelectItem key={o.year} value={String(o.year)}>
+                {o.year} — {o.rate}
+              </SelectItem>
+            ))}
+            <SelectItem value={CUSTOM_FX_OPTION}>Custom (enter manually)</SelectItem>
+          </SelectContent>
+        </Select>
 
         {showManualInput ? (
           <input

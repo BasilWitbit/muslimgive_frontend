@@ -12,9 +12,18 @@ const roleAliases: Record<AssignableCharityRole, string[]> = {
     'read-only': ['read-only', 'user'],
 }
 
+/** Inactive/deactivated and deleted accounts must never show up as assignable — picking one strands the assignment on an account nobody can log into. */
+const isAssignable = (u: any): boolean => {
+    if (u?.isDeleted) return false
+    if (typeof u?.isActive === 'boolean') return u.isActive
+    if (typeof u?.status === 'string') return u.status.toLowerCase() === 'active'
+    return true
+}
+
 const mapCandidates = (requiredRole: AssignableCharityRole, sourceUsers: any[]): AssignmentCandidate[] => {
     const accepted = new Set(roleAliases[requiredRole])
     const filtered = sourceUsers.filter((u: any) => {
+        if (!isAssignable(u)) return false
         const roles: string[] = Array.isArray(u?.roles) ? u.roles : []
         if (requiredRole === 'read-only' && roles.length === 0) return true
         return roles.some((r) => accepted.has(toRoleSlug(String(r))))

@@ -4,6 +4,7 @@ import { listUsersAction, listReadOnlyUsersAction } from '@/app/actions/users'
 import React from 'react'
 import { SingleCharityType } from '@/components/use-case/CharitiesPageComponent/kanban/KanbanView'
 import { redirect } from 'next/navigation'
+import { buildAssignmentCandidatesByRole } from '@/lib/assignment-candidates'
 
 
 
@@ -45,35 +46,10 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
     const allUsers = Array.isArray(usersRes?.payload?.data) ? usersRes.payload.data : []
     const allReadOnlyUsers = Array.isArray(readOnlyUsersRes?.payload?.data) ? readOnlyUsersRes.payload.data : []
 
-    const mapCandidates = (requiredRole: 'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'read-only', sourceUsers: any[]) => {
-        const aliases = roleAliases[requiredRole]
-        const accepted = new Set(aliases)
-        const users = sourceUsers
-        const filtered = users.filter((u: any) => {
-            const roles: string[] = Array.isArray(u?.roles) ? u.roles : []
-            // Even if we query /read-only, we should be safe and double check roles, 
-            // but if the backend already filters it, this acts as a safe fallback or just accepts them if roles are missing.
-            // If it's the read-only endpoint, it might return users without roles explicitly attached in the response.
-            if (requiredRole === 'read-only' && roles.length === 0) return true;
-            return roles.some(r => accepted.has(toRoleSlug(String(r))))
-        })
-        const deduped = new Map<string, { id: string; name: string; email: string | null }>()
-        filtered.forEach((u: any) => {
-            if (!u?.id) return
-            deduped.set(u.id, {
-                id: u.id,
-                name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || u.email || 'Unknown User',
-                email: u.email ?? null,
-            })
-        })
-        return Array.from(deduped.values())
-    }
-    const assignmentCandidatesByRole = {
-        projectManager: usersRes.ok ? mapCandidates('project-manager', allUsers) : [],
-        financeAssessor: usersRes.ok ? mapCandidates('finance-assessor', allUsers) : [],
-        zakatAssessor: usersRes.ok ? mapCandidates('zakat-assessor', allUsers) : [],
-        readOnly: readOnlyUsersRes.ok ? mapCandidates('read-only', allReadOnlyUsers) : [],
-    };
+    const assignmentCandidatesByRole = buildAssignmentCandidatesByRole(
+        usersRes.ok ? allUsers : [],
+        readOnlyUsersRes.ok ? allReadOnlyUsers : [],
+    );
     const members = (c.assignments || []).flatMap((a: any) => {
         const userId = a.user?.id
         const name = [a.user?.firstName, a.user?.lastName].filter(Boolean).join(' ').trim()

@@ -32,6 +32,7 @@ import {
     getDashboardMetricsAction,
     type DashboardAssessmentsParams,
 } from '@/app/actions/charities'
+import { listOperationsTasksAction, resolveOperationsTaskAction, type OperationsTask } from '@/app/actions/conflict'
 import {
     AUDIT_AREA_LABELS,
     AUDIT_DISPLAY_MAX,
@@ -152,7 +153,7 @@ type PmDashboardComponentProps = {
 const shellClass =
     'rounded-2xl border border-[#E8EEF5]/80 bg-white/90 shadow-[0_10px_40px_rgba(15,23,42,0.05)] backdrop-blur-sm'
 
-type DashboardSectionKey = 'approvals' | 'activity' | 'charities'
+type DashboardSectionKey = 'approvals' | 'conflicts' | 'activity' | 'charities'
 
 function SectionCollapseButton({
     collapsed,
@@ -409,8 +410,12 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     const [approvalTasksLoading, setApprovalTasksLoading] = useState(false)
     const [approvingCharityId, setApprovingCharityId] = useState<string | null>(null)
     const [approvalNotice, setApprovalNotice] = useState('')
+    const [conflictTasks, setConflictTasks] = useState<OperationsTask[]>([])
+    const [conflictTasksLoading, setConflictTasksLoading] = useState(false)
+    const [resolvingTaskId, setResolvingTaskId] = useState<string | null>(null)
     const [collapsedSections, setCollapsedSections] = useState<Record<DashboardSectionKey, boolean>>({
         approvals: false,
+        conflicts: false,
         activity: false,
         charities: false,
     })
@@ -434,6 +439,31 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
     }, [showApprovalTasks])
 
     useEffect(() => { void refreshApprovalTasks() }, [refreshApprovalTasks])
+
+    const refreshConflictTasks = useCallback(async () => {
+        if (!showApprovalTasks) return
+        setConflictTasksLoading(true)
+        try {
+            const res = await listOperationsTasksAction()
+            setConflictTasks(res.ok && Array.isArray(res.payload?.data) ? res.payload.data : [])
+        } catch {
+            setConflictTasks([])
+        } finally {
+            setConflictTasksLoading(false)
+        }
+    }, [showApprovalTasks])
+
+    useEffect(() => { void refreshConflictTasks() }, [refreshConflictTasks])
+
+    const resolveConflictTask = async (taskId: string) => {
+        setResolvingTaskId(taskId)
+        try {
+            await resolveOperationsTaskAction(taskId)
+            await refreshConflictTasks()
+        } finally {
+            setResolvingTaskId(null)
+        }
+    }
 
     const approvePendingCharity = async (charityId: string) => {
         setApprovingCharityId(charityId)
@@ -1121,6 +1151,59 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                         ) : (
                             <p className="px-5 py-5 text-sm text-[#667085]">{approvalTasksLoading ? 'Loading pending reviews…' : 'No charities are waiting for final approval.'}</p>
                         )}
+                        </div>
+                    </section>
+                ) : null}
+
+                {showApprovalTasks ? (
+                    <section className={cn(shellClass, 'overflow-hidden')}>
+                        <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F6] bg-gradient-to-r from-[#FFFBF0] via-white to-[#FFF8EC] px-5 py-4">
+                            <div>
+                                <h2 className="text-base font-semibold text-[#101928]">Conflict of Interest Flags</h2>
+                                <p className="mt-0.5 text-sm text-[#667085]">An assessor declared a connection to a charity — assign another eligible team member to complete it.</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                                    {conflictTasksLoading ? 'Loading…' : conflictTasks.length}
+                                </span>
+                                <SectionCollapseButton
+                                    collapsed={collapsedSections.conflicts}
+                                    controls="pm-conflict-tasks-content"
+                                    onClick={() => toggleSection('conflicts')}
+                                />
+                            </div>
+                        </div>
+                        <div id="pm-conflict-tasks-content" hidden={collapsedSections.conflicts}>
+                            {conflictTasks.length ? (
+                                <div className="divide-y divide-[#EEF2F6]">
+                                    {conflictTasks.map((task) => (
+                                        <div key={task.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                            <div>
+                                                <Link href={`/charities/${task.charityId}`} className="font-semibold text-[#101928] hover:text-[#266DD3] hover:underline">
+                                                    {task.charityName}
+                                                </Link>
+                                                <p className="mt-1 text-xs text-[#667085]">{task.message}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Link href={`/charities/${task.charityId}`} className="inline-flex h-9 items-center justify-center rounded-xl border border-[#E4E7EC] bg-white px-4 text-sm font-medium text-[#344054] hover:bg-[#F8FAFC]">
+                                                    Reassign
+                                                </Link>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="h-9 rounded-xl"
+                                                    disabled={resolvingTaskId === task.id}
+                                                    onClick={() => void resolveConflictTask(task.id)}
+                                                >
+                                                    {resolvingTaskId === task.id ? 'Resolving…' : 'Mark resolved'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="px-5 py-5 text-sm text-[#667085]">{conflictTasksLoading ? 'Loading…' : 'No conflict of interest flags right now.'}</p>
+                            )}
                         </div>
                     </section>
                 ) : null}

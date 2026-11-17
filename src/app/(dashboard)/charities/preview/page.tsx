@@ -1,11 +1,15 @@
 ﻿'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import ArrowIcon from '@/components/common/IconComponents/ArrowIcon'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { createCharityAction } from '@/app/actions/charities'
+import { listUsersAction } from '@/app/actions/users'
+import { buildAssignmentCandidatesByRole } from '@/lib/assignment-candidates'
+import { AutoCompleteComponent, type AutoCompleteOption } from '@/components/common/AutoCompleteComponent'
+import { X } from 'lucide-react'
 import Can from '@/components/common/Can'
 import { PERMISSIONS } from '@/lib/permissions-config'
 import { usePermissions } from '@/components/common/permissions-provider'
@@ -18,6 +22,8 @@ import {
     saveCharityCreateDraft,
 } from '@/lib/charity-create-draft'
 
+type AssessorCandidate = { id: string; name: string; email?: string | null }
+
 const PreviewCharityPage = () => {
     const searchParams = useSearchParams()
     const router = useRouter()
@@ -25,6 +31,36 @@ const PreviewCharityPage = () => {
     const raw = searchParams.get('data')
     const rowKey = searchParams.get('rowKey')
     const [isPublishing, setIsPublishing] = useState(false)
+    const [assessorCandidates, setAssessorCandidates] = useState<AssessorCandidate[]>([])
+    const [excludedAssessorIds, setExcludedAssessorIds] = useState<string[]>([])
+    const [excludedSearch, setExcludedSearch] = useState('')
+
+    useEffect(() => {
+        let active = true
+        listUsersAction({ limit: 200 }).then((res) => {
+            if (!active || !res.ok) return
+            const allUsers = Array.isArray(res.payload?.data) ? res.payload.data : []
+            const candidates = buildAssignmentCandidatesByRole(allUsers, [])
+            const merged = new Map<string, AssessorCandidate>()
+            for (const u of [...candidates.financeAssessor, ...candidates.zakatAssessor]) {
+                merged.set(u.id, u)
+            }
+            setAssessorCandidates(Array.from(merged.values()))
+        })
+        return () => {
+            active = false
+        }
+    }, [])
+
+    const excludedOptions = useMemo<AutoCompleteOption[]>(() => {
+        const lower = excludedSearch.trim().toLowerCase()
+        return assessorCandidates
+            .filter((u) => !excludedAssessorIds.includes(u.id))
+            .filter((u) => !lower || u.name.toLowerCase().includes(lower) || (u.email ?? '').toLowerCase().includes(lower))
+            .map((u) => ({ value: u.id, label: u.name, hint: u.email ?? undefined }))
+    }, [assessorCandidates, excludedAssessorIds, excludedSearch])
+
+    const excludedAssessors = assessorCandidates.filter((u) => excludedAssessorIds.includes(u.id))
 
     const parsed = useMemo(() => resolveCharityCreateDraft(raw), [raw])
 
@@ -90,6 +126,46 @@ const PreviewCharityPage = () => {
 
             <CharityPreviewCard draft={parsed} submittedByName={submittedByName} submittedByEmail={submittedByEmail} />
 
+            <div className="relative mt-5 rounded-2xl border border-[#E8EEF5] bg-white p-5">
+                <h2 className="text-sm font-semibold text-[#101928]">Conflict of interest</h2>
+                <p className="mt-1 text-xs leading-5 text-[#667085]">
+                    By default, every assessor is eligible to assess this charity. Only select someone here if they
+                    have a declared connection to it — once excluded, they can never be assigned as its Financial or
+                    Zakah assessor.
+                </p>
+                <div className="mt-3">
+                    <AutoCompleteComponent
+                        options={excludedOptions}
+                        value={null}
+                        onValueChange={(val) => val && setExcludedAssessorIds((prev) => [...prev, val])}
+                        placeholder="Exclude an assessor..."
+                        inputPlaceholder="Type a name or email"
+                        emptyMessage="No matching assessors found."
+                        onSearchChange={setExcludedSearch}
+                    />
+                </div>
+                {excludedAssessors.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {excludedAssessors.map((u) => (
+                            <span
+                                key={u.id}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[12px] font-medium text-amber-900"
+                            >
+                                {u.name}
+                                <button
+                                    type="button"
+                                    onClick={() => setExcludedAssessorIds((prev) => prev.filter((id) => id !== u.id))}
+                                    className="rounded-full p-0.5 hover:bg-amber-100"
+                                    aria-label={`Remove exclusion for ${u.name}`}
+                                >
+                                    <X className="size-3" />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
+            </div>
+
             <div className="relative mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Can anyOf={[PERMISSIONS.CREATE_CHARITY]}>
                     <Button
@@ -108,7 +184,10 @@ const PreviewCharityPage = () => {
                                     return
                                 }
 
-                                const res = await createCharityAction(payload)
+                                const res = await createCharityAction({
+                                    ...payload,
+                                    excludedAssessorIds: excludedAssessorIds.length ? excludedAssessorIds : undefined,
+                                })
                                 if (res.ok) {
                                     clearCharityCreateDraft()
                                     if (rowKey) removeCharityCreateRow(rowKey)

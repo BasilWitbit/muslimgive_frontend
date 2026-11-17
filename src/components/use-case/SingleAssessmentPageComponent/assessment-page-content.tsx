@@ -4,8 +4,11 @@ import ArrowIcon from '@/components/common/IconComponents/ArrowIcon'
 import { TypographyComponent } from '@/components/common/TypographyComponent'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useRouter } from 'next/navigation'
 import React from 'react'
+import { toast } from 'sonner'
+import { declareConflictAction, getMyDeclarationAction } from '@/app/actions/conflict'
 import { type AssessmentSlug } from './ASSESSMENT_DEFINITIONS'
 import CoreArea1 from './Assessments/CoreArea1_CharityStatus'
 import CoreArea2 from './Assessments/CoreArea2_FinancialAccountability'
@@ -53,6 +56,14 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
     // start/edit this core area (per-charity assignment, or any in-area
     // assessor once it's been completed).
     const [isEditable, setIsEditable] = React.useState<boolean | null>(null);
+
+    // Mandatory "no connection to this charity" gate — only applies to the
+    // Financial Accountability (2) and Zakah (3) assessments. null while
+    // loading, true once confirmed, 'conflicted' if the assessor declared a
+    // connection and must be blocked for good (OM has been notified).
+    const [declarationChecked, setDeclarationChecked] = React.useState(false);
+    const [declarationStatus, setDeclarationStatus] = React.useState<'loading' | 'needed' | 'confirmed' | 'conflicted' | 'not-applicable'>('loading');
+    const [isSubmittingDeclaration, setIsSubmittingDeclaration] = React.useState(false);
 
     const getCoreAreaIdFromSlug = (slug: AssessmentSlug): number => {
         switch (slug) {
@@ -114,6 +125,54 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
         fetchScore();
     }, [charityId, assessmentSlug, location]);
 
+    React.useEffect(() => {
+        const coreAreaId = getCoreAreaIdFromSlug(assessmentSlug);
+        if (coreAreaId !== 2 && coreAreaId !== 3) {
+            setDeclarationStatus('not-applicable');
+            return;
+        }
+        if (!charityId) return;
+        let active = true;
+        setDeclarationStatus('loading');
+        getMyDeclarationAction(charityId, coreAreaId).then((res) => {
+            if (!active) return;
+            if (res.ok) {
+                const declaration = res.payload?.data;
+                if (declaration && declaration.hasConflict === true) {
+                    setDeclarationStatus('conflicted');
+                } else if (declaration && declaration.hasConflict === false) {
+                    setDeclarationStatus('confirmed');
+                } else {
+                    setDeclarationStatus('needed');
+                }
+            } else {
+                setDeclarationStatus('needed');
+            }
+        });
+        return () => {
+            active = false;
+        };
+    }, [charityId, assessmentSlug]);
+
+    const submitDeclaration = async (hasConflict: boolean) => {
+        const coreAreaId = getCoreAreaIdFromSlug(assessmentSlug);
+        if (coreAreaId !== 2 && coreAreaId !== 3) return;
+        setIsSubmittingDeclaration(true);
+        try {
+            const res = await declareConflictAction(charityId, coreAreaId as 2 | 3, hasConflict);
+            if (res.ok) {
+                setDeclarationStatus(hasConflict ? 'conflicted' : 'confirmed');
+                if (hasConflict) {
+                    toast.success('Recorded — Operations has been notified to assign another assessor.');
+                }
+            } else {
+                toast.error(res.message || 'Could not record your declaration');
+            }
+        } finally {
+            setIsSubmittingDeclaration(false);
+        }
+    };
+
     const renderAssessment = (assessmentId: AssessmentSlug) => {
         switch (assessmentId) {
             case "core-area-1": {
@@ -166,7 +225,48 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                         Only the assessor(s) assigned to this charity&apos;s assessment can start it. Once it&apos;s been completed, any assessor in this area can view and edit it.
                     </p>
                 </div>
-            ) : (
+            ) : declarationStatus === 'conflicted' ? (
+                <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-8 text-center">
+                    <p className="text-sm font-semibold text-amber-900">You declared a connection to this charity</p>
+                    <p className="mt-1 text-xs text-amber-800">
+                        You cannot complete this assessment. Operations has been notified to assign another eligible team member.
+                    </p>
+                </div>
+            ) : declarationStatus === 'needed' ? (
+                <div className="rounded-2xl border border-[#E4E7EC] bg-white px-5 py-6">
+                    <p className="text-sm font-semibold text-[#101928]">Before you start</p>
+                    <p className="mt-1 text-xs leading-5 text-[#667085]">
+                        You must confirm you have no connection to this charity before starting this assessment.
+                    </p>
+                    <label className="mt-4 flex items-start gap-2.5 text-sm text-[#344054]">
+                        <Checkbox
+                            checked={declarationChecked}
+                            onCheckedChange={(v) => setDeclarationChecked(v === true)}
+                            className="mt-0.5"
+                        />
+                        I confirm that I have no connection to this charity.
+                    </label>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <Button
+                            variant="primary"
+                            className="h-9 rounded-xl"
+                            disabled={!declarationChecked || isSubmittingDeclaration}
+                            loading={isSubmittingDeclaration}
+                            onClick={() => submitDeclaration(false)}
+                        >
+                            Continue
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="h-9 rounded-xl border-amber-300 text-amber-800 hover:bg-amber-50"
+                            disabled={isSubmittingDeclaration}
+                            onClick={() => submitDeclaration(true)}
+                        >
+                            I have a connection to this charity
+                        </Button>
+                    </div>
+                </div>
+            ) : declarationStatus === 'loading' ? null : (
                 renderAssessment(assessmentSlug)
             )}
         </div>

@@ -60,6 +60,8 @@ export type CreateCharityPayload = {
     eligibilityRevenueOverride?: boolean;
     eligibilityRevenueOverrideReason?: string | null;
     isEligible: boolean;
+    /** Conflict of interest: user ids who must never be assignable as an assessor on this charity. */
+    excludedAssessorIds?: string[];
 }
 
 

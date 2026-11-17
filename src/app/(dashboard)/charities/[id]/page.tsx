@@ -71,6 +71,7 @@ const CharityDetailsPage = async ({ params }: { params: Promise<{ id: string }> 
     const charity: SingleCharityType = {
         id: c.id,
         charityTitle: c.name,
+        assessmentPaused: Boolean(c.assessmentPaused),
         logoUrl: c.logoUrl ?? null,
         charityOwnerName: c.submittedByName || (c.owner ? `${c.owner.firstName} ${c.owner.lastName}` : "-"),
         charityDesc: c.description || "",

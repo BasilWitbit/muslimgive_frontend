@@ -1,9 +1,10 @@
 ﻿'use client'
 
 import React, { Suspense, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { AlertTriangle, ArrowLeft, Building2, Clock3, ExternalLink, Layers, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Building2, Clock3, ExternalLink, Layers, Plus, Table2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -343,6 +344,9 @@ const CreateCharityStandalonePage = () => {
                         </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                        <Link href="/charities/spreadsheet" className="inline-flex h-9 items-center rounded-xl border border-[#E4E7EC] bg-white px-3 text-sm font-medium text-[#344054] hover:bg-[#F8FBFF]">
+                            <Table2 className="mr-1.5 h-4 w-4" /> View charities spreadsheet
+                        </Link>
                         <Button
                             type="button"
                             variant="outline"

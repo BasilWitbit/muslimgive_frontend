@@ -213,6 +213,10 @@ export const updateCharityAction = async (id: string, payload: UpdateCharityPayl
     return await _patch(`/charities/${id}`, payload);
 }
 
+export const setCharityAssessmentPausedAction = async (id: string, paused: boolean): Promise<ResponseType> => {
+    return await _patch(`/charities/${id}/assessment-pause`, { paused });
+}
+
 /**
  * DELETE /charities/{id}
  * Deletes a charity

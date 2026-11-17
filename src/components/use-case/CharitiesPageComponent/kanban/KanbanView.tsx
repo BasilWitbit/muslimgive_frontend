@@ -103,6 +103,7 @@ export type SingleCharityType = {
     comments: number
     assessmentsCompleted: 0 | 1 | 2 | 3 | 4
     status: StatusType,
+    assessmentPaused?: boolean,
     category: string,
     country?: keyof typeof CountryEnum,
     totalDuration?: string,

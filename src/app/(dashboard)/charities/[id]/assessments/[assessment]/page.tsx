@@ -41,6 +41,7 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
         id: c.id,
         charityTitle: c.name,
         ceoName: c.ceoName ?? null,
+        assessmentPaused: Boolean(c.assessmentPaused),
         country: c.countryCode || c.country,
         websiteUrl: c.websiteUrl ?? null,
         ukCharityCommissionUrl: c.ukCharityCommissionUrl ?? null,
@@ -111,6 +112,7 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
             charityId={charity.id}
             charityTitle={charityTitle}
             ceoName={charity.ceoName}
+            assessmentPaused={charity.assessmentPaused}
             websiteUrl={charity.websiteUrl}
             governmentRecordUrl={governmentRecordUrl}
             governmentRecordLabel={governmentRecordLabel}

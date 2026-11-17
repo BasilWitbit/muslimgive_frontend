@@ -33,9 +33,9 @@ import { ASSESSMENT_STATUS_LABELS } from '@/lib/status-labels'
 import { getCurrencyCode, getCurrencySymbol } from '@/lib/utils'
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
-import { addCharityCommentAction, approveCharityAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, startCharityReassessmentAction } from '@/app/actions/charities'
+import { addCharityCommentAction, approveCharityAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, setCharityAssessmentPausedAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
-import { AlertTriangle, Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2, Table2 } from 'lucide-react'
+import { AlertTriangle, Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2, Table2, Pause, Play } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
 import ConfigureRoleModal from './models/ConfigureRoleModal'
 import { usePermissions } from '@/components/common/permissions-provider'
@@ -83,6 +83,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     charityTitle,
     logoUrl,
     id: charityId,
+    assessmentPaused = false,
     members,
     status,
     country,
@@ -141,6 +142,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     const [showReassessModal, setShowReassessModal] = useState(false)
     const [isReassessing, setIsReassessing] = useState(false)
     const [isApproving, setIsApproving] = useState(false)
+    const [isTogglingAssessmentPause, setIsTogglingAssessmentPause] = useState(false)
     const { isAllowed, me } = usePermissions()
     const effectiveUserId = currentUserId ?? me?.id ?? null
     const projectManagerCandidates = assignmentCandidatesByRole?.projectManager ?? []
@@ -556,6 +558,25 @@ const SingleCharityPageComponent: FC<IProps> = ({
         }
     }
 
+    const handleToggleAssessmentPause = async () => {
+        if (!canManageCharity) return
+        setIsTogglingAssessmentPause(true)
+        try {
+            const nextPaused = !assessmentPaused
+            const res = await setCharityAssessmentPausedAction(charityId, nextPaused)
+            if (res.ok) {
+                toast.success(nextPaused ? 'Assessment paused.' : 'Assessment resumed.')
+                router.refresh()
+            } else {
+                toast.error(res.message || 'Could not update assessment status.')
+            }
+        } catch {
+            toast.error('Could not update assessment status.')
+        } finally {
+            setIsTogglingAssessmentPause(false)
+        }
+    }
+
     const handleDropdownSelect = (selection: string) => {
         if (selection === 'edit-charity-details') {
             handleOpenModel('edit-charity-details')
@@ -659,6 +680,9 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                     label={CHARITY_STATUS_LABELS[status] ?? kebabToTitle(status)}
                                     color={getCharityStatusColor(status)}
                                 />
+                                {assessmentPaused ? (
+                                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">Assessment paused</span>
+                                ) : null}
                             </div>
                             <div className="inline-flex max-w-full items-stretch overflow-hidden rounded-2xl border border-[#BFD6F5] bg-gradient-to-r from-[#E8F1FC] via-[#F3F8FE] to-[#EAF8FB] shadow-[0_8px_24px_rgba(38,109,211,0.12)]">
                                 <div className="w-1.5 shrink-0 bg-[#266DD3]" aria-hidden />
@@ -687,6 +711,12 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                             <CopyCharityLinkButton charityId={charityId} variant="label" />
+                            {canManageCharity ? (
+                                <Button variant="outline" className="rounded-xl" disabled={isTogglingAssessmentPause} loading={isTogglingAssessmentPause} onClick={() => void handleToggleAssessmentPause()}>
+                                    {assessmentPaused ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
+                                    {assessmentPaused ? 'Resume assessment' : 'Pause assessment'}
+                                </Button>
+                            ) : null}
                             {canEditCharity ? (
                                 <Button variant="outline" className="rounded-xl" onClick={() => handleOpenModel('edit-charity-details')}>
                                     <Pencil className="mr-2 h-4 w-4" />

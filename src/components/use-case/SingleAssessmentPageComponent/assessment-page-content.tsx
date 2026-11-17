@@ -25,6 +25,7 @@ type AssessmentPageContentProps = {
     charityId: string;
     charityTitle: string;
     ceoName?: string | null;
+    assessmentPaused?: boolean;
     websiteUrl?: string | null;
     governmentRecordUrl?: string | null;
     governmentRecordLabel?: string | null;
@@ -40,6 +41,7 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
     charityId,
     charityTitle,
     ceoName,
+    assessmentPaused = false,
     websiteUrl,
     governmentRecordUrl,
     governmentRecordLabel,
@@ -220,7 +222,12 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                     <TypographyComponent className='text-gray-400 text-sm'>Please enter relevant information regarding the charity</TypographyComponent>
                 </div>
             </div>
-            {isEditable === false ? (
+            {assessmentPaused ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-5 text-sm text-amber-900">
+                    <p className="font-semibold">This assessment is paused</p>
+                    <p className="mt-1 text-xs">A Project Manager or Operations Manager must resume it before anyone can make changes.</p>
+                </div>
+            ) : isEditable === false ? (
                 <div className="rounded-2xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-4 py-8 text-center">
                     <p className="text-sm font-semibold text-[#344054]">You&apos;re not assigned to this assessment</p>
                     <p className="mt-1 text-xs text-[#667085]">

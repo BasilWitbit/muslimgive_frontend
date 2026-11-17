@@ -16,6 +16,7 @@ import {
 } from '@/hooks/use-assessment-navigation';
 import { useRouteLoader } from '@/components/common/route-loader-provider';
 import AssessmentResetButton from '../../UI/AssessmentResetButton';
+import { Input } from '@/components/ui/input';
 
 const mapCountry = (country: string): 'united-kingdom' | 'united-states' | 'canada' => {
     const countryMap: Record<string, 'united-kingdom' | 'united-states' | 'canada'> = {
@@ -35,9 +36,10 @@ type CoreArea4Props = {
     country?: 'united-kingdom' | 'united-states' | 'canada' | 'uk' | 'usa' | 'us' | 'ca';
     currentUserRoles?: string[];
     status?: string;
+    ceoName?: string | null;
 }
 
-const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', currentUserRoles = [], status }) => {
+const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', currentUserRoles = [], status, ceoName }) => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { isNavigating } = useRouteLoader();
@@ -57,6 +59,7 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
     const [isPreviewing, setIsPreviewing] = React.useState(false);
     const [isCancelling, setIsCancelling] = React.useState(false);
     const [scrollTargetId, setScrollTargetId] = React.useState<string | null>(null);
+    const [ceoNameValue, setCeoNameValue] = React.useState(ceoName?.trim() || '');
 
     const isManager = currentUserRoles.some(r => ['operation-manager', 'operations-manager', 'project-manager'].includes(r.toLowerCase()));
     const canEdit = isEditable || isManager;
@@ -185,7 +188,7 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
             try {
                 const { submitAssessmentAction, editAssessmentAction } = await import('@/app/actions/assessments');
                 const isEdit = status === 'submitted' || status === 'completed';
-                const payload = { charityId, coreArea: 4, answers };
+                const payload = { charityId, coreArea: 4, answers, ceoName: ceoName?.trim() ? undefined : ceoNameValue.trim() };
 
                 if (isEdit) {
                     await editAssessmentAction(payload);
@@ -207,7 +210,7 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
 
     const allRequiredFilled = currentForm.questions
         .filter(q => q.required && (!isUk || getQuestionFieldKey(q) !== 'minimum_3_board_members_at_arms_length'))
-        .every(q => Boolean(formVals[getQuestionFieldKey(q)]));
+        .every(q => Boolean(formVals[getQuestionFieldKey(q)])) && Boolean((ceoName?.trim() || ceoNameValue).trim());
 
     if (isLoading) {
         return <div className="p-8 text-center text-gray-500">Loading assessment...</div>;
@@ -247,6 +250,24 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
                 {currentForm.questions
                     .filter(question => !isUk || getQuestionFieldKey(question) !== 'minimum_3_board_members_at_arms_length')
                     .map(question => renderQuestion(question))}
+                <div className="max-w-xl rounded-xl border border-[#E8EEF5] bg-white p-4">
+                    <label htmlFor="governance-ceo-name" className="mb-2 block text-sm font-semibold text-[#344054]">
+                        CEO name {!ceoName?.trim() ? <span className="text-red-600">*</span> : null}
+                    </label>
+                    {ceoName?.trim() ? (
+                        <p className="text-sm text-[#101928]">{ceoName}</p>
+                    ) : (
+                        <Input
+                            id="governance-ceo-name"
+                            value={ceoNameValue}
+                            onChange={(event) => setCeoNameValue(event.target.value)}
+                            placeholder="Enter the CEO’s name"
+                            required
+                            disabled={!canEdit}
+                        />
+                    )}
+                    {!ceoName?.trim() ? <p className="mt-1 text-xs text-[#667085]">Required to continue when no CEO name is on file.</p> : null}
+                </div>
             </div>
 
             <div className='flex gap-4 mb-8 mt-8'>

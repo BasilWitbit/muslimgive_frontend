@@ -24,6 +24,7 @@ import CharityWebsiteLink from '@/components/common/CharityWebsiteLink'
 type AssessmentPageContentProps = {
     charityId: string;
     charityTitle: string;
+    ceoName?: string | null;
     websiteUrl?: string | null;
     governmentRecordUrl?: string | null;
     governmentRecordLabel?: string | null;
@@ -38,6 +39,7 @@ type AssessmentPageContentProps = {
 const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
     charityId,
     charityTitle,
+    ceoName,
     websiteUrl,
     governmentRecordUrl,
     governmentRecordLabel,
@@ -185,7 +187,7 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                 return <CoreArea3 charityId={charityId} currentUserRoles={currentUserRoles} status={status} />
             }
             case 'core-area-4': {
-                return <CoreArea4 charityId={charityId} country={location} currentUserRoles={currentUserRoles} status={status} />
+                return <CoreArea4 charityId={charityId} country={location} currentUserRoles={currentUserRoles} status={status} ceoName={ceoName} />
             }
         }
     }

@@ -52,7 +52,7 @@ export type CreateCharityPayload = {
     caCraUrl?: string | null;
     usEin?: string | null;
     usIrsUrl?: string | null;
-    ceoName: string;
+    ceoName?: string | null;
     submittedByName?: string | null;
     submittedByEmail?: string | null;
     annualRevenue?: number | null;

@@ -8,6 +8,7 @@ export type SubmitAssessmentPayload = {
     charityId: string;
     coreArea: number;
     answers: Record<string, any>;
+    ceoName?: string;
 }
 
 /**

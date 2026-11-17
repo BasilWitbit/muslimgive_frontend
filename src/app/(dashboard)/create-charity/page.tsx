@@ -77,7 +77,6 @@ function validateRow(row: CharityRow): string | null {
     if (!row.countryCode) return 'Country is required'
     if (!row.category) return 'Category is required'
     if (row.category === 'other' && !row.otherCategory.trim()) return 'Other category is required'
-    if (!row.ceoName.trim()) return 'CEO name is required'
     if (!row.isIslamic) return 'Islamic charity selection is required'
     if (!row.collectsZakah) return 'Collects Zakah selection is required'
     if (row.startDateType === 'year' && row.startYear.trim() && !START_YEAR_OPTIONS.includes(row.startYear.trim())) {
@@ -665,6 +664,15 @@ const CreateCharityStandalonePage = () => {
                                                             contentClassName="w-[140px] p-0"
                                                         />
                                                     )}
+                                                    <p className="mt-1 max-w-[150px] whitespace-normal text-[9px] leading-snug text-[#667085]">
+                                                        {row.countryCode === 'united-kingdom'
+                                                            ? 'Find on the Charity Commission profile under Governance.'
+                                                            : row.countryCode === 'canada'
+                                                              ? 'Find on the CRA profile under “Effective date of status”.'
+                                                              : row.countryCode === 'united-states'
+                                                                ? 'Check the IRS determination letter or formation documents.'
+                                                                : 'Select a country to see where to find this information.'}
+                                                    </p>
                                                 </td>
                                                 <td className="px-2.5 py-2">
                                                     <Input
@@ -729,7 +737,7 @@ const CreateCharityStandalonePage = () => {
                                                         onChange={(e) =>
                                                             updateRow(row.key, { ceoName: e.target.value })
                                                         }
-                                                        placeholder="CEO *"
+                                                        placeholder="CEO (optional)"
                                                         className={cn(cellInputClass, 'min-w-[110px]')}
                                                     />
                                                 </td>
@@ -775,23 +783,31 @@ const CreateCharityStandalonePage = () => {
                                                     ) : null}
                                                 </td>
                                                 <td className="px-2.5 py-2">
-                                                    <div
-                                                        title={`Threshold: ${currency}${revenueThreshold.toLocaleString()}`}
-                                                        className={cn(
-                                                            'flex h-9 w-[128px] items-center justify-center rounded-lg border border-dashed px-2 text-center text-[11px] font-medium leading-tight',
-                                                            row.revenueBand === 'above'
-                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                                                : row.revenueBand === 'below'
-                                                                  ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                                                  : 'border-[#E4E7EC] bg-[#F7F9FC] text-[#98A2B3]',
-                                                        )}
+                                                    <Select
+                                                        value={row.revenueBand === 'unknown' ? 'unknown' : ''}
+                                                        onValueChange={() => updateRow(row.key, { annualRevenue: '', revenueBand: 'unknown' })}
                                                     >
-                                                        {row.revenueBand === 'above'
-                                                            ? 'Above threshold'
-                                                            : row.revenueBand === 'below'
-                                                              ? 'Below threshold'
-                                                              : 'Not known'}
-                                                    </div>
+                                                        <SelectTrigger
+                                                            aria-label="Revenue threshold status"
+                                                            title={`Threshold: ${currency}${revenueThreshold.toLocaleString()}. Above or below is calculated from revenue.`}
+                                                            className={cn(
+                                                                'h-9 w-[128px] border-dashed px-2 text-[11px] font-medium',
+                                                                row.revenueBand === 'above'
+                                                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                    : row.revenueBand === 'below'
+                                                                      ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                                      : 'border-[#E4E7EC] bg-[#F7F9FC] text-[#667085]',
+                                                            )}
+                                                        >
+                                                            <SelectValue placeholder={row.revenueBand === 'above' ? 'Above threshold' : row.revenueBand === 'below' ? 'Below threshold' : 'Not known'} />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="unknown">Not known</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <p className="mt-1 whitespace-nowrap text-[9px] leading-tight text-[#667085]">
+                                                        Threshold: {currency}{revenueThreshold.toLocaleString()}
+                                                    </p>
                                                 </td>
                                                 <td className="px-2.5 py-2">
                                                     <Input
@@ -873,8 +889,10 @@ const CreateCharityStandalonePage = () => {
                                                             type="button"
                                                             size="sm"
                                                             variant="ghost"
-                                                            className="h-8 w-8 rounded-lg p-0 text-[#98A2B3]"
+                                                            className="h-8 w-8 rounded-lg p-0 text-red-500 hover:bg-red-50 hover:text-red-700"
                                                             disabled={rows.length <= 1}
+                                                            aria-label={`Delete ${row.name.trim() || 'charity'} row`}
+                                                            title={rows.length <= 1 ? 'At least one row must remain' : 'Delete this charity row'}
                                                             onClick={() => removeRow(row.key)}
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />

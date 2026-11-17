@@ -48,6 +48,7 @@ import { AUDIT_DEFINITIONS } from '../SingleAssessmentPageComponent/ASSESSMENT_D
 import EditCharityDetailsModal from './models/EditCharityDetailsModal'
 import StatusPill from '@/components/common/StatusPill'
 import CopyCharityLinkButton from '@/components/common/CopyCharityLinkButton'
+import AssessmentChangeHistory from '@/app/(dashboard)/charities/[id]/assessments/AssessmentChangeHistory'
 import { getCharityStatusColor } from '@/lib/chip-styles'
 import {
     AssessmentItemCard,
@@ -72,6 +73,9 @@ const InfoRow = PremiumInfoRow
 
 const formatLocalAmount = (country: string | null | undefined, amount: number | null | undefined) =>
     typeof amount === 'number' ? `${getCurrencySymbol(country)}${amount.toLocaleString()}` : '-'
+
+const getOverviewRevenue = (totalRevenue: number | null | undefined, annualRevenue: number | null | undefined) =>
+    typeof totalRevenue === 'number' && totalRevenue > 0 ? totalRevenue : annualRevenue ?? totalRevenue
 
 const SingleCharityPageComponent: FC<IProps> = ({
     charityDesc,
@@ -756,6 +760,8 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 </div>
             </section>
 
+            <AssessmentChangeHistory charityId={charityId} openInitially />
+
             {!shouldHideAssessmentAndProgress ? (
                 <PremiumSectionCard
                     heading="Progress Overview"
@@ -925,7 +931,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                     )
                                 }
                             />
-                            <InfoRow label={`Total Revenue (${getCurrencyCode(country)}):`} value={formatLocalAmount(country, totalRevenue ?? annualRevenue)} />
+                            <InfoRow label={`Annual Revenue (${getCurrencyCode(country)}):`} value={formatLocalAmount(country, getOverviewRevenue(totalRevenue, annualRevenue))} />
                             <InfoRow label="Fiscal Year End:" value={fiscalYearEnd ? String(fiscalYearEnd).slice(0, 10) : '-'} />
                             <InfoRow label="Muslim Charity:" value={isThisMuslimCharity ? 'Yes' : 'No'} />
                             <InfoRow label="Collects Zakah:" value={doTheyPayZakat ? 'Yes' : 'No'} />

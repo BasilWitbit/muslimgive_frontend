@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 type ChangeLogEntry = {
     id: string
     coreArea: number
+    source?: string
     fieldKey: string
     fieldLabel: string
     previousValue: unknown
@@ -17,6 +18,7 @@ type ChangeLogEntry = {
 }
 
 const CORE_AREA_LABELS: Record<number, string> = {
+    0: 'Charity profile',
     1: 'Charity Status',
     2: 'Financial Accountability',
     3: 'Zakah',
@@ -110,6 +112,11 @@ const AssessmentChangeHistory: React.FC<Props> = ({ charityId, openInitially = f
                                             {CORE_AREA_LABELS[entry.coreArea] ?? `Core Area ${entry.coreArea}`}
                                         </span>
                                         <span className="font-semibold text-[#101928]">{entry.fieldLabel}</span>
+                                        {entry.source === 'financial_assessment_sync' || entry.source === 'assessment_sheet' ? (
+                                            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">From financial assessment</span>
+                                        ) : entry.source === 'charity_created' ? (
+                                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Initial details</span>
+                                        ) : null}
                                         {entry.afterSubmission ? (
                                             <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
                                                 Edited after submission

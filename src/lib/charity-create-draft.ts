@@ -41,6 +41,8 @@ export type CharityCreateDraft = {
     eligibilityRevenueOverride?: boolean
     eligibilityRevenueOverrideReason?: string | null
     isEligible?: boolean
+    /** Distinguishes a deliberate Eligible dropdown choice from the automatic suggestion. */
+    isEligibleTouched?: boolean
 }
 
 export type RevenueBand = 'above' | 'below' | 'unknown' | ''
@@ -133,6 +135,7 @@ export function rowToDraft(row: CharityRow): CharityCreateDraft {
         eligibilityRevenueOverride: row.eligibilityOverride,
         eligibilityRevenueOverrideReason: row.eligibilityOverride ? row.overrideReason.trim() : null,
         isEligible: row.isEligible === 'yes',
+        isEligibleTouched: row.isEligibleTouched,
     }
 }
 
@@ -181,7 +184,7 @@ export function draftToRow(draft: CharityCreateDraft): CharityRow {
         eligibilityOverride: Boolean(draft.eligibilityRevenueOverride),
         overrideReason: draft.eligibilityRevenueOverrideReason || '',
         isEligible: draft.isEligible === undefined ? '' : draft.isEligible ? 'yes' : 'no',
-        isEligibleTouched: draft.isEligible !== undefined,
+        isEligibleTouched: Boolean(draft.isEligibleTouched),
     }
 }
 
@@ -317,7 +320,7 @@ export function buildCreateCharityPayload(
     const countryCode = resolveCharityCreateCountryCode(draft.countryCode)
     const resolvedCategory = draft.category === 'other' ? (draft.otherCategory || 'other') : draft.category
 
-    if (!draft.name || !countryCode || !resolvedCategory || !draft.ceoName) {
+    if (!draft.name || !countryCode || !resolvedCategory) {
         return null
     }
 
@@ -341,7 +344,7 @@ export function buildCreateCharityPayload(
         caCraUrl: draft.caCraUrl ?? null,
         usEin: draft.usEin ?? null,
         usIrsUrl: draft.usIrsUrl ?? null,
-        ceoName: draft.ceoName,
+        ceoName: draft.ceoName?.trim() || null,
         submittedByName,
         submittedByEmail,
         isIslamic: Boolean(draft.isIslamic),

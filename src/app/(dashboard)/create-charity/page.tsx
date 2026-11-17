@@ -263,6 +263,12 @@ const CreateCharityStandalonePage = () => {
 
     const addRow = () => setRows((prev) => [...prev, emptyCharityRow()])
 
+    // Bulk controls update the same row data as the individual selectors, so
+    // validation, eligibility suggestions, and saved drafts stay in sync.
+    const applyToAllRows = (patch: Partial<CharityRow>) => {
+        rows.forEach((row) => updateRow(row.key, patch))
+    }
+
     const removeRow = (key: string) => {
         setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)))
         setDuplicateChecks((prev) => {
@@ -443,6 +449,43 @@ const CreateCharityStandalonePage = () => {
                 </section>
 
                 <div className="overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_10px_40px_rgba(15,23,42,0.05)]">
+                    <div className="flex flex-wrap items-center gap-3 border-b border-[#EEF2F6] bg-[#FAFBFC] px-3 py-3 sm:px-4">
+                        <span className="mr-1 text-xs font-semibold text-[#475467]">Apply to all rows</span>
+                        <Select value="" onValueChange={(v) => applyToAllRows({ countryCode: v as CharityCreateCountryCode })}>
+                            <SelectTrigger aria-label="Apply country to all rows" className="h-8 w-[130px] bg-white text-xs">
+                                <SelectValue placeholder="Country" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {COUNTRY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value="" onValueChange={(v) => applyToAllRows({ category: v })}>
+                            <SelectTrigger aria-label="Apply category to all rows" className="h-8 w-[160px] bg-white text-xs">
+                                <SelectValue placeholder="Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value="" onValueChange={(v) => applyToAllRows({ isIslamic: v as 'yes' | 'no' })}>
+                            <SelectTrigger aria-label="Apply Islamic charity selection to all rows" className="h-8 w-[160px] bg-white text-xs">
+                                <SelectValue placeholder="Islamic charity" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="yes">Yes</SelectItem>
+                                <SelectItem value="no">No</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value="" onValueChange={(v) => applyToAllRows({ collectsZakah: v as 'yes' | 'no' })}>
+                            <SelectTrigger aria-label="Apply collects Zakah selection to all rows" className="h-8 w-[160px] bg-white text-xs">
+                                <SelectValue placeholder="Collects Zakah" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="yes">Yes</SelectItem>
+                                <SelectItem value="no">No</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[1280px] border-collapse text-left">
                             <thead>

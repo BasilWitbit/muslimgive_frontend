@@ -118,6 +118,7 @@ export type SingleCharityType = {
     startDateFromFinancialAssessment?: boolean,
     startYear?: number | null,
     isEligible?: boolean | null,
+    eligibilityDecisionReason?: string | null,
     ukCharityNumber?: string | null,
     ukCharityCommissionUrl?: string | null,
     caRegistrationNumber?: string | null,

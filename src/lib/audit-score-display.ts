@@ -67,6 +67,12 @@ export function normalizeToDisplayMax(
 
 export function getAreaDisplayScore(area: AuditReviewLike, displayMax: number): number | null {
     if (area.score === null) return null
+    // Older assessment summaries can store a percentage score alongside the
+    // area's current maximum (for example 95 with totalScore 10). Normalize
+    // those values back to the area's weighted contribution.
+    if (area.score > area.totalScore && area.score <= 100) {
+        return Number(((area.score / 100) * displayMax).toFixed(1))
+    }
     if (area.totalScore === displayMax) return area.score
     return normalizeToDisplayMax(area.score, area.totalScore, displayMax)
 }
@@ -80,10 +86,14 @@ export function getZakatDisplayScores(area: AuditReviewLike) {
         AUDIT_DISPLAY_MAX.core3Assessment,
     )
 
-    const weightageScore =
+    const rawWeightageScore =
         area.weightedScore ??
         area.weightageScore ??
         assessmentScore
+
+    const weightageScore = rawWeightageScore !== null && rawWeightageScore > AUDIT_DISPLAY_MAX.core3Weightage && rawWeightageScore <= 100
+        ? Number(((rawWeightageScore / 100) * AUDIT_DISPLAY_MAX.core3Weightage).toFixed(1))
+        : rawWeightageScore
 
     return { assessmentScore, weightageScore }
 }

@@ -48,6 +48,22 @@ const ROLE_KEYS = [
     'Operations Manager',
 ] as const
 
+const ROLE_ALIASES: Record<(typeof ROLE_KEYS)[number], string[]> = {
+    'Financial Assessor': ['financial-assessor', 'finance-assessor', 'finance-auditor', 'financial-auditor'],
+    'Zakat Assessor': ['zakat-assessor', 'zakat-auditor', 'zakah-assessor', 'zakah-auditor'],
+    'Project Manager': ['project-manager'],
+    'MG Admin': ['mg-admin', 'za-admin', 'admin'],
+    'Operations Manager': ['operations-manager', 'operation-manager'],
+}
+
+const normalizeRole = (role: string) => role.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+const userHasRole = (user: Data, role: (typeof ROLE_KEYS)[number]) => {
+    if (role === 'MG Admin' && user.isAdmin) return true
+    const aliases = new Set(ROLE_ALIASES[role])
+    return user.roles.some((userRole) => aliases.has(normalizeRole(userRole)))
+}
+
 const STATUS_KEYS = ['Active', 'Inactive'] as const
 const RESET_KEY = 'Reset Password' as const
 
@@ -111,7 +127,7 @@ const UsersPageComponent: FC<IProps> = ({ usersArr }) => {
         const resetCount = activeUsers.filter((user) => user.requestingPasswordReset).length
 
         const roleCounts = ROLE_KEYS.reduce<Record<(typeof ROLE_KEYS)[number], number>>((acc, role) => {
-            acc[role] = activeUsers.filter((user) => user.roles.includes(role)).length
+            acc[role] = activeUsers.filter((user) => userHasRole(user, role)).length
             return acc
         }, {
             'Financial Assessor': 0,
@@ -154,7 +170,7 @@ const UsersPageComponent: FC<IProps> = ({ usersArr }) => {
         return searchedRows.filter((user) => {
             const rolesOk = allRolesOn
                 ? true
-                : user.roles.some((role) => activeRoleFilters.includes(role as (typeof ROLE_KEYS)[number]))
+                : activeRoleFilters.some((role) => userHasRole(user, role))
 
             const statusOk = allStatusesOn
                 ? true

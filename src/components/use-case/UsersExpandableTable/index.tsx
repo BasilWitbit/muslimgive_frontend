@@ -16,12 +16,7 @@ import EditUserRolesModal from '../UsersPageComponent/EditUserRolesModal'
 import Can from '@/components/common/Can'
 import { PERMISSIONS } from '@/lib/permissions-config'
 
-export type Role =
-    | "Financial Assessor"
-    | "Project Manager"
-    | "Zakat Assessor"
-    | "Operations Manager"
-    | "MG Admin";
+export type Role = string;
 
 export type Data = {
     id: string
@@ -31,6 +26,7 @@ export type Data = {
     location: string
     postalCode: string
     roles: Role[]
+    isAdmin?: boolean
     status: 'Active' | 'Inactive',
     requestingPasswordReset: boolean,
     profilePicture?: string,

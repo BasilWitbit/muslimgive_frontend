@@ -97,6 +97,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
     assessmentRequestedNote,
     annualRevenue,
     revenueThresholdBand,
+    eligibilityDecisionReason,
     startDate,
     startDateFromFinancialAssessment,
     startYear,
@@ -912,6 +913,16 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                     variant="outline"
                                     type="button"
                                     className="w-full rounded-xl"
+                                    onClick={() => handleOpenModel('eligibility-test')}
+                                >
+                                    Update Eligibility Reason
+                                </Button>
+                            ) : null}
+                            {status === 'ineligible' && canManageCharity ? (
+                                <Button
+                                    variant="outline"
+                                    type="button"
+                                    className="w-full rounded-xl"
                                     onClick={() => handleOpenModel('eligibility-override')}
                                 >
                                     Override Eligibility
@@ -921,7 +932,9 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             {status === 'ineligible' ? (
                                 <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3">
                                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Reason for ineligibility</p>
-                                    {pendingEligibilityReason ? (
+                                    {eligibilityDecisionReason ? (
+                                        <p className="mt-1 text-sm text-amber-900">{eligibilityDecisionReason}</p>
+                                    ) : pendingEligibilityReason ? (
                                         <p className="mt-1 text-sm text-amber-900">{pendingEligibilityReason}</p>
                                     ) : ineligibilityReasons.length ? (
                                         <ul className="mt-1 list-inside list-disc space-y-0.5 text-sm text-amber-900">

@@ -142,6 +142,7 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
             c.eligibilityPendingReason ||
             c.eligibility?.pendingReason ||
             null,
+        eligibilityDecisionReason: c.eligibilityDecisionReason ?? null,
         pendingEligibilityDetectedAt:
             c.pendingEligibilityDetectedAt ||
             c.pendingEligibility?.detectedAt ||

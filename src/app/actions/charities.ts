@@ -295,6 +295,7 @@ export const reassignRoleToCharityAction = async (charityId: string, payload: Re
 export type UpdateEligibilityPayload = {
     isEligible: boolean;
     overrideReason?: string;
+    ineligibilityReason?: string;
 }
 
 export const updateCharityEligibilityAction = async (charityId: string, payload: UpdateEligibilityPayload): Promise<ResponseType> => {

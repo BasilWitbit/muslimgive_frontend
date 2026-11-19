@@ -266,6 +266,12 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
     const { sections, criteria } = rubric;
     const isV15 = scoring?.scoring_version === 'v15' || rubric.version === 'v15';
     const charityServicesSkipped = optionalSkipped || scoring?.optional_skipped === true;
+    const allRequiredCriteriaAnswered = criteria.every((criterion: any) => {
+        const section = sections.find((item: any) => item.id === criterion.sectionId);
+        if (section?.optional && charityServicesSkipped) return true;
+        return Boolean(answers[criterion.id]?.rating);
+    });
+    const resultsReady = assessmentFinished && allRequiredCriteriaAnswered;
     const donorSupport = isV15 ? scoring?.donor_support : null;
     const publicLabels: Array<{ id: string; title: string; outcome: string; label: string }> = isV15 && scoring
         ? [
@@ -332,7 +338,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
             ) : null}
 
             <div className={cn('flex flex-col gap-4', fetchFromAPI && 'p-4')}>
-            {scoring && assessmentFinished ? (
+            {scoring && resultsReady ? (
                 <div className="overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]">
                     <div className="h-1 w-full bg-gradient-to-r from-[#059669] via-[#10B981] to-[#34D399]" />
 
@@ -521,7 +527,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                         {scoring.auto_concern ? ' · Mandatory override applies' : ''}
                     </div>
                 </div>
-            ) : assessmentStarted ? (
+            ) : assessmentStarted || assessmentFinished ? (
                 <div className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]">
                     <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
                     <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -530,13 +536,19 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                 <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-600" />
                             </span>
                             <div>
-                                <p className="text-sm font-semibold text-[#101928]">Assessment in progress</p>
+                                <p className="text-sm font-semibold text-[#101928]">
+                                    {assessmentFinished ? 'Assessment responses incomplete' : 'Assessment in progress'}
+                                </p>
                                 <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[#667085]">
-                                    Final scores and outcomes will appear here after all required questions are answered and the assessment is completed.
+                                    {assessmentFinished
+                                        ? 'Scores and outcomes are hidden until responses are recorded for all required questions.'
+                                        : 'Final scores and outcomes will appear here after all required questions are answered and the assessment is completed.'}
                                 </p>
                             </div>
                         </div>
-                        <span className="inline-flex w-fit items-center rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700">In Progress</span>
+                        <span className="inline-flex w-fit items-center rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700">
+                            {assessmentFinished ? 'Responses needed' : 'In Progress'}
+                        </span>
                     </div>
                 </div>
             ) : null}
@@ -572,7 +584,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                 <span className="rounded-full border border-[#E8EEF5] bg-white px-2.5 py-0.5 font-medium">
                                     {answeredCount}/{sectionCriteria.length} rated
                                 </span>
-                                {assessmentFinished && sectionScore && (
+                                {resultsReady && sectionScore && (
                                     <span className="font-mono text-sm font-bold tabular-nums text-[#10B981]">
                                         {sectionScore.score}/{sectionScore.max}
                                     </span>
@@ -601,6 +613,8 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                             ? getOptionText(c, normalizeRatingKey(ans.rating))
                                             : '';
                                         const pts = ans.rating ? getEarnedScoreDisplay(c, ans) : '—';
+                                        const note = ans.note?.trim();
+                                        const links = (ans.links ?? []).filter((link) => typeof link === 'string' && link.trim());
                                         const metricIndex = metricIndexById.get(c.metricId) ?? 0;
 
                                         return (
@@ -629,7 +643,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                                     <span className="line-clamp-3" title={c.label}>{c.label}</span>
                                                 </td>
                                                 <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top">
-                                                    {assessmentFinished ? <RatingCell rating={ans.rating} /> : (
+                                                    {resultsReady ? <RatingCell rating={ans.rating} /> : (
                                                         <span className={cn('text-[11px] font-medium', ans.rating ? 'text-blue-700' : 'text-[#98A2B3]')}>
                                                             {ans.rating ? 'Answered' : 'Not answered'}
                                                         </span>
@@ -638,9 +652,31 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                                 <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[10px] leading-snug text-[#667085] border-r">
                                                     {descriptor ? (
                                                         <span className="line-clamp-2" title={descriptor}>{descriptor}</span>
-                                                    ) : (
+                                                    ) : !note && links.length === 0 ? (
                                                         <span className="text-[#C4CDD8]">—</span>
-                                                    )}
+                                                    ) : null}
+                                                    {note ? (
+                                                        <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] leading-relaxed text-slate-700">
+                                                            <span className="mb-0.5 block text-[9px] font-semibold uppercase tracking-wide text-slate-500">Assessor note</span>
+                                                            <p className="whitespace-pre-wrap break-words">{note}</p>
+                                                        </div>
+                                                    ) : null}
+                                                    {links.length > 0 ? (
+                                                        <div className="mt-1.5 flex flex-col gap-1">
+                                                            {links.map((link: string, index: number) => (
+                                                                <a
+                                                                    key={`${c.id}-link-${index}`}
+                                                                    href={link}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    onClick={(event) => event.stopPropagation()}
+                                                                    className="break-all text-[10px] font-medium text-blue-700 underline decoration-blue-200 underline-offset-2 hover:text-blue-900"
+                                                                >
+                                                                    Supporting link{links.length > 1 ? ` ${index + 1}` : ''}
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    ) : null}
                                                 </td>
                                                 <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-center font-mono text-[11px] font-semibold tabular-nums text-[#101928]">
                                                     {pts}

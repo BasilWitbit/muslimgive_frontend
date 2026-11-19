@@ -176,6 +176,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
     const [rubric, setRubric] = useState<any>(null);
     const [answers, setAnswers] = useState<Record<string, AnswerItem> | null>(null);
     const [scoring, setScoring] = useState<any>(null);
+    const [optionalSkipped, setOptionalSkipped] = useState(false);
     const [showSubmittedModel, setShowSubmittedModel] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
@@ -197,6 +198,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                     setRubric(data.rubric);
                     setAnswers(data.answers);
                     setScoring(data.scoring);
+                    setOptionalSkipped(data.optional_skipped === true || data.scoring?.optional_skipped === true);
                 } else {
                     console.error('Failed to fetch assessment data from API');
                 }
@@ -257,6 +259,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
 
     const { sections, criteria } = rubric;
     const isV15 = scoring?.scoring_version === 'v15' || rubric.version === 'v15';
+    const charityServicesSkipped = optionalSkipped || scoring?.optional_skipped === true;
     const donorSupport = isV15 ? scoring?.donor_support : null;
     const publicLabels: Array<{ id: string; title: string; outcome: string; label: string }> = isV15 && scoring
         ? [
@@ -469,7 +472,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                     label="Charity services extra"
                                     score={charityServicesExtraSection.score}
                                     max={charityServicesExtraSection.max}
-                                    skipped={Boolean(scoring?.optional_skipped)}
+                                    skipped={charityServicesSkipped}
                                     footer={
                                         <RatingCell
                                             rating={getLegacyDonorSupportProfile(
@@ -519,7 +522,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                 const sectionCriteria = criteria.filter((c: any) => c.sectionId === section.id);
                 if (sectionCriteria.length === 0) return null;
 
-                if (section.optional && scoring?.optional_skipped) {
+                if (section.optional && charityServicesSkipped) {
                     return (
                         <div key={section.id} className="overflow-hidden rounded-2xl border border-[#E8EEF5] bg-[#FAFBFC] shadow-[0_4px_18px_rgba(15,23,42,0.03)]">
                             <div className="flex items-center justify-between border-b border-[#EEF2F6] bg-gradient-to-r from-[#FAFBFC] to-white px-4 py-3">

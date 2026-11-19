@@ -524,8 +524,8 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
     const isNextDisabled = isSubmitting;
 
     const AssessmentSidebar = () => (
-        <aside className="w-full shrink-0 lg:w-60 xl:w-64">
-            <div className="rounded-lg border border-gray-200 bg-white shadow-sm lg:sticky lg:top-4">
+        <aside className="w-full shrink-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:w-60 xl:w-64">
+            <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div className="border-b border-gray-100 px-3 py-2.5">
                     <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Sections</div>
                     <div className="mt-1 text-[11px] text-gray-400">Page {step + 1} of {sections.length}</div>

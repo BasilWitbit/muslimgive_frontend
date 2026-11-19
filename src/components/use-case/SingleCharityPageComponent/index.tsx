@@ -791,8 +791,6 @@ const SingleCharityPageComponent: FC<IProps> = ({
                 </div>
             </section>
 
-            <AssessmentChangeHistory charityId={charityId} openInitially />
-
             {!shouldHideAssessmentAndProgress ? (
                 <PremiumSectionCard
                     heading="Progress Overview"
@@ -1198,6 +1196,8 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         </div>
                     </PremiumSectionCard>
                 ) : null}
+            <AssessmentChangeHistory charityId={charityId} openInitially />
+
             <PremiumSectionCard
                 heading="Comments"
                 description="Team notes and discussion for this charity."

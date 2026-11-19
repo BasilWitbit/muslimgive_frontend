@@ -5,7 +5,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { AutoCompleteComponent, type AutoCompleteOption } from '@/components/common/AutoCompleteComponent'
 import AvatarComponent from '@/components/common/AvatarComponent'
-import { assignRolesByRoleToCharityAction } from '@/app/actions/charities'
+import { assignRolesToCharityAction } from '@/app/actions/charities'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Check, Loader2, UserPlus2, X } from 'lucide-react'
@@ -87,9 +87,19 @@ export default function BulkAssignModal({
         try {
             for (const charity of charities) {
                 try {
-                    const res = await assignRolesByRoleToCharityAction(charity.id, {
-                        roleAssignments: rolesToSubmit.map((role) => ({ role, userIds: pickedByRole[role] })),
-                    })
+                    const additionsByUser = new Map<string, Set<AssignableCharityRole>>()
+                    for (const role of rolesToSubmit) {
+                        for (const userId of pickedByRole[role]) {
+                            const roles = additionsByUser.get(userId) ?? new Set<AssignableCharityRole>()
+                            roles.add(role)
+                            additionsByUser.set(userId, roles)
+                        }
+                    }
+                    const assignments = Array.from(additionsByUser, ([userId, roles]) => ({
+                        userId,
+                        add: Array.from(roles),
+                    }))
+                    const res = await assignRolesToCharityAction(charity.id, assignments)
                     if (res.ok) succeeded += 1
                     else failed += 1
                 } catch {

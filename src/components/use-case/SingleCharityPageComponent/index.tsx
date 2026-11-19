@@ -33,7 +33,7 @@ import { ASSESSMENT_STATUS_LABELS } from '@/lib/status-labels'
 import { getCurrencyCode, getCurrencySymbol } from '@/lib/utils'
 import { useRouteLoader } from '@/components/common/route-loader-provider'
 import LinkComponent from '@/components/common/LinkComponent'
-import { addCharityCommentAction, approveCharityAction, assignRolesToCharityAction, assignRolesByRoleToCharityAction, deleteCharityAction, listCharityCommentsAction, setCharityAssessmentPausedAction, startCharityReassessmentAction } from '@/app/actions/charities'
+import { addCharityCommentAction, approveCharityAction, assignRolesToCharityAction, deleteCharityAction, listCharityCommentsAction, setCharityAssessmentPausedAction, startCharityReassessmentAction } from '@/app/actions/charities'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
 import { AlertTriangle, Building2, CalendarDays, Globe, Mail, MapPin, Pencil, UserCircle2, UserCheck, ArrowLeft, MessageSquare, Trash2, Table2, Pause, Play } from 'lucide-react'
 import ManageTeamModal from './models/ManageTeamModal'
@@ -50,6 +50,7 @@ import StatusPill from '@/components/common/StatusPill'
 import CopyCharityLinkButton from '@/components/common/CopyCharityLinkButton'
 import AssessmentChangeHistory from '@/app/(dashboard)/charities/[id]/assessments/AssessmentChangeHistory'
 import { getCharityStatusColor } from '@/lib/chip-styles'
+import { getMembersForRole } from '@/lib/assignment-candidates'
 import {
     AssessmentItemCard,
     CHARITY_STATUS_LABELS,
@@ -458,14 +459,26 @@ const SingleCharityPageComponent: FC<IProps> = ({
 
     const assignRole = async (userIds: string[], roleSlug: 'project-manager' | 'finance-assessor' | 'zakat-assessor' | 'read-only') => {
         try {
-            const payload = {
-                roleAssignments: [{
-                    role: roleSlug,
-                    userIds
-                }]
-            };
+            const existingMembers = getMembersForRole(members, roleSlug)
+            const existingUserIds = new Set(existingMembers.map((member) => member.id))
+            const selectedUserIds = new Set(userIds)
+            const removalsByUser = new Map<string, Set<string>>()
+            for (const member of existingMembers) {
+                if (selectedUserIds.has(member.id)) continue
+                const roles = removalsByUser.get(member.id) ?? new Set<string>()
+                roles.add(member.role)
+                removalsByUser.set(member.id, roles)
+            }
+            const assignments = [
+                ...userIds.filter((userId) => !existingUserIds.has(userId)).map((userId) => ({ userId, add: [roleSlug] })),
+                ...Array.from(removalsByUser, ([userId, roles]) => ({ userId, remove: Array.from(roles) })),
+            ]
+            if (assignments.length === 0) {
+                handleCloseModel()
+                return
+            }
 
-            const res = await assignRolesByRoleToCharityAction(charityId, payload);
+            const res = await assignRolesToCharityAction(charityId, assignments);
 
             if (res.ok) {
                 const labels = {
@@ -939,7 +952,10 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                             {ineligibilityReasons.map((reason) => <li key={reason.text}>{reason.text}</li>)}
                                         </ul>
                                     ) : (
-                                        <p className="mt-1 text-sm text-amber-900">Marked ineligible during the eligibility review.</p>
+                                        <p className="mt-1 text-sm text-amber-900">
+                                            No specific reason was recorded. Current charity details do not identify a failed eligibility rule.
+                                            {canManageCharity ? ' Use “Update Eligibility Reason” to record why it was marked ineligible.' : ''}
+                                        </p>
                                     )}
                                 </div>
                             ) : null}
@@ -1066,7 +1082,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 const status = getAssessmentStatus(item.statusKey, item.reviewKey)
                                 const isComplete = isAssessmentComplete(status)
                                 const review = getReview(item.reviewKey)
-                                const scoreLabel = isComplete ? getAssessmentScoreLabel(item.id, review) : null
+                                const scoreLabel = isAdminReviewed && isComplete ? getAssessmentScoreLabel(item.id, review) : null
                                 const assignedNames = getAssignedNamesForAssessment(item.id)
                                 const isAssigned = assignedNames !== 'Unassigned'
                                 const requiredRole = roleByAssessment[item.id]
@@ -1397,14 +1413,16 @@ const SingleCharityPageComponent: FC<IProps> = ({
             </ModelComponentWithExternalControl>
 
             <ModelComponentWithExternalControl
-                title="Perform Eligibility"
+                title={status === 'ineligible' ? 'Update Eligibility Reason' : 'Perform Eligibility'}
                 onOpenChange={handleCloseModel}
                 open={modelState.nameOfModel === 'eligibility-test'}
             >
-                {status === 'pending-eligibility' && canManageCharity ? (
+                {(status === 'pending-eligibility' || status === 'ineligible') && canManageCharity ? (
                     <EligibilityTest
                         charityId={charityId}
                         charityTitle={charityTitle}
+                        initialDecision={status === 'ineligible' ? 'no' : ''}
+                        initialIneligibilityReason={eligibilityDecisionReason}
                         suggestionInput={{
                             annualRevenue: annualRevenue ?? null,
                             isIslamic: Boolean(isThisMuslimCharity),

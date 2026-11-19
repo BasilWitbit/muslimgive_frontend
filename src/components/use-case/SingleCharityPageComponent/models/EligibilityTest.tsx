@@ -11,6 +11,8 @@ type IProps = {
     charityTitle: string
     charityId: string
     suggestionInput: EligibilitySuggestionInput
+    initialDecision?: 'yes' | 'no' | ''
+    initialIneligibilityReason?: string | null
     onUpdated: () => void
     onCancel: () => void
 }
@@ -19,12 +21,14 @@ const EligibilityTest: React.FC<IProps> = ({
     charityTitle,
     charityId,
     suggestionInput,
+    initialDecision = '',
+    initialIneligibilityReason = '',
     onUpdated,
     onCancel,
 }) => {
     const suggestion = useMemo(() => buildEligibilitySuggestion(suggestionInput), [suggestionInput])
-    const [decision, setDecision] = useState<'yes' | 'no' | ''>('')
-    const [ineligibilityReason, setIneligibilityReason] = useState('')
+    const [decision, setDecision] = useState<'yes' | 'no' | ''>(initialDecision)
+    const [ineligibilityReason, setIneligibilityReason] = useState(initialIneligibilityReason ?? '')
     const [isSaving, setIsSaving] = useState(false)
 
     const handleSave = async () => {
@@ -59,7 +63,8 @@ const EligibilityTest: React.FC<IProps> = ({
     return (
         <div className="flex flex-col gap-4">
             <div className="text-sm text-muted-foreground">
-                Perform eligibility test for <span className="font-medium text-foreground">{charityTitle}</span>.
+                {initialDecision === 'no' ? 'Update the eligibility decision for ' : 'Perform eligibility test for '}
+                <span className="font-medium text-foreground">{charityTitle}</span>.
             </div>
             <EligibilitySuggestionCard suggestion={suggestion} />
             <div className="flex flex-col gap-2">

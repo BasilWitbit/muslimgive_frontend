@@ -18,7 +18,7 @@ import type { AssignmentCandidatesByRole, AssignableCharityRole, SingleCharityTy
 import Can from '@/components/common/Can'
 import { PERMISSIONS } from '@/lib/permissions-config'
 import ConfirmActionModal from '@/components/common/ConfirmActionModal'
-import { assignRolesByRoleToCharityAction, deleteCharityAction, getCharityAction, sendBulkEmailReportAction } from '@/app/actions/charities'
+import { assignRolesToCharityAction, deleteCharityAction, getCharityAction, sendBulkEmailReportAction } from '@/app/actions/charities'
 import ModelComponentWithExternalControl from '@/components/common/ModelComponent/ModelComponentWithExternalControl'
 import AssignProjectManager from '@/components/use-case/SingleCharityPageComponent/models/AssignProjectManager'
 import BulkAssignModal from '../BulkAssignModal'
@@ -255,9 +255,25 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
         if (!assignRoleState) return
         setIsAssigningRole(true)
         try {
-            const res = await assignRolesByRoleToCharityAction(assignRoleState.charityId, {
-                roleAssignments: [{ role: assignRoleState.role, userIds }],
-            })
+            const existingMembers = getMembersForRole(assignRoleState.members, assignRoleState.role)
+            const existingUserIds = new Set(existingMembers.map((member) => member.id))
+            const selectedUserIds = new Set(userIds)
+            const removalsByUser = new Map<string, Set<string>>()
+            for (const member of existingMembers) {
+                if (selectedUserIds.has(member.id)) continue
+                const roles = removalsByUser.get(member.id) ?? new Set<string>()
+                roles.add(member.role)
+                removalsByUser.set(member.id, roles)
+            }
+            const assignments = [
+                ...userIds.filter((userId) => !existingUserIds.has(userId)).map((userId) => ({ userId, add: [assignRoleState.role] })),
+                ...Array.from(removalsByUser, ([userId, roles]) => ({ userId, remove: Array.from(roles) })),
+            ]
+            if (assignments.length === 0) {
+                setAssignRoleState(null)
+                return
+            }
+            const res = await assignRolesToCharityAction(assignRoleState.charityId, assignments)
             if (res.ok) {
                 toast.success(ASSIGN_ROLE_MODAL_CONFIG[assignRoleState.role].successLabel)
                 setAssignRoleState(null)
@@ -811,7 +827,8 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                 const meta = CORE_AREA_META[key]
                                                                 const statusStyle = getCoreAreaStatusMeta(area.status)
                                                                 const isPending = area.status === 'pending'
-                                                                const isAssessmentFinished = area.status === 'completed' || area.status === 'submitted'
+                                                                const allAssessmentsSubmitted = reviews.summary.completed >= reviews.summary.total
+                                                                const isAssessmentFinished = allAssessmentsSubmitted && (area.status === 'completed' || area.status === 'submitted')
                                                                 const displayScore = getAreaDisplayScore(area, meta.displayMax)
                                                                 const zakatScores = key === 'core3' ? getZakatDisplayScores(area) : null
                                                                 const coreAreaBand = !isAssessmentFinished ? null : key === 'core1'
@@ -888,7 +905,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                         <div className="flex min-h-[92px] flex-col">
                                                                             {!isAssessmentFinished ? (
                                                                                 <div className="flex flex-1 items-start justify-center rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-3 py-4 text-center text-xs italic text-[#667085]">
-                                                                                    {isPending ? 'Not yet assessed' : 'Score available when completed'}
+                                                                                    {isPending ? 'Not yet assessed' : 'Scores available after all assessments are submitted'}
                                                                                 </div>
                                                                             ) : (
                                                                                 <div className="flex-1 space-y-2">

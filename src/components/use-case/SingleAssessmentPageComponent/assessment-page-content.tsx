@@ -68,6 +68,7 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
     const [declarationChecked, setDeclarationChecked] = React.useState(false);
     const [declarationStatus, setDeclarationStatus] = React.useState<'loading' | 'needed' | 'confirmed' | 'conflicted' | 'not-applicable'>('loading');
     const [isSubmittingDeclaration, setIsSubmittingDeclaration] = React.useState(false);
+    const assessmentAlreadyStarted = Boolean(status && status !== 'pending');
 
     const getCoreAreaIdFromSlug = (slug: AssessmentSlug): number => {
         switch (slug) {
@@ -146,17 +147,22 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                     setDeclarationStatus('conflicted');
                 } else if (declaration && declaration.hasConflict === false) {
                     setDeclarationStatus('confirmed');
+                } else if (assessmentAlreadyStarted) {
+                    // Existing assessments may predate the declaration gate.
+                    // Do not interrupt edits; the assessor is asked only at
+                    // the initial start, and any saved conflict still blocks.
+                    setDeclarationStatus('confirmed');
                 } else {
                     setDeclarationStatus('needed');
                 }
             } else {
-                setDeclarationStatus('needed');
+                setDeclarationStatus(assessmentAlreadyStarted ? 'confirmed' : 'needed');
             }
         });
         return () => {
             active = false;
         };
-    }, [charityId, assessmentSlug]);
+    }, [charityId, assessmentSlug, assessmentAlreadyStarted]);
 
     const submitDeclaration = async (hasConflict: boolean) => {
         const coreAreaId = getCoreAreaIdFromSlug(assessmentSlug);

@@ -1066,7 +1066,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                                 const status = getAssessmentStatus(item.statusKey, item.reviewKey)
                                 const isComplete = isAssessmentComplete(status)
                                 const review = getReview(item.reviewKey)
-                                const scoreLabel = getAssessmentScoreLabel(item.id, review)
+                                const scoreLabel = isComplete ? getAssessmentScoreLabel(item.id, review) : null
                                 const assignedNames = getAssignedNamesForAssessment(item.id)
                                 const isAssigned = assignedNames !== 'Unassigned'
                                 const requiredRole = roleByAssessment[item.id]

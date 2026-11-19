@@ -211,14 +211,14 @@ const AssessmentHistoryPage = () => {
 
         const overallScore = getOverallDisplayScore(reviews, overallScorePercent)
         const allAreasComplete = reviews.summary.completed >= reviews.summary.total
-        const isFinal = overallScore !== null && (allAreasComplete || overallScoreResult !== null)
+        const isFinal = allAreasComplete && overallScore !== null
         const hasStarted = [reviews.core1, reviews.core2, reviews.core3, reviews.core4].some((area) =>
             area != null && ['in_progress', 'draft', 'submitted', 'completed'].includes(area.status),
         )
 
         return {
-            score: overallScore,
-            ratingBand: overallScore === null ? null : computeRatingBand(overallScore / 10),
+            score: isFinal ? overallScore : null,
+            ratingBand: !isFinal || overallScore === null ? null : computeRatingBand(overallScore / 10),
             statusKey: allAreasComplete ? 'completed' as const : hasStarted ? 'inProgress' as const : 'notStarted' as const,
             statusHint: isFinal
                 ? 'Weighted total across all core areas.'

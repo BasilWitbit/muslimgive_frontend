@@ -811,9 +811,10 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                 const meta = CORE_AREA_META[key]
                                                                 const statusStyle = getCoreAreaStatusMeta(area.status)
                                                                 const isPending = area.status === 'pending'
+                                                                const isAssessmentFinished = area.status === 'completed' || area.status === 'submitted'
                                                                 const displayScore = getAreaDisplayScore(area, meta.displayMax)
                                                                 const zakatScores = key === 'core3' ? getZakatDisplayScores(area) : null
-                                                                const coreAreaBand = key === 'core1'
+                                                                const coreAreaBand = !isAssessmentFinished ? null : key === 'core1'
                                                                     ? computeCoreArea1RatingBandFromReview(area.score, area.totalScore)
                                                                     : key === 'core2'
                                                                         ? computeCoreArea2RatingBandFromReview(area.score, area.totalScore, area.ratingBand)
@@ -885,9 +886,9 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                         </div>
 
                                                                         <div className="flex min-h-[92px] flex-col">
-                                                                            {isPending ? (
+                                                                            {!isAssessmentFinished ? (
                                                                                 <div className="flex flex-1 items-start justify-center rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-3 py-4 text-center text-xs italic text-[#667085]">
-                                                                                    Not yet assessed
+                                                                                    {isPending ? 'Not yet assessed' : 'Score available when completed'}
                                                                                 </div>
                                                                             ) : (
                                                                                 <div className="flex-1 space-y-2">
@@ -914,7 +915,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                             ) : <span className="h-5" />}
                                                                             {key === 'core4' ? (
                                                                                 <span className="text-[10px] text-[#98A2B3]">Mandatory metrics: N/A</span>
-                                                                            ) : area.mandatoryResult ? (
+                                                                            ) : isAssessmentFinished && area.mandatoryResult ? (
                                                                                 <span
                                                                                     className={cn(
                                                                                         'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold',

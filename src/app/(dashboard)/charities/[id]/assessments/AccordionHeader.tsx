@@ -26,7 +26,7 @@ const statusDisplayMeta: Record<AssessmentStatus, { label: string; bg: string; t
 
 const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, displayMax, status, accentColor, mandatoryResult, mandatoryApplicable = true }) => {
     const statusStyle = statusDisplayMeta[status]
-    const isPending = status === 'pending'
+    const isFinished = status === 'submitted' || status === 'completed'
     return (
         <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(88px,0.75fr)_minmax(0,1.4fr)_minmax(132px,auto)_90px_118px_112px] md:items-center md:gap-3">
             <div className="flex min-w-0 items-center gap-2 md:contents">
@@ -49,7 +49,7 @@ const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, displ
                     <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
                         Rating
                     </span>
-                    {isPending ? (
+                    {!isFinished ? (
                         <span className="text-sm text-[#98A2B3]">—</span>
                     ) : ratingBand ? (
                         <RatingBandBadge ratingBand={ratingBand as 'Strong' | 'Moderate' | 'Needs Improvement' | 'Concern'} />
@@ -62,7 +62,7 @@ const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, displ
                     <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3] md:hidden">
                         Score
                     </span>
-                    {isPending ? (
+                    {!isFinished ? (
                         <span className="text-sm text-[#98A2B3]">—</span>
                     ) : (
                         <span
@@ -81,7 +81,7 @@ const AccordionHeader: FC<IProps> = ({ title, subTitle, ratingBand, score, displ
                     </span>
                     {!mandatoryApplicable ? (
                         <span className="text-[10px] text-[#98A2B3]">N/A</span>
-                    ) : mandatoryResult ? (
+                    ) : isFinished && mandatoryResult ? (
                         <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold ${mandatoryResult === 'pass' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                             {mandatoryResult === 'pass' ? 'Pass' : 'Fail'}
                         </span>

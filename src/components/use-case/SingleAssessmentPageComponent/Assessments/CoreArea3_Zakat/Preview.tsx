@@ -173,6 +173,8 @@ const CORE_AREA_3_ACCENT = '#10B981';
 
 const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI = false }) => {
     const isEditMode = status === 'submitted' || status === 'completed';
+    const [assessmentFinished, setAssessmentFinished] = useState(status === 'submitted' || status === 'completed');
+    const [assessmentStarted, setAssessmentStarted] = useState(status !== 'pending');
     const [rubric, setRubric] = useState<any>(null);
     const [answers, setAnswers] = useState<Record<string, AnswerItem> | null>(null);
     const [scoring, setScoring] = useState<any>(null);
@@ -195,6 +197,10 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                 const res = await getAssessmentAction(charityId, 3);
                 if (res.ok && res.payload?.data?.data) {
                     const data = res.payload.data.data;
+                    const currentStatus = String(data.status ?? status).toLowerCase().replace(/_/g, '-');
+                    const finished = currentStatus === 'completed' || currentStatus === 'submitted';
+                    setAssessmentFinished(finished);
+                    setAssessmentStarted(currentStatus !== 'pending');
                     setRubric(data.rubric);
                     setAnswers(data.answers);
                     setScoring(data.scoring);
@@ -326,7 +332,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
             ) : null}
 
             <div className={cn('flex flex-col gap-4', fetchFromAPI && 'p-4')}>
-            {scoring && (
+            {scoring && assessmentFinished ? (
                 <div className="overflow-hidden rounded-2xl border border-[#E8EEF5] bg-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]">
                     <div className="h-1 w-full bg-gradient-to-r from-[#059669] via-[#10B981] to-[#34D399]" />
 
@@ -515,7 +521,25 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                         {scoring.auto_concern ? ' · Mandatory override applies' : ''}
                     </div>
                 </div>
-            )}
+            ) : assessmentStarted ? (
+                <div className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white shadow-[0_8px_28px_rgba(15,23,42,0.05)]">
+                    <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
+                    <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <div className="flex items-start gap-3">
+                            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-600" />
+                            </span>
+                            <div>
+                                <p className="text-sm font-semibold text-[#101928]">Assessment in progress</p>
+                                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[#667085]">
+                                    Final scores and outcomes will appear here after all required questions are answered and the assessment is completed.
+                                </p>
+                            </div>
+                        </div>
+                        <span className="inline-flex w-fit items-center rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700">In Progress</span>
+                    </div>
+                </div>
+            ) : null}
 
             {/* Section spreadsheets */}
             {sections.map((section: any, sectionIndex: number) => {
@@ -548,7 +572,7 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                 <span className="rounded-full border border-[#E8EEF5] bg-white px-2.5 py-0.5 font-medium">
                                     {answeredCount}/{sectionCriteria.length} rated
                                 </span>
-                                {sectionScore && (
+                                {assessmentFinished && sectionScore && (
                                     <span className="font-mono text-sm font-bold tabular-nums text-[#10B981]">
                                         {sectionScore.score}/{sectionScore.max}
                                     </span>
@@ -573,10 +597,10 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                         const ans = answers[c.id];
                                         if (!ans) return null;
 
-                                        const descriptor = ans.rating
+                                        const descriptor = assessmentFinished && ans.rating
                                             ? getOptionText(c, normalizeRatingKey(ans.rating))
                                             : '';
-                                        const pts = getEarnedScoreDisplay(c, ans);
+                                        const pts = assessmentFinished ? getEarnedScoreDisplay(c, ans) : '—';
                                         const metricIndex = metricIndexById.get(c.metricId) ?? 0;
 
                                         return (
@@ -605,7 +629,11 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                                     <span className="line-clamp-3" title={c.label}>{c.label}</span>
                                                 </td>
                                                 <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top">
-                                                    <RatingCell rating={ans.rating} />
+                                                    {assessmentFinished ? <RatingCell rating={ans.rating} /> : (
+                                                        <span className={cn('text-[11px] font-medium', ans.rating ? 'text-blue-700' : 'text-[#98A2B3]')}>
+                                                            {ans.rating ? 'Answered' : 'Not answered'}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[10px] leading-snug text-[#667085] border-r">
                                                     {descriptor ? (

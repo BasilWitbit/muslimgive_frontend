@@ -216,7 +216,7 @@ const AssessmentPageContent: React.FC<AssessmentPageContentProps> = ({
                 <div className="flex flex-col gap-3">
                     <TypographyComponent variant='h2'>{charityTitle}</TypographyComponent>
                     <CharityWebsiteLink websiteUrl={websiteUrl} governmentRecordUrl={governmentRecordUrl} governmentRecordLabel={governmentRecordLabel} />
-                    {score !== null && (
+                    {(status === 'submitted' || status === 'completed') && score !== null && (
                         <div className="flex items-center gap-2 flex-wrap">
                             <TypographyComponent className='text-sm font-medium'>Current Score:</TypographyComponent>
                             <Badge className="bg-[#266dd3] hover:bg-[#1e5bb8] text-white">

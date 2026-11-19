@@ -597,10 +597,10 @@ const PreviewCoreArea3: FC<IProps> = ({ status, charityId, country, fetchFromAPI
                                         const ans = answers[c.id];
                                         if (!ans) return null;
 
-                                        const descriptor = assessmentFinished && ans.rating
+                                        const descriptor = ans.rating
                                             ? getOptionText(c, normalizeRatingKey(ans.rating))
                                             : '';
-                                        const pts = assessmentFinished ? getEarnedScoreDisplay(c, ans) : '—';
+                                        const pts = ans.rating ? getEarnedScoreDisplay(c, ans) : '—';
                                         const metricIndex = metricIndexById.get(c.metricId) ?? 0;
 
                                         return (

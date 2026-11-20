@@ -69,6 +69,10 @@ type FinanceScoring = {
         reservesWithinLimit: boolean
         passed: boolean
     }
+    mandatoryLimits?: {
+        maxOverheadPercent: number
+        maxReservesMonths: number
+    }
     ratingBand: 'Strong' | 'Moderate' | 'Needs Improvement' | 'Concern'
     finalResult: string
     /** The exact rules this score was computed with — lets the legend below stay live instead of a hardcoded copy. */
@@ -113,6 +117,7 @@ type SectionRow = {
     value: React.ReactNode
     outcome?: React.ReactNode
     score?: React.ReactNode
+    mandatory?: boolean
     onEdit?: () => void
 }
 
@@ -401,6 +406,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     }
 
     const getValue = (code: string) => assessmentVals[code];
+    const hasValue = (code: string) => getValue(code) !== undefined && getValue(code) !== null && getValue(code) !== '';
     const dateValue = (code: string) => (getValue(code) ? new Date(getValue(code)).toLocaleDateString() : '—');
     const linkRow = (code: string, field: string): SectionRow[] =>
         getValue(code)
@@ -462,6 +468,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
         {
             id: 'F01',
             field: 'C/Y Audited Financials (5)',
+            mandatory: true,
             category: 'Transparency',
             value: getValue('F01') || '—',
             ...metricCell(getValue('F01') === 'Yes' ? 5 : 0, 5),
@@ -494,6 +501,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
         {
             id: 'F05',
             field: 'Fundraising Spend (7)',
+            mandatory: true,
             category: 'Spending',
             value: `${getValue('F05') ?? '—'}%`,
             ...metricCell(scoring?.scores.scoreFundraising, 7),
@@ -502,6 +510,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
         {
             id: 'F06',
             field: 'Admin Spend (7)',
+            mandatory: true,
             category: 'Spending',
             value: `${getValue('F06') ?? '—'}%`,
             ...metricCell(scoring?.scores.scoreAdmin, 7),
@@ -526,6 +535,7 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
         {
             id: 'F18',
             field: 'Reserve (4)',
+            mandatory: true,
             category: 'Impact',
             value: `${getValue('F18') ?? '—'} months`,
             ...metricCell(scoring?.scores.scoreReserves, 4),
@@ -592,7 +602,14 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                         </td>
                                     ) : null}
                                     <td className="border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[11px] font-medium leading-snug text-[#344054]">
-                                        {row.field}
+                                        <span className="flex flex-wrap items-center gap-1.5">
+                                            {row.field}
+                                            {row.mandatory ? (
+                                                <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-700">
+                                                    Mandatory
+                                                </span>
+                                            ) : null}
+                                        </span>
                                     </td>
                                     <td className={cn('border-b border-[#EEF2F6] px-3 py-2.5 align-top text-[11px] leading-snug text-[#101928]', !showScore && showEditColumn && 'border-r')}>
                                         {row.value}
@@ -631,11 +648,17 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
         );
     };
 
-    const mandatoryFailReasons = scoring && !scoring.mandatory.passed
+    const hasOverheadData = hasValue('F05') || hasValue('F06');
+    const mandatoryChecksEvaluated = hasValue('F01') && hasOverheadData && hasValue('F18');
+    const mandatoryFailReasons = scoring && mandatoryChecksEvaluated && !scoring.mandatory.passed
         ? [
             !scoring.mandatory.financialsAvailable ? 'Current-year audited financials must be available.' : null,
-            !scoring.mandatory.overheadWithinLimit ? 'Fundraising + Admin spend must be under 30% combined.' : null,
-            !scoring.mandatory.reservesWithinLimit ? 'Reserves must be under 36 months.' : null,
+            !scoring.mandatory.overheadWithinLimit
+                ? `Fundraising + Admin spend must be at or below ${scoring.mandatoryLimits?.maxOverheadPercent ?? 30}% combined.`
+                : null,
+            !scoring.mandatory.reservesWithinLimit
+                ? `Reserves must be at or below ${scoring.mandatoryLimits?.maxReservesMonths ?? 36} months.`
+                : null,
         ].filter(Boolean)
         : [];
     const scoredMetricKeys = ['F01', 'F02', 'F03', 'F04', 'F05', 'F06', 'F17', 'F07', 'F18'];
@@ -690,7 +713,46 @@ const PreviewCoreArea2: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                         <div className="rounded-xl border border-[#EEF2F6] bg-[#FAFBFC] p-3">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">Metrics rated</p>
                             <p className="mt-1 font-mono text-xl font-bold tabular-nums text-[#266DD3]">{metricsRated}/{scoredMetricKeys.length}</p>
-                            <p className="mt-1 text-[10px] text-[#667085]">Mandatory metrics: <span className={scoring?.mandatory.passed ? 'font-semibold text-emerald-700' : 'font-semibold text-rose-700'}>{scoring ? (scoring.mandatory.passed ? 'PASS' : 'FAIL') : '—'}</span></p>
+                            <p className="mt-1 text-[10px] text-[#667085]">Mandatory metrics: <span className={mandatoryChecksEvaluated && scoring?.mandatory.passed ? 'font-semibold text-emerald-700' : mandatoryChecksEvaluated ? 'font-semibold text-rose-700' : 'font-semibold text-slate-500'}>{mandatoryChecksEvaluated && scoring ? (scoring.mandatory.passed ? 'PASS' : 'FAIL') : 'PENDING'}</span></p>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-[#EEF2F6] bg-[#FCFAFF] px-4 py-3">
+                        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#667085]">
+                                Mandatory metrics
+                            </p>
+                            <p className="text-[10px] text-[#98A2B3]">These checks affect the final rating.</p>
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-3">
+                            {([
+                                {
+                                    label: 'Current-year audited financial statements available',
+                                    passed: hasValue('F01') ? scoring?.mandatory.financialsAvailable : undefined,
+                                },
+                                {
+                                    label: `Fundraising + admin spend ≤ ${scoring?.mandatoryLimits?.maxOverheadPercent ?? 30}% combined`,
+                                    passed: hasOverheadData ? scoring?.mandatory.overheadWithinLimit : undefined,
+                                },
+                                {
+                                    label: `Reserves ≤ ${scoring?.mandatoryLimits?.maxReservesMonths ?? 36} months`,
+                                    passed: hasValue('F18') ? scoring?.mandatory.reservesWithinLimit : undefined,
+                                },
+                            ] as const).map((metric) => (
+                                <div key={metric.label} className="flex min-h-12 items-center justify-between gap-2 rounded-lg border border-[#EEE8FA] bg-white px-3 py-2">
+                                    <span className="text-[11px] leading-snug text-[#344054]">{metric.label}</span>
+                                    <span className={cn(
+                                        'shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide',
+                                        metric.passed === undefined
+                                            ? 'bg-slate-100 text-slate-500'
+                                            : metric.passed
+                                                ? 'bg-emerald-50 text-emerald-700'
+                                                : 'bg-rose-50 text-rose-700',
+                                    )}>
+                                        {metric.passed === undefined ? 'Pending' : metric.passed ? 'Met' : 'Not met'}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
                     </div>
 

@@ -65,33 +65,21 @@ export const ROUTE_REQUIREMENTS: RouteRequirement[] = [
     {
         pattern: /^\/assessment-sheet$/,
         requirement: {
-            anyOf: [
-                PERMISSIONS.VIEW_CHARITY_OVERVIEW,
-                PERMISSIONS.AUDIT_CHARITY_VIEW,
-                PERMISSIONS.AUDIT_SUBMISSION_CREATE,
-                PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE,
+            roles: [
+                'finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor',
+                'operation-manager', 'operations-manager', 'project-manager',
             ],
+            anyOf: [PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE],
         },
     },
     {
         pattern: /^\/assessment-sheet\/[^/]+$/,
         requirement: {
-            anyOf: [
-                PERMISSIONS.VIEW_CHARITY_OVERVIEW,
-                PERMISSIONS.AUDIT_CHARITY_VIEW,
-                PERMISSIONS.AUDIT_SUBMISSION_CREATE,
-                PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE,
+            roles: [
+                'finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor',
+                'operation-manager', 'operations-manager', 'project-manager',
             ],
-        },
-    },
-    {
-        pattern: /^\/assessment-sheet\/[^/]+$/,
-        requirement: {
-            anyOf: [
-                PERMISSIONS.VIEW_CHARITY_OVERVIEW,
-                PERMISSIONS.AUDIT_CHARITY_VIEW,
-                PERMISSIONS.AUDIT_SUBMISSION_CREATE,
-            ],
+            anyOf: [PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE],
         },
     },
     {

@@ -179,6 +179,50 @@ const isSectionCompleteForSection = (
     return sectionCriteria.every(c => isCriterionComplete(c, answers[c.id]));
 };
 
+/**
+ * Local safety net, independent of the server autosave. A Zakah assessment can
+ * take hours — if any future save fails for any reason (network blip, an
+ * unanticipated validation edge case, a tab crash), this is the last line of
+ * defense so the assessor's work isn't gone for good. Never trusted over the
+ * server copy automatically; the assessor is only ever offered a restore.
+ */
+const getLocalDraftKey = (charityId: string) => `zakah-draft:${charityId}`;
+
+type LocalDraftBackup = { answers: Record<string, AnswerItem>; optionalSkipped: boolean; savedAt: number };
+
+const readLocalDraftBackup = (charityId: string): LocalDraftBackup | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = window.localStorage.getItem(getLocalDraftKey(charityId));
+        if (!raw) return null;
+        return JSON.parse(raw) as LocalDraftBackup;
+    } catch {
+        return null;
+    }
+};
+
+const writeLocalDraftBackup = (charityId: string, answers: Record<string, AnswerItem>, optionalSkipped: boolean) => {
+    if (typeof window === 'undefined') return;
+    try {
+        const backup: LocalDraftBackup = { answers, optionalSkipped, savedAt: Date.now() };
+        window.localStorage.setItem(getLocalDraftKey(charityId), JSON.stringify(backup));
+    } catch {
+        // Storage full/unavailable — the server autosave is still the primary path.
+    }
+};
+
+const clearLocalDraftBackup = (charityId: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.removeItem(getLocalDraftKey(charityId));
+    } catch {
+        // noop
+    }
+};
+
+const countAttempted = (answers: Record<string, AnswerItem>) =>
+    Object.values(answers).filter((ans) => isCriterionAttempted(ans)).length;
+
 const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: string }> = ({ charityId, currentUserRoles = [], status }) => {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -308,6 +352,9 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
             void queuedSave.then((saved) => {
                 if (saved) {
                     lastSavedRevisionRef.current = Math.max(lastSavedRevisionRef.current, revisionToSave);
+                    // The server now has this exact state — the local safety net is
+                    // only meant to cover the gap until a save actually lands.
+                    clearLocalDraftBackup(charityId);
                 }
                 if (changeRevisionRef.current === revisionToSave) {
                     setAutosaveState(saved ? 'saved' : 'error');
@@ -316,7 +363,15 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
         }, 700);
 
         return () => window.clearTimeout(timer);
-    }, [answers, optionalSkipped, changeRevision, isLoading, rubric, canEdit, enqueueDraftSave]);
+    }, [answers, optionalSkipped, changeRevision, isLoading, rubric, canEdit, enqueueDraftSave, charityId]);
+
+    // Local safety net, independent of the network debounce above — writes
+    // immediately (cheap, synchronous) so even a save that never gets a chance
+    // to fire (tab closed seconds after an edit) still has a local copy.
+    useEffect(() => {
+        if (isLoading || !rubric || !canEdit) return;
+        writeLocalDraftBackup(charityId, answers, optionalSkipped);
+    }, [answers, optionalSkipped, isLoading, rubric, canEdit, charityId]);
 
     const scrollToTop = () => {
         if (typeof window !== 'undefined') {
@@ -340,12 +395,32 @@ const CoreArea3: FC<{ charityId: string; currentUserRoles?: string[]; status?: s
                     if (data.rubric) {
                         setRubric(data.rubric);
                     }
+                    const serverAnswers: Record<string, AnswerItem> = data.answers ?? {};
                     if (data.answers) {
                         // Populate answers directly mapping the IDs
                         setAnswers(data.answers);
                     }
                     if (typeof data.optional_skipped === 'boolean') {
                         setOptionalSkipped(data.optional_skipped);
+                    }
+
+                    // If a local backup exists with MORE progress than what the
+                    // server has, a prior save never landed — offer to restore it
+                    // rather than silently losing or silently overwriting either copy.
+                    const localBackup = readLocalDraftBackup(charityId);
+                    if (localBackup && countAttempted(localBackup.answers) > countAttempted(serverAnswers)) {
+                        toast.warning('Unsaved progress was found from a previous session on this device.', {
+                            duration: 15000,
+                            action: {
+                                label: 'Restore',
+                                onClick: () => {
+                                    setAnswers(localBackup.answers);
+                                    setOptionalSkipped(localBackup.optionalSkipped);
+                                    markAssessmentChanged();
+                                    toast.success('Restored — saving now.');
+                                },
+                            },
+                        });
                     }
                 }
             } catch (error) {

@@ -57,17 +57,16 @@ export const PAGES: Page[] = [
     {
         name: 'assessment-sheet',
         path: '/assessment-sheet',
-        heading: 'Assessment Sheet',
+        heading: 'FA Assessment Sheet',
         iconName: 'assessment-sheet',
         type: 'menu',
         show: true,
         permissions: {
-            anyOf: [
-                PERMISSIONS.VIEW_CHARITIES,
-                PERMISSIONS.AUDIT_CHARITY_VIEW,
-                PERMISSIONS.AUDIT_SUBMISSION_CREATE,
-                PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE,
+            roles: [
+                'finance-assessor', 'financial-assessor', 'financial-auditor', 'finance-auditor',
+                'operation-manager', 'operations-manager', 'project-manager',
             ],
+            anyOf: [PERMISSIONS.FA_ASSESSMENT_SHEET_ACCESS_OVERRIDE],
         },
     },
     {

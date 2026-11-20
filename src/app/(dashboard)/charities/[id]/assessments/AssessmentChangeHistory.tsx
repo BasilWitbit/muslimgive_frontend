@@ -25,9 +25,16 @@ const CORE_AREA_LABELS: Record<number, string> = {
     4: 'Governance',
 }
 
-function formatValue(value: unknown): string {
+const USD_FIELDS = new Set(['totalAssetsUsd', 'totalLiabilitiesUsd', 'totalRevenueUsd', 'charitableProgramSpendUsd', 'administrativeSpendUsd', 'fundraisingSpendUsd', 'qdSpendUsd', 'compensationSpendUsd'])
+const MONEY_FIELDS = new Set(['annualRevenue', 'totalRevenue', 'total_revenue', 'totalAssets', 'totalLiabilities', 'charitableProgramSpend', 'administrativeSpend', 'fundraisingSpend', 'qdSpend', 'compensationSpend', 'reportedTotalExpenses'])
+
+function formatValue(value: unknown, fieldKey: string, countryCode?: string): string {
     if (value === null || value === undefined) return '—'
     if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+    if ((USD_FIELDS.has(fieldKey) || MONEY_FIELDS.has(fieldKey)) && (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))))) {
+        const currency = USD_FIELDS.has(fieldKey) ? 'USD' : countryCode === 'united-kingdom' ? 'GBP' : countryCode === 'canada' ? 'CAD' : 'USD'
+        return new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value))
+    }
     if (typeof value === 'object') return JSON.stringify(value)
     return String(value)
 }
@@ -41,6 +48,7 @@ function formatDateTime(value: string): string {
 type Props = {
     charityId: string
     openInitially?: boolean
+    countryCode?: string
 }
 
 /**
@@ -48,7 +56,7 @@ type Props = {
  * and when — including edits made after the original submission, since any
  * assessor in that area can now edit a completed assessment.
  */
-const AssessmentChangeHistory: React.FC<Props> = ({ charityId, openInitially = false }) => {
+const AssessmentChangeHistory: React.FC<Props> = ({ charityId, openInitially = false, countryCode }) => {
     const [entries, setEntries] = React.useState<ChangeLogEntry[] | null>(null)
     const [isLoading, setIsLoading] = React.useState(false)
     const [isOpen, setIsOpen] = React.useState(openInitially)
@@ -58,7 +66,7 @@ const AssessmentChangeHistory: React.FC<Props> = ({ charityId, openInitially = f
     }, [openInitially])
 
     React.useEffect(() => {
-        if (!isOpen || entries !== null) return
+        if (!isOpen) return
         let cancelled = false
         setIsLoading(true)
         getAssessmentHistoryAction(charityId)
@@ -77,7 +85,7 @@ const AssessmentChangeHistory: React.FC<Props> = ({ charityId, openInitially = f
                 if (!cancelled) setIsLoading(false)
             })
         return () => { cancelled = true }
-    }, [isOpen, entries, charityId])
+    }, [isOpen, charityId])
 
     return (
         <section id="edit-history" className="relative scroll-mt-6 overflow-hidden rounded-3xl border border-[#E8EEF5] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
@@ -114,6 +122,8 @@ const AssessmentChangeHistory: React.FC<Props> = ({ charityId, openInitially = f
                                         <span className="font-semibold text-[#101928]">{entry.fieldLabel}</span>
                                         {entry.source === 'financial_assessment_sync' || entry.source === 'assessment_sheet' ? (
                                             <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">From financial assessment</span>
+                                        ) : entry.source === 'external_sync' ? (
+                                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">External update</span>
                                         ) : entry.source === 'charity_created' ? (
                                             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Initial details</span>
                                         ) : null}
@@ -124,9 +134,9 @@ const AssessmentChangeHistory: React.FC<Props> = ({ charityId, openInitially = f
                                         ) : null}
                                     </div>
                                     <div className="text-[#667085]">
-                                        <span className="line-through">{formatValue(entry.previousValue)}</span>
+                                        <span className="line-through">{formatValue(entry.previousValue, entry.fieldKey, countryCode)}</span>
                                         {' → '}
-                                        <span className="font-medium text-[#101928]">{formatValue(entry.newValue)}</span>
+                                        <span className="font-medium text-[#101928]">{formatValue(entry.newValue, entry.fieldKey, countryCode)}</span>
                                     </div>
                                     <div className="text-[#98A2B3]">
                                         {entry.changedBy?.name ?? 'Unknown user'} · {formatDateTime(entry.changedAt)}

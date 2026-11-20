@@ -414,7 +414,7 @@ const AssessmentHistoryPage = () => {
                 </div>
             </section>
 
-            <AssessmentChangeHistory charityId={charityId} openInitially={openEditHistory} />
+            <AssessmentChangeHistory charityId={charityId} countryCode={country} openInitially={openEditHistory} />
         </div>
     )
 }

@@ -868,8 +868,9 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                 const meta = CORE_AREA_META[key]
                                                                 const statusStyle = getCoreAreaStatusMeta(area.status)
                                                                 const isPending = area.status === 'pending'
-                                                                const allAssessmentsSubmitted = reviews.summary.completed >= reviews.summary.total
-                                                                const isAssessmentFinished = allAssessmentsSubmitted && (area.status === 'completed' || area.status === 'submitted')
+                                                                // Each area publishes its own score as soon as that area is submitted;
+                                                                // other areas may still be underway.
+                                                                const isAssessmentFinished = area.status === 'completed' || area.status === 'submitted'
                                                                 const displayScore = getAreaDisplayScore(area, meta.displayMax)
                                                                 const zakatScores = key === 'core3' ? getZakatDisplayScores(area) : null
                                                                 const coreAreaBand = !isAssessmentFinished ? null : key === 'core1'
@@ -946,7 +947,7 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                                                         <div className="flex min-h-[92px] flex-col">
                                                                             {!isAssessmentFinished ? (
                                                                                 <div className="flex flex-1 items-start justify-center rounded-xl border border-dashed border-[#E4E7EC] bg-[#FAFBFC] px-3 py-4 text-center text-xs italic text-[#667085]">
-                                                                                    {isPending ? 'Not yet assessed' : 'Scores available after all assessments are submitted'}
+                                                                                    {isPending ? 'Not yet assessed' : 'Assessment in progress'}
                                                                                 </div>
                                                                             ) : (
                                                                                 <div className="flex-1 space-y-2">

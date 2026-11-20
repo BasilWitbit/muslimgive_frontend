@@ -1219,7 +1219,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         </div>
                     </PremiumSectionCard>
                 ) : null}
-            <AssessmentChangeHistory charityId={charityId} />
+            <AssessmentChangeHistory key={`${charityId}:${charityTitle}`} charityId={charityId} countryCode={country ?? undefined} />
 
             <PremiumSectionCard
                 heading="Comments"

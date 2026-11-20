@@ -17,6 +17,7 @@ import {
     UserX,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import Fuse from 'fuse.js'
 import { useRouter } from 'next/navigation'
@@ -104,6 +105,7 @@ const UsersPageComponent: FC<IProps> = ({ usersArr }) => {
         STARTING_FILTER_OPTIONS
     )
     const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
+    const [selectedRole, setSelectedRole] = useState<(typeof ROLE_KEYS)[number] | null>(null)
 
     const [queryInput, setQueryInput] = useState('')
     const [query, setQuery] = useState('')
@@ -145,6 +147,13 @@ const UsersPageComponent: FC<IProps> = ({ usersArr }) => {
             roleCounts,
         }
     }, [activeUsers])
+
+    const selectedRoleUsers = useMemo(() => {
+        if (!selectedRole) return []
+        return activeUsers
+            .filter((user) => userHasRole(user, selectedRole))
+            .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
+    }, [activeUsers, selectedRole])
 
     const searchedRows = useMemo(() => {
         const q = query.trim()
@@ -465,18 +474,62 @@ const UsersPageComponent: FC<IProps> = ({ usersArr }) => {
 
                 <div className="grid gap-3 border-b border-[#E8EEF5] p-4 sm:grid-cols-2 lg:grid-cols-5">
                     {ROLE_KEYS.map((role) => (
-                        <div
+                        <button
+                            type="button"
                             key={role}
-                            className="rounded-2xl border border-[#E8EEF5] bg-gradient-to-br from-white to-[#F8FAFC] px-4 py-3"
+                            onClick={() => setSelectedRole(role)}
+                            aria-label={`View ${stats.roleCounts[role]} ${formatRoleLabel(role)} team members`}
+                            className="rounded-2xl border border-[#E8EEF5] bg-gradient-to-br from-white to-[#F8FAFC] px-4 py-3 text-left transition hover:border-[#BFD6F5] hover:shadow-[0_8px_24px_rgba(38,109,211,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#266DD3]"
                         >
                             <div className="flex items-center gap-2">
                                 <ShieldCheck className="size-4 text-[#266DD3]" />
                                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[#98A2B3]">{formatRoleLabel(role)}</span>
                             </div>
                             <div className="mt-2 text-xl font-semibold text-[#101928]">{stats.roleCounts[role]}</div>
-                        </div>
+                            <div className="mt-1 text-[10px] font-medium text-[#667085]">Click to view members</div>
+                        </button>
                     ))}
                 </div>
+
+                <Dialog open={selectedRole !== null} onOpenChange={(open) => { if (!open) setSelectedRole(null) }}>
+                    <DialogContent className="max-h-[80vh] overflow-hidden rounded-2xl border-[#E8EEF5] p-0 shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:max-w-lg">
+                        <DialogHeader className="border-b border-[#EEF2F6] bg-gradient-to-br from-[#F8FBFF] to-white px-5 py-4 text-left">
+                            <DialogTitle className="text-base font-semibold text-[#101928]">
+                                {selectedRole ? formatRoleLabel(selectedRole) : 'Team members'}
+                            </DialogTitle>
+                            <DialogDescription className="text-xs text-[#667085]">
+                                {selectedRoleUsers.length} {selectedRoleUsers.length === 1 ? 'member has' : 'members have'} this role.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {selectedRoleUsers.length > 0 ? (
+                            <div className="max-h-[55vh] overflow-y-auto p-3">
+                                {selectedRoleUsers.map((user) => {
+                                    const name = `${user.firstName} ${user.lastName}`.trim() || user.email
+                                    const initials = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}` || user.email?.[0] || '?'
+                                    return (
+                                        <div key={user.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[#F8FAFC]">
+                                            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#EAF2FC] text-xs font-semibold text-[#266DD3]">
+                                                {initials}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-sm font-medium text-[#101928]">{name}</p>
+                                                <p className="truncate text-xs text-[#667085]">{user.email}</p>
+                                            </div>
+                                            <span className={cn(
+                                                'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                                user.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600',
+                                            )}>
+                                                {user.status}
+                                            </span>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ) : (
+                            <div className="px-5 py-10 text-center text-sm text-[#667085]">No users have this role yet.</div>
+                        )}
+                    </DialogContent>
+                </Dialog>
 
                 <div className="p-4">
                     {pageRows.filter((row) => row.firstName !== '').length === 0 ? (

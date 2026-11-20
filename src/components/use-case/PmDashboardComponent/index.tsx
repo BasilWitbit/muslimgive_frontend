@@ -837,7 +837,7 @@ const PmDashboardComponent: React.FC<PmDashboardComponentProps> = ({ metrics: in
                             className="inline-flex w-full items-center justify-center rounded-md bg-[#EEF4FD]/80 px-1.5 py-1 font-mono text-[11px] font-bold tabular-nums text-[#266DD3] hover:bg-[#E0ECFF]"
                             title="View assessment history"
                         >
-                            {score != null ? formatAuditScore(score) : '—'}
+                            {score != null ? `${formatAuditScore(score)}/${AUDIT_DISPLAY_MAX.overall}` : '—'}
                         </Link>
                     )
                 },
@@ -1852,11 +1852,11 @@ function ScoreCell({
         return (
             <Link
                 href={href}
-                className="inline-flex h-9 w-full flex-col items-center justify-center gap-0 rounded-md px-1 py-1 font-mono text-[11px] font-semibold tabular-nums transition-opacity hover:opacity-80"
+                className="inline-flex h-9 w-full flex-col items-center justify-center gap-0 rounded-md px-0.5 py-1 font-mono text-[9px] font-semibold tabular-nums transition-opacity hover:opacity-80"
                 style={{ backgroundColor: style.bg, color: style.text }}
                 title={tooltip}
             >
-                <span>{formatAuditScore(score)}</span>
+                <span className="whitespace-nowrap">{formatAuditScore(score)}/{displayMax}</span>
                 {outcomeLabel ? (
                     <span className="whitespace-nowrap text-[8px] font-semibold uppercase leading-none tracking-wide opacity-80">
                         {outcomeLabel}

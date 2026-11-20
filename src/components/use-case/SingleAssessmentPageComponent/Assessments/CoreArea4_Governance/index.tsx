@@ -48,6 +48,7 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
 
     const mappedCountry = mapCountry(country);
     const isUk = mappedCountry === 'united-kingdom';
+    const useUkScoring = isUk || mappedCountry === 'united-states';
 
     const currentForm = React.useMemo(() => {
         return CORE_AREA_4_FORMS.find(f => f.countryCode === mappedCountry) || CORE_AREA_4_FORMS[0];
@@ -82,8 +83,8 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
     });
 
     const liveScoring = React.useMemo(
-        () => computeCoreArea4Score(formVals, isUk),
-        [formVals, isUk],
+        () => computeCoreArea4Score(formVals, useUkScoring),
+        [formVals, useUkScoring],
     );
     const liveRatingBand = React.useMemo(
         () => computeRatingBand(normalizeScore(liveScoring.score, liveScoring.totalScore)),
@@ -135,13 +136,13 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
         if (appliedDeepLinkRef.current || isLoading || !questionFromUrl) return;
 
         const question = currentForm.questions.find(q =>
-            q.code === questionFromUrl && (!isUk || getQuestionFieldKey(q) !== 'minimum_3_board_members_at_arms_length'),
+            q.code === questionFromUrl && (!useUkScoring || getQuestionFieldKey(q) !== 'minimum_3_board_members_at_arms_length'),
         );
         if (!question) return;
 
         appliedDeepLinkRef.current = true;
         setScrollTargetId(question.code);
-    }, [currentForm, questionFromUrl, isLoading]);
+    }, [currentForm, questionFromUrl, isLoading, useUkScoring]);
 
     const renderQuestion = (question: Question) => {
         const fieldKey = getQuestionFieldKey(question);
@@ -160,6 +161,13 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
                             label: opt.label,
                             value: getOptionValue(opt),
                         }))}
+                        helpText={fieldKey === 'minimum_3_board_members_at_arms_length'
+                            ? mappedCountry === 'united-states'
+                                ? 'For US charities, check Form 990, page 6, Section A, point 2.'
+                                : mappedCountry === 'canada'
+                                    ? 'For Canadian charities, check the CRA charity profile under Directors and trustees worksheet.'
+                                    : undefined
+                            : undefined}
                         value={formVals[fieldKey] || ""}
                         onChange={(newVal) => updateFormData(fieldKey, newVal)}
                     />
@@ -209,7 +217,7 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
     };
 
     const allRequiredFilled = currentForm.questions
-        .filter(q => q.required && (!isUk || getQuestionFieldKey(q) !== 'minimum_3_board_members_at_arms_length'))
+        .filter(q => q.required && (!useUkScoring || getQuestionFieldKey(q) !== 'minimum_3_board_members_at_arms_length'))
         .every(q => Boolean(formVals[getQuestionFieldKey(q)])) && Boolean((ceoName?.trim() || ceoNameValue).trim());
 
     if (isLoading) {
@@ -248,7 +256,7 @@ const CoreArea4: FC<CoreArea4Props> = ({ charityId, country = 'united-kingdom', 
                     </div>
                 )}
                 {currentForm.questions
-                    .filter(question => !isUk || getQuestionFieldKey(question) !== 'minimum_3_board_members_at_arms_length')
+                    .filter(question => !useUkScoring || getQuestionFieldKey(question) !== 'minimum_3_board_members_at_arms_length')
                     .map(question => renderQuestion(question))}
                 <div className="max-w-xl rounded-xl border border-[#E8EEF5] bg-white p-4">
                     <label htmlFor="governance-ceo-name" className="mb-2 block text-sm font-semibold text-[#344054]">

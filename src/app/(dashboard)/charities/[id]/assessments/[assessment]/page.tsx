@@ -85,14 +85,17 @@ const CharityAssessmentPage = async ({ params, searchParams }: {
     const assessmentStatus = c.reviews?.[`core${coreAreaId}`]?.status || 'pending';
 
     if (previewMode) {
+        const coreAreaKey = `core${coreAreaId}` as 'core1' | 'core2' | 'core3' | 'core4'
+        const assessmentReview = c.reviews?.[coreAreaKey]
+        const lastUpdatedAt = c.assessmentUpdatedAt?.[coreAreaKey]
         return (
             <div className="flex flex-col gap-4">
                 <h1 className="text-xl font-semibold text-[#101928]">{charityTitle}</h1>
                 <CharityWebsiteLink websiteUrl={charity.websiteUrl} governmentRecordUrl={governmentRecordUrl} governmentRecordLabel={governmentRecordLabel} />
-                <Preview assessmentedBy={{
-                    name: "Rahima Issa",
-                    time: "2024-06-01T12:00:00Z"
-                }}
+                <Preview assessmentedBy={lastUpdatedAt ? {
+                    name: assessmentReview?.submittedBy ?? '',
+                    time: lastUpdatedAt,
+                } : undefined}
                     charityTitle={charityTitle}
                     charityId={charity.id}
                     assessmentSlug={assessment}

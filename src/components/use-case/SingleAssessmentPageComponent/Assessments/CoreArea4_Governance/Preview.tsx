@@ -52,7 +52,8 @@ const CORE_AREA_4_ACCENT = '#F59E0B';
 
 const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI = false }) => {
     const isEditMode = status === 'submitted' || status === 'completed';
-    const isUk = mapCountry(country) === 'united-kingdom';
+    const mappedCountry = mapCountry(country);
+    const useUkScoring = mappedCountry === 'united-kingdom' || mappedCountry === 'united-states';
     const [assessmentVals, setAssessmentVals] = useState<Record<string, string> | null>(null);
     const [showSubmittedModel, setShowSubmittedModel] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -162,13 +163,13 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
     }
 
     const visibleQuestions = currentForm.questions.filter(
-        question => !isUk || getQuestionFieldKey(question) !== 'minimum_3_board_members_at_arms_length',
+        question => !useUkScoring || getQuestionFieldKey(question) !== 'minimum_3_board_members_at_arms_length',
     );
     const answeredCount = visibleQuestions.filter(question => Boolean(assessmentVals[getQuestionFieldKey(question)])).length;
-    const scoreAnswers = isUk
+    const scoreAnswers = useUkScoring
         ? Object.fromEntries(Object.entries(assessmentVals).filter(([key]) => key !== 'minimum_3_board_members_at_arms_length'))
         : assessmentVals;
-    const liveScoring = computeCoreArea4Score(scoreAnswers, isUk);
+    const liveScoring = computeCoreArea4Score(scoreAnswers, useUkScoring);
     const liveRatingBand = computeRatingBand(normalizeScore(liveScoring.score, liveScoring.totalScore));
 
     return (
@@ -225,8 +226,8 @@ const PreviewCoreArea4: FC<IProps> = ({ country, status, charityId, fetchFromAPI
                                         const key = getQuestionFieldKey(question);
                                         const value = assessmentVals[key];
                                         if (!value) return null;
-                                        const metric = getCoreArea4MetricDescriptor(key, value, isUk);
-                                        const max = key === 'ceo_identification' && isUk
+                                        const metric = getCoreArea4MetricDescriptor(key, value, useUkScoring);
+                                        const max = key === 'ceo_identification' && useUkScoring
                                             ? 2
                                             : CORE_AREA_4_METRIC_MAX_POINTS[key] ?? 0;
 

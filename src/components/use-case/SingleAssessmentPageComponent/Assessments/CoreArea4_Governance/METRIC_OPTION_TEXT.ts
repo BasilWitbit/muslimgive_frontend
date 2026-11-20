@@ -14,12 +14,12 @@ export const CORE_AREA_4_METRIC_MAX_POINTS: Record<string, number> = {
     minimum_3_board_members_at_arms_length: 1,
 }
 
-export function getCoreArea4MetricDescriptor(fieldKey: string, value?: string | null, isUk = false) {
+export function getCoreArea4MetricDescriptor(fieldKey: string, value?: string | null, useUkScoring = false) {
     if (!value) return null
     const normalizedValue = value.trim().toLowerCase()
     if (fieldKey === 'ceo_identification') {
         const descriptor = YES_NO_DESCRIPTORS[normalizedValue];
-        return descriptor ? { ...descriptor, score: normalizedValue === 'yes' && isUk ? 2 : descriptor.score } : null;
+        return descriptor ? { ...descriptor, score: normalizedValue === 'yes' && useUkScoring ? 2 : descriptor.score } : null;
     }
     if (fieldKey === 'minimum_3_board_members_at_arms_length') {
         return normalizedValue === 'yes'

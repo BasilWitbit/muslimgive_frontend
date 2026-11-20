@@ -123,6 +123,13 @@ const SingleCharityPageComponent: FC<IProps> = ({
     createdAt,
     assessmentStartedAt,
 }) => {
+    const isGenericEligibilityReason = (reason?: string | null) => {
+        const normalized = reason?.trim().toLowerCase().replace(/[.!\s]+$/, '')
+        return Boolean(normalized && (
+            normalized.startsWith('marked ineligible during the eligibility review') ||
+            normalized.startsWith('no specific reason was recorded')
+        ))
+    }
     const router = useRouter();
     const searchParams = useSearchParams()
     const { navigateToAssessment } = useCharityNavigation()
@@ -178,6 +185,8 @@ const SingleCharityPageComponent: FC<IProps> = ({
         countryCode: country,
     }), [annualRevenue, isThisMuslimCharity, category, assessmentRequested, startDate, startYear, country])
     const ineligibilityReasons = eligibilitySuggestion.reasons.filter((reason) => !reason.ok)
+    const recordedIneligibilityReason = [eligibilityDecisionReason, pendingEligibilityReason]
+        .find((reason) => Boolean(reason?.trim()) && !isGenericEligibilityReason(reason))
 
     const handleOpenModel = (nameOfModel: TaskIds | 'manage-team' | 'configure-role' | 'eligibility-override' | 'eligibility-test' | 'assign-finance-assessor' | 'assign-zakat-assessor' | 'assign-read-only' | 'edit-charity-details') => {
         setModelState(prevState => ({ ...prevState, nameOfModel }));
@@ -943,17 +952,15 @@ const SingleCharityPageComponent: FC<IProps> = ({
                             {status === 'ineligible' ? (
                                 <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3">
                                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Reason for ineligibility</p>
-                                    {eligibilityDecisionReason ? (
-                                        <p className="mt-1 text-sm text-amber-900">{eligibilityDecisionReason}</p>
-                                    ) : pendingEligibilityReason ? (
-                                        <p className="mt-1 text-sm text-amber-900">{pendingEligibilityReason}</p>
+                                    {recordedIneligibilityReason ? (
+                                        <p className="mt-1 text-sm text-amber-900">{recordedIneligibilityReason}</p>
                                     ) : ineligibilityReasons.length ? (
                                         <ul className="mt-1 list-inside list-disc space-y-0.5 text-sm text-amber-900">
                                             {ineligibilityReasons.map((reason) => <li key={reason.text}>{reason.text}</li>)}
                                         </ul>
                                     ) : (
                                         <p className="mt-1 text-sm text-amber-900">
-                                            No specific reason was recorded. Current charity details do not identify a failed eligibility rule.
+                                            No specific reason was recorded. Current charity details do not identify a failed eligibility rule, so the original reason cannot be determined from the information available.
                                             {canManageCharity ? ' Use “Update Eligibility Reason” to record why it was marked ineligible.' : ''}
                                         </p>
                                     )}
@@ -1422,7 +1429,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         charityId={charityId}
                         charityTitle={charityTitle}
                         initialDecision={status === 'ineligible' ? 'no' : ''}
-                        initialIneligibilityReason={eligibilityDecisionReason}
+                        initialIneligibilityReason={isGenericEligibilityReason(eligibilityDecisionReason) ? '' : eligibilityDecisionReason}
                         suggestionInput={{
                             annualRevenue: annualRevenue ?? null,
                             isIslamic: Boolean(isThisMuslimCharity),

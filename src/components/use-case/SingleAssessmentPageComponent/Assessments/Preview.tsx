@@ -76,8 +76,8 @@ const Preview: FC<IProps> = ({ status, showModeAndBackBtn = true, assessmentedBy
                     </div>
                 </> : null}
                 {assessmentedBy ? <><div className="flex flex-col gap-2">
-                    <p className="text-sm font-bold">Assessmented By: {capitalizeWords(assessmentedBy.name)}</p>
-                    <p className="text-sm">{formatToReadableWithTZ(assessmentedBy.time)}</p>
+                    {assessmentedBy.name ? <p className="text-sm font-bold">Last updated by: {capitalizeWords(assessmentedBy.name)}</p> : null}
+                    <p className="text-sm">Last updated: {formatToReadableWithTZ(assessmentedBy.time)}</p>
                 </div></> : null}
 
                 <div className="flex flex-col gap-4 text-sm">

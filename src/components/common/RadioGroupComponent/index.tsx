@@ -14,7 +14,7 @@ export type RadioOption = {
 };
 
 export type RadioGroupControlledProps = {
-    label?: string;
+    label?: React.ReactNode;
     required?: boolean;
     options: RadioOption[];
     /** Current selected value */

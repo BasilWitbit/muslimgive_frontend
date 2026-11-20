@@ -14,6 +14,7 @@ import {
     SelectContent,
     SelectItem,
 } from '@/components/ui/select'
+import { CountryEnum } from '../kanban/KanbanView'
 import type { AssignmentCandidatesByRole, AssignableCharityRole, SingleCharityType } from '../kanban/KanbanView'
 import Can from '@/components/common/Can'
 import { PERMISSIONS } from '@/lib/permissions-config'
@@ -134,6 +135,24 @@ function formatDate(dateStr?: string | null): string {
     const d = new Date(dateStr)
     if (isNaN(d.getTime())) return '-'
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatCountry(country?: string | null): string {
+    if (!country) return ''
+    const normalized = country.trim().toLowerCase().replace(/[ _]+/g, '-')
+    const aliases: Record<string, keyof typeof CountryEnum> = {
+        uk: 'united-kingdom',
+        gb: 'united-kingdom',
+        'united-kingdom': 'united-kingdom',
+        us: 'united-states',
+        usa: 'united-states',
+        'united-states': 'united-states',
+        ca: 'canada',
+        canada: 'canada',
+    }
+    const key = aliases[normalized]
+    if (key) return CountryEnum[key]
+    return country.split(/[-_ ]+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 }
 
 /* ── Charity status labels ── */
@@ -462,6 +481,14 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                 {TABLE_COLUMN_HELP.charity.title}
                             </div>
                         </TableHead>
+                        <TableHead className={cn(headCell, 'w-[8%]')}>
+                            <ColumnHeadingHelp
+                                hideIcon
+                                description="Date the charity was first assigned to a team member; for charities not yet assigned, this shows when the charity record was created."
+                            >
+                                <span className="inline-block text-left leading-tight">Date<br />assigned</span>
+                            </ColumnHeadingHelp>
+                        </TableHead>
                         <TableHead className={cn(headCell, 'hidden w-[5%] text-center xl:table-cell')}>
                             <ColumnHeadingHelp hideIcon description={TABLE_COLUMN_HELP.twoPlusYears.description}>
                                 {TABLE_COLUMN_HELP.twoPlusYears.title}
@@ -586,8 +613,22 @@ const TabularView: FC<Props> = ({ charities, onRefresh, assignmentCandidatesByRo
                                             /> : null}
                                             <div className="min-w-0">
                                                 <div className="truncate font-semibold text-[#101928]" title={c.charityTitle}>{c.charityTitle}</div>
+                                                {c.country ? (
+                                                    <div className="truncate text-[10px] font-normal text-[#667085]" title={formatCountry(c.country)}>
+                                                        {formatCountry(c.country)}
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         </div>
+                                    </TableCell>
+
+                                    <TableCell className={cn(bodyCell, 'max-w-0')}>
+                                        <span
+                                            className="block truncate text-[10px] text-[#344054]"
+                                            title={formatDate(c.firstAssignedAt ?? c.createdAt)}
+                                        >
+                                            {formatDate(c.firstAssignedAt ?? c.createdAt)}
+                                        </span>
                                     </TableCell>
 
                                     <TableCell className={cn(bodyCell, 'hidden text-center xl:table-cell')}>

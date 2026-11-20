@@ -1212,7 +1212,7 @@ const SingleCharityPageComponent: FC<IProps> = ({
                         </div>
                     </PremiumSectionCard>
                 ) : null}
-            <AssessmentChangeHistory charityId={charityId} openInitially />
+            <AssessmentChangeHistory charityId={charityId} />
 
             <PremiumSectionCard
                 heading="Comments"

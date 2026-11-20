@@ -159,6 +159,8 @@ export type SingleCharityType = {
     } | null,
     /** When the charity record itself was created. */
     createdAt?: string | null,
+    /** When the first team assignment was created. */
+    firstAssignedAt?: string | null,
     /** When each Core Area's assessment was first started (that area's own createdAt). */
     assessmentStartedAt?: {
         core1?: string | null

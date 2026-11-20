@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { UserPlus, Users } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { SingleCharityType } from '../kanban/KanbanView'
 import {
     CHARITY_ASSIGNABLE_ROLES,
@@ -32,22 +33,48 @@ const CharityTeamPopover: FC<Props> = ({
     const memberCount = members.length
 
     return (
-        <Popover>
-            <PopoverTrigger asChild>
-                <button
-                    className="flex max-w-full items-center gap-1 overflow-hidden whitespace-nowrap rounded-full border border-[#DDE7F3] bg-white px-2 py-0.5 text-[9px] font-semibold text-[#344054] shadow-sm transition-colors hover:border-[#BFD7F8] hover:bg-[#F8FBFF]"
-                    onClick={(e) => e.stopPropagation()}
+        <Tooltip>
+            <Popover>
+                <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                        <button
+                            aria-label={memberCount > 0 ? `View ${memberCount} assigned team members` : 'View assigned team members'}
+                            className="flex max-w-full items-center gap-1 overflow-hidden whitespace-nowrap rounded-full border border-[#DDE7F3] bg-white px-2 py-0.5 text-[9px] font-semibold text-[#344054] shadow-sm transition-colors hover:border-[#BFD7F8] hover:bg-[#F8FBFF]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Users className="h-3 w-3 shrink-0 text-[#266DD3]" />
+                            <span className="truncate">
+                                {memberCount > 0
+                                    ? `${memberCount} member${memberCount !== 1 ? 's' : ''}`
+                                    : canAssignAny
+                                        ? 'Assign'
+                                        : 'None'}
+                            </span>
+                        </button>
+                    </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent
+                    side="bottom"
+                    align="start"
+                    sideOffset={8}
+                    className="max-w-64 border border-[#DDE7F3] bg-white p-0 text-[#101928] shadow-[0_12px_32px_rgba(15,23,42,0.16)]"
                 >
-                    <Users className="h-3 w-3 shrink-0 text-[#266DD3]" />
-                    <span className="truncate">
-                        {memberCount > 0
-                            ? `${memberCount} member${memberCount !== 1 ? 's' : ''}`
-                            : canAssignAny
-                                ? 'Assign'
-                                : 'None'}
-                    </span>
-                </button>
-            </PopoverTrigger>
+                    <div className="border-b border-[#EEF2F6] px-3 py-2 text-[11px] font-semibold text-[#344054]">
+                        Assigned team members
+                    </div>
+                    {memberCount ? (
+                        <div className="flex flex-col gap-1 px-3 py-2">
+                            {members.map((member, index) => (
+                                <div key={`${member.id}-${member.role}-${index}`} className="flex items-center justify-between gap-4">
+                                    <span className="truncate text-xs font-medium">{member.name}</span>
+                                    <span className="shrink-0 text-[10px] text-[#667085]">{formatMemberRole(member.role)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="px-3 py-2 text-xs text-[#667085]">No team members assigned yet.</p>
+                    )}
+                </TooltipContent>
             <PopoverContent className="w-72 overflow-hidden rounded-2xl border-[#E8EEF5] p-0 shadow-[0_18px_50px_rgba(15,23,42,0.12)]" align="start" onClick={(e) => e.stopPropagation()}>
                 <div className="border-b border-[#E8EEF5] bg-gradient-to-br from-[#F8FBFF] to-white px-3 py-2.5">
                     <span className="text-xs font-semibold text-[#101928]">Team Members</span>
@@ -131,7 +158,8 @@ const CharityTeamPopover: FC<Props> = ({
                     </div>
                 ) : null}
             </PopoverContent>
-        </Popover>
+            </Popover>
+        </Tooltip>
     )
 }
 

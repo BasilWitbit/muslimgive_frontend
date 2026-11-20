@@ -118,6 +118,8 @@ const CharitiesPageComponent: React.FC<CharitiesPageComponentProps> = ({ assignm
         comments: c.commentsCount || 0,
         assessmentsCompleted: (c.reviews?.summary?.completed || 0) as any,
         status: c.status || 'unassigned',
+        createdAt: c.createdAt ?? null,
+        firstAssignedAt: c.firstAssignedAt ?? null,
         category: c.category ?? null,
         reassessmentCycle: c.reassessmentCycle ?? 0,
         overallScorePercent: c.overallScorePercent ?? null,
